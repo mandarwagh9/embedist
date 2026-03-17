@@ -1,0 +1,107 @@
+import { create } from 'zustand';
+
+export interface Tab {
+  id: string;
+  title: string;
+  path: string;
+  modified: boolean;
+}
+
+export interface SerialPort {
+  path: string;
+  friendlyName?: string;
+}
+
+interface UIState {
+  // Sidebar
+  sidebarExpanded: boolean;
+  sidebarSection: 'files' | 'search' | 'ai' | 'serial' | 'build';
+  
+  // Tabs
+  tabs: Tab[];
+  activeTabId: string | null;
+  
+  // Panels
+  bottomPanelHeight: number;
+  bottomPanelVisible: boolean;
+  bottomPanelTab: 'terminal' | 'ai' | 'build';
+  
+  // Serial
+  serialConnected: boolean;
+  serialPort: string | null;
+  serialBaudRate: number;
+  
+  // Build
+  buildRunning: boolean;
+  
+  // Actions
+  setSidebarExpanded: (expanded: boolean) => void;
+  setSidebarSection: (section: UIState['sidebarSection']) => void;
+  openTab: (tab: Tab) => void;
+  closeTab: (id: string) => void;
+  setActiveTab: (id: string) => void;
+  setBottomPanelHeight: (height: number) => void;
+  toggleBottomPanel: () => void;
+  setBottomPanelTab: (tab: UIState['bottomPanelTab']) => void;
+  setSerialConnected: (connected: boolean) => void;
+  setSerialPort: (port: string | null) => void;
+  setSerialBaudRate: (rate: number) => void;
+  setBuildRunning: (running: boolean) => void;
+}
+
+export const useUIStore = create<UIState>((set) => ({
+  // Sidebar
+  sidebarExpanded: false,
+  sidebarSection: 'files',
+  
+  // Tabs
+  tabs: [],
+  activeTabId: null,
+  
+  // Panels
+  bottomPanelHeight: 280,
+  bottomPanelVisible: false,
+  bottomPanelTab: 'terminal',
+  
+  // Serial
+  serialConnected: false,
+  serialPort: null,
+  serialBaudRate: 115200,
+  
+  // Build
+  buildRunning: false,
+  
+  // Actions
+  setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
+  setSidebarSection: (section) => set({ sidebarSection: section }),
+  
+  openTab: (tab) => set((state) => {
+    const exists = state.tabs.find(t => t.path === tab.path);
+    if (exists) {
+      return { activeTabId: exists.id };
+    }
+    return {
+      tabs: [...state.tabs, tab],
+      activeTabId: tab.id,
+    };
+  }),
+  
+  closeTab: (id) => set((state) => {
+    const newTabs = state.tabs.filter(t => t.id !== id);
+    let newActiveId = state.activeTabId;
+    if (state.activeTabId === id) {
+      const idx = state.tabs.findIndex(t => t.id === id);
+      newActiveId = newTabs[Math.max(0, idx - 1)]?.id || null;
+    }
+    return { tabs: newTabs, activeTabId: newActiveId };
+  }),
+  
+  setActiveTab: (id) => set({ activeTabId: id }),
+  setBottomPanelHeight: (height) => set({ bottomPanelHeight: height }),
+  toggleBottomPanel: () => set((state) => ({ bottomPanelVisible: !state.bottomPanelVisible })),
+  setBottomPanelTab: (tab) => set({ bottomPanelTab: tab, bottomPanelVisible: true }),
+  setSerialConnected: (connected) => set({ serialConnected: connected }),
+  setSerialPort: (port) => set({ serialPort: port }),
+  setSerialBaudRate: (rate) => set({ serialBaudRate: rate }),
+  setBuildRunning: (running) => set({ buildRunning: running }),
+}));

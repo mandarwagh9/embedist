@@ -1,0 +1,17 @@
+.code-editor {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.code-editor .monaco-editor {
+  padding-top: var(--space-xs);
+}
+
+.code-editor .monaco-editor .margin {
+  background: var(--bg-primary) !important;
+}
+
+.code-editor .monaco-editor .monaco-scrollable-element > .scrollbar > .slider {
+  background: var(--border-active);
+}
