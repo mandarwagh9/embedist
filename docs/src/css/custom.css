@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --ifm-color-primary: #e94560;
+  --ifm-color-primary-dark: #d13d56;
+  --ifm-color-primary-darker: #c6364f;
+  --ifm-color-primary-darkest: #a82d42;
+  --ifm-color-primary-light: #ef4d6f;
+  --ifm-color-primary-lighter: #f15479;
+  --ifm-color-primary-lightest: #f67c91;
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-navbar-background-color: #1a1a2e;
+  --ifm-footer-background-color: #16213e;
+}
+
+[data-theme='dark'] {
+  --ifm-background-color: #1a1a2e;
+  --ifm-background-surface-color: #16213e;
+}
+
+.navbar {
+  border-bottom: 1px solid #0f3460;
+}
+
+.sidebar {
+  background: #16213e;
+}
