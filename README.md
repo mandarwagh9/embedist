@@ -152,6 +152,12 @@ embedist/
 - Build/Upload commands are mocked (coming in v0.3.0)
 - Serial monitor requires Chromium-based browser features
 
+## Acknowledgments
+
+Thanks to **[Jiya Mehta](https://github.com/JiyaMehta-6)** for brainstorming the concept and helping shape Embedist's vision.
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](docs/development/contributing.md).
