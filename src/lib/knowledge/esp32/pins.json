@@ -1,0 +1,68 @@
+{
+  "board": "ESP32",
+  "variants": ["ESP32 Dev Module", "ESP32-WROOM-32", "ESP32-WROVER", "ESP32-S3", "ESP32-C3", "ESP32-C6", "ESP32-H2"],
+  "pins": {
+    "I2C": {
+      "default": { "SDA": 21, "SCL": 22 },
+      "alternative": { "SDA": 25, "SCL": 26 }
+    },
+    "SPI": {
+      "default": { "MOSI": 23, "MISO": 19, "SCK": 18, "SS": 5 },
+      "VSPI": { "MOSI": 23, "MISO": 19, "SCK": 18, "SS": 5 },
+      "HSPI": { "MOSI": 13, "MISO": 12, "SCK": 14, "SS": 15 }
+    },
+    "UART": {
+      "default": { "TX": 1, "RX": 3 },
+      "UART1": { "TX": 10, "RX": 9 },
+      "UART2": { "TX": 17, "RX": 16 }
+    },
+    "PWM": {
+      "channels": 16,
+      "pins": [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33]
+    },
+    "ADC": {
+      "ADC1": [32, 33, 34, 35, 36, 37, 38, 39],
+      "ADC2": [0, 2, 4, 12, 13, 14, 15, 25, 26, 27]
+    },
+    "DAC": {
+      "DAC1": 25,
+      "DAC2": 26
+    },
+    "Touch": {
+      "T0": 4,
+      "T1": 0,
+      "T2": 2,
+      "T3": 15,
+      "T4": 13,
+      "T5": 12,
+      "T6": 14,
+      "T7": 27,
+      "T8": 33,
+      "T9": 32
+    },
+    "LED": {
+      "BUILTIN": 2
+    }
+  },
+  "memory": {
+    "flash": "4MB - 16MB",
+    "ram": "520KB",
+    "psram": "0 - 8MB"
+  },
+  "specifications": {
+    "cpu": "Xtensa LX6 Dual-Core",
+    "frequency": "240MHz",
+    "voltage": "3.3V",
+    "wifi": "802.11 b/g/n",
+    "bluetooth": "BLE 4.2",
+    "gpio": 34,
+    "timers": 4,
+    "pwm_channels": 16,
+    "uart": 3,
+    "spi": 2,
+    "i2c": 2,
+    "can": 1,
+    "adc_channels": 18,
+    "dac_channels": 2
+  }
+}

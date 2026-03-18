@@ -1,0 +1,137 @@
+[
+  {
+    "id": "esp32_001",
+    "pattern": "Guru Meditation Error: Core panic",
+    "category": "panic",
+    "severity": "critical",
+    "cause": "Fatal error, stack overflow, or invalid memory access",
+    "solution": "Check for infinite recursion, stack overflow, or null pointer access. Increase stack size in platformio.ini with build_flags = -DCORE_DEBUG_LEVEL=3",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_002",
+    "pattern": "Brownout detector was triggered",
+    "category": "hardware",
+    "severity": "high",
+    "cause": "Power supply insufficient or unstable",
+    "solution": "Use a better quality USB cable with data wires. Connect to a powered USB hub or external 5V power supply. Check USB cable for broken data wires.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_003",
+    "pattern": "Failed to connect to ESP32",
+    "category": "upload",
+    "severity": "high",
+    "cause": "Board not in flashing mode or wrong COM port",
+    "solution": "Hold BOOT button, press and release EN/RST button, then release BOOT button. Select correct COM port. Install CP210x USB drivers.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_004",
+    "pattern": "Timed out waiting for packet header",
+    "category": "upload",
+    "severity": "high",
+    "cause": "Sync failure during flashing",
+    "solution": "Press and hold BOOT button while starting upload. Try different USB cable. Lower upload speed in platformio.ini.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_005",
+    "pattern": "abort() was called",
+    "category": "panic",
+    "severity": "critical",
+    "cause": "Assert failed or severe error",
+    "solution": "Enable core dump with esp_exception_tracker. Check serial output for panic details. Review code for assert() calls.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_006",
+    "pattern": "StoreProhibited",
+    "category": "panic",
+    "severity": "critical",
+    "cause": "Attempted to access flash or protected memory from interrupt",
+    "solution": "Don't use flash functions (SPI, flash read/write) from ISR. Move flash operations to main task. Use xTaskNotifyFromISR instead of direct flash access.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_007",
+    "pattern": "LoadProhibited",
+    "category": "panic",
+    "severity": "critical",
+    "cause": "Invalid memory read or null pointer dereference",
+    "solution": "Check for uninitialized pointers. Validate array bounds. Ensure variables are properly allocated.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_008",
+    "pattern": "LoadStoreError",
+    "category": "panic",
+    "severity": "critical",
+    "cause": "Invalid load or store operation",
+    "solution": "Check alignment of data structures. Ensure buffers are properly aligned for DMA.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_009",
+    "pattern": "Unhandled timer interrupt",
+    "category": "interrupt",
+    "severity": "high",
+    "cause": "Timer ISR not properly configured",
+    "solution": "Use esp_timer API instead of legacy timer. Ensure ISR is declared with IRAM_ATTR. Disable interrupts during critical sections.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_010",
+    "pattern": "Watchdog timeout",
+    "category": "watchdog",
+    "severity": "medium",
+    "cause": "Task blocked too long without yielding",
+    "solution": "Add vTaskDelay() or yield() in long loops. Break long operations into smaller chunks. Feed the watchdog in your task.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_011",
+    "pattern": "i2c: ESP_ERR_TIMEOUT",
+    "category": "i2c",
+    "severity": "medium",
+    "cause": "I2C device not responding or wrong address",
+    "solution": "Verify device address with I2C scanner. Check SDA/SCL connections. Add pull-up resistors (4.7K-10K). Ensure correct pull-up voltage.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_012",
+    "pattern": "WiFi disconnect",
+    "category": "wifi",
+    "severity": "medium",
+    "cause": "Connection lost or authentication failed",
+    "solution": "Verify SSID and password. Check signal strength. Ensure WiFi channel is supported. Disable WiFi sleep mode for stable connection.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_013",
+    "pattern": "BT controller reset",
+    "category": "bluetooth",
+    "severity": "medium",
+    "cause": "Bluetooth initialization failed",
+    "solution": "Ensure BT/BLE is enabled in sdkconfig. Check power supply can handle BT current peaks. Reduce BLE connection parameters.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_014",
+    "pattern": "E (XXX) tag",
+    "category": "memory",
+    "severity": "medium",
+    "cause": "Out of memory, failed allocation",
+    "solution": "Reduce buffer sizes. Free unused memory. Use static allocation instead of dynamic. Check for memory leaks.",
+    "board": "ESP32"
+  },
+  {
+    "id": "esp32_015",
+    "pattern": "Booting flash failed",
+    "category": "boot",
+    "severity": "critical",
+    "cause": "Corrupted firmware or flash error",
+    "solution": "Erase flash with esptool.py. Reflash bootloader. Ensure adequate power during flashing.",
+    "board": "ESP32"
+  }
+]

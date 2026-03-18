@@ -1,0 +1,137 @@
+[
+  {
+    "id": "common_001",
+    "pattern": "segmentation fault",
+    "category": "memory",
+    "severity": "critical",
+    "cause": "Invalid pointer, null dereference, or buffer overflow",
+    "solution": "Validate all pointers before use. Check array bounds. Use debugger or serial output to identify crash location.",
+    "board": "All"
+  },
+  {
+    "id": "common_002",
+    "pattern": "stack overflow",
+    "category": "memory",
+    "severity": "critical",
+    "cause": "Too large local variables, deep recursion, or insufficient stack size",
+    "solution": "Reduce local buffer sizes. Convert to dynamic allocation or global variables. Check for infinite recursion. Increase stack size if using RTOS.",
+    "board": "All"
+  },
+  {
+    "id": "common_003",
+    "pattern": "heap fragmentation",
+    "category": "memory",
+    "severity": "medium",
+    "cause": "Repeated allocation/deallocation of varying sizes",
+    "solution": "Use static allocation. Pool similar-sized objects. Pre-allocate buffers. Consider custom allocator.",
+    "board": "All"
+  },
+  {
+    "id": "common_004",
+    "pattern": "infinite loop",
+    "category": "logic",
+    "severity": "high",
+    "cause": "Missing exit condition or increment in wrong place",
+    "solution": "Add debug prints. Verify loop conditions. Ensure loop variable is incremented/modified correctly.",
+    "board": "All"
+  },
+  {
+    "id": "common_005",
+    "pattern": "race condition",
+    "category": "concurrency",
+    "severity": "high",
+    "cause": "Concurrent access to shared resources without synchronization",
+    "solution": "Use mutexes/semaphores. Disable interrupts during critical sections. Use atomic operations for simple variables.",
+    "board": "All"
+  },
+  {
+    "id": "common_006",
+    "pattern": "deadlock",
+    "category": "concurrency",
+    "severity": "critical",
+    "cause": "Circular wait on locks or resources",
+    "solution": "Always acquire locks in same order. Use timeouts on lock attempts. Avoid nested locks when possible.",
+    "board": "All"
+  },
+  {
+    "id": "common_007",
+    "pattern": "bus error",
+    "category": "hardware",
+    "severity": "critical",
+    "cause": "Misaligned memory access or bus timeout",
+    "solution": "Ensure data alignment for DMA operations. Check peripheral connections. Verify bus timing.",
+    "board": "All"
+  },
+  {
+    "id": "common_008",
+    "pattern": "hard fault",
+    "category": "panic",
+    "severity": "critical",
+    "cause": "Invalid memory access or undefined instruction on ARM",
+    "solution": "Enable fault handlers. Check stack pointer. Validate pointer arithmetic. Use MPU if available.",
+    "board": "ARM (ESP32, STM32, Due)"
+  },
+  {
+    "id": "common_009",
+    "pattern": "integer overflow",
+    "category": "logic",
+    "severity": "medium",
+    "cause": "Math operation exceeds data type range",
+    "solution": "Use larger data types (long, unsigned long). Check for overflow before operations. Use saturation arithmetic if appropriate.",
+    "board": "All"
+  },
+  {
+    "id": "common_010",
+    "pattern": "floating point exception",
+    "category": "math",
+    "severity": "high",
+    "cause": "Division by zero or invalid floating point operation",
+    "solution": "Check divisors before division. Validate input ranges. Consider fixed-point math for critical operations.",
+    "board": "All"
+  },
+  {
+    "id": "common_011",
+    "pattern": "buffer overflow",
+    "category": "memory",
+    "severity": "critical",
+    "cause": "Writing beyond array bounds",
+    "solution": "Always check array bounds. Use safe string functions (strncpy, snprintf). Consider using std::vector or safe string libraries.",
+    "board": "All"
+  },
+  {
+    "id": "common_012",
+    "pattern": "uninitialized variable",
+    "category": "logic",
+    "severity": "medium",
+    "cause": "Variable used before being assigned a value",
+    "solution": "Initialize variables on declaration. Enable compiler warnings (-Wall). Set default values in setup().",
+    "board": "All"
+  },
+  {
+    "id": "common_013",
+    "pattern": "spurious interrupt",
+    "category": "interrupt",
+    "severity": "medium",
+    "cause": "Interrupt triggered without expected source",
+    "solution": "Clear interrupt flags in handler. Add debouncing for GPIO. Verify interrupt enable settings.",
+    "board": "All"
+  },
+  {
+    "id": "common_014",
+    "pattern": "glitchy output",
+    "category": "signal",
+    "severity": "medium",
+    "cause": "Timing issues, power supply noise, or signal reflection",
+    "solution": "Add decoupling capacitors (0.1uF) near power pins. Use proper grounding. Add pull-up/pull-down resistors.",
+    "board": "All"
+  },
+  {
+    "id": "common_015",
+    "pattern": "sensor reading stuck",
+    "category": "sensor",
+    "severity": "medium",
+    "cause": "I2C/SPI bus hang or sensor unresponsive",
+    "solution": "Implement bus timeout. Add watchdog. Reset sensor in code. Check power supply to sensor.",
+    "board": "All"
+  }
+]

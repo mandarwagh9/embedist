@@ -1,0 +1,219 @@
+{
+  "boards": {
+    "uno_r3": {
+      "name": "Arduino Uno R3",
+      "mcu": "ATmega328P",
+      "voltage": "5V",
+      "frequency": "16MHz",
+      "pins": {
+        "digital": {
+          "total": 14,
+          "pwm": [3, 5, 6, 9, 10, 11],
+          "interrupt": [2, 3],
+          "spi": { "MOSI": 11, "MISO": 12, "SCK": 13, "SS": 10 }
+        },
+        "analog": {
+          "total": 6,
+          "pins": [0, 1, 2, 3, 4, 5]
+        },
+        "i2c": { "SDA": 18, "SCL": 19 },
+        "uart": { "TX": 1, "RX": 0 }
+      },
+      "memory": {
+        "flash": "32KB",
+        "sram": "2KB",
+        "eeprom": "1KB"
+      }
+    },
+    "nano": {
+      "name": "Arduino Nano",
+      "mcu": "ATmega328P",
+      "voltage": "5V",
+      "frequency": "16MHz",
+      "pins": {
+        "digital": {
+          "total": 14,
+          "pwm": [3, 5, 6, 9, 10, 11],
+          "interrupt": [2, 3],
+          "spi": { "MOSI": 11, "MISO": 12, "SCK": 13, "SS": 10 }
+        },
+        "analog": {
+          "total": 8,
+          "pins": [0, 1, 2, 3, 4, 5, 6, 7]
+        },
+        "i2c": { "SDA": 18, "SCL": 19 },
+        "uart": { "TX": 1, "RX": 0 }
+      },
+      "memory": {
+        "flash": "32KB",
+        "sram": "2KB",
+        "eeprom": "1KB"
+      }
+    },
+    "mega2560": {
+      "name": "Arduino Mega 2560",
+      "mcu": "ATmega2560",
+      "voltage": "5V",
+      "frequency": "16MHz",
+      "pins": {
+        "digital": {
+          "total": 54,
+          "pwm": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46],
+          "interrupt": [2, 3, 21, 20, 19, 18, 17, 16]
+        },
+        "analog": {
+          "total": 16,
+          "pins": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        },
+        "i2c": { "SDA": 20, "SCL": 21 },
+        "uart": {
+          "serial0": { "TX": 1, "RX": 0 },
+          "serial1": { "TX": 18, "RX": 19 },
+          "serial2": { "TX": 16, "RX": 17 },
+          "serial3": { "TX": 14, "RX": 15 }
+        },
+        "spi": { "MOSI": 51, "MISO": 50, "SCK": 52, "SS": 53 }
+      },
+      "memory": {
+        "flash": "256KB",
+        "sram": "8KB",
+        "eeprom": "4KB"
+      }
+    },
+    "leonardo": {
+      "name": "Arduino Leonardo",
+      "mcu": "ATmega32U4",
+      "voltage": "5V",
+      "frequency": "16MHz",
+      "pins": {
+        "digital": {
+          "total": 20,
+          "pwm": [3, 5, 6, 9, 10, 11, 13],
+          "interrupt": [0, 1, 2, 3, 7]
+        },
+        "analog": {
+          "total": 12,
+          "pins": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        },
+        "i2c": { "SDA": 2, "SCL": 3 },
+        "spi": { "MOSI": 16, "MISO": 14, "SCK": 15, "SS": 17 }
+      },
+      "memory": {
+        "flash": "32KB",
+        "sram": "2.5KB",
+        "eeprom": "1KB"
+      }
+    },
+    "due": {
+      "name": "Arduino Due",
+      "mcu": "SAM3X8E",
+      "voltage": "3.3V",
+      "frequency": "84MHz",
+      "pins": {
+        "digital": {
+          "total": 54,
+          "pwm": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+          "interrupt": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+        },
+        "analog": {
+          "total": 12,
+          "pins": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        },
+        "i2c": { "SDA": 20, "SCL": 21 },
+        "uart": {
+          "serial": { "TX": 1, "RX": 0 },
+          "serial1": { "TX": 19, "RX": 18 },
+          "serial2": { "TX": 17, "RX": 16 }
+        },
+        "spi": { "MOSI": 75, "MISO": 74, "SCK": 76, "SS": 73 },
+        "dac": { "DAC0": 66, "DAC1": 67 }
+      },
+      "memory": {
+        "flash": "512KB",
+        "sram": "96KB",
+        "eeprom": "0KB"
+      }
+    },
+    "mkr_zero": {
+      "name": "Arduino MKR Zero",
+      "mcu": "SAMD21",
+      "voltage": "3.3V",
+      "frequency": "48MHz",
+      "pins": {
+        "digital": {
+          "total": 22,
+          "pwm": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 19],
+          "interrupt": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19]
+        },
+        "analog": {
+          "total": 7,
+          "pins": [0, 1, 2, 3, 4, 5, 6]
+        },
+        "i2c": { "SDA": 11, "SCL": 12 },
+        "spi": { "MOSI": 8, "MISO": 10, "SCK": 9, "SS": 14 },
+        "uart": { "TX": 13, "RX": 14 }
+      },
+      "memory": {
+        "flash": "256KB",
+        "sram": "32KB",
+        "eeprom": "0KB"
+      }
+    },
+    "nano_33_ble": {
+      "name": "Arduino Nano 33 BLE",
+      "mcu": "nRF52840",
+      "voltage": "3.3V",
+      "frequency": "64MHz",
+      "pins": {
+        "digital": {
+          "total": 48,
+          "pwm": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+          "interrupt": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        },
+        "analog": {
+          "total": 8,
+          "pins": [0, 1, 2, 3, 4, 5, 6, 7]
+        },
+        "i2c": { "SDA": 22, "SCL": 23 },
+        "spi": { "MOSI": 16, "MISO": 14, "SCK": 15, "SS": 13 },
+        "uart": { "TX": 6, "RX": 8 }
+      },
+      "memory": {
+        "flash": "1MB",
+        "sram": "256KB"
+      }
+    },
+    "portenta_h7": {
+      "name": "Arduino Portenta H7",
+      "mcu": "STM32H747",
+      "voltage": "3.3V",
+      "frequency": "480MHz",
+      "pins": {
+        "digital": {
+          "total": 76,
+          "pwm": "multiple",
+          "interrupt": "multiple"
+        },
+        "analog": {
+          "total": 18,
+          "pins": "A0-A17"
+        },
+        "i2c": {
+          "i2c1": { "SDA": "D14", "SCL": "D15" },
+          "i2c3": { "SDA": "D17", "SCL": "D16" }
+        },
+        "spi": {
+          "spi": { "MOSI": "D11", "MISO": "D12", "SCK": "D13", "SS": "D10" }
+        },
+        "uart": {
+          "serial": { "TX": "D0", "RX": "D1" },
+          "serial1": { "TX": "D14", "RX": "D13" }
+        }
+      },
+      "memory": {
+        "flash": "2MB",
+        "sram": "1MB"
+      }
+    }
+  }
+}

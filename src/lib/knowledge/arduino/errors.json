@@ -1,0 +1,164 @@
+[
+  {
+    "id": "arduino_001",
+    "pattern": "avrdude: stk500_recv(): programmer is not responding",
+    "category": "upload",
+    "severity": "high",
+    "cause": "Bootloader missing or corrupted, wrong board selected, or COM port issue",
+    "solution": "Select correct board and COM port. Press reset button before uploading. Re-burn bootloader using ISP programmer. Check USB cable has data wires.",
+    "board": "Arduino (AVR)"
+  },
+  {
+    "id": "arduino_002",
+    "pattern": "avrdude: verification error; content mismatch",
+    "category": "upload",
+    "severity": "high",
+    "cause": "Flash write failed, insufficient power, or corrupted bootloader",
+    "solution": "Use a different USB port or cable. Ensure adequate power supply. Re-burn bootloader.",
+    "board": "Arduino (AVR)"
+  },
+  {
+    "id": "arduino_003",
+    "pattern": "Sketch too big",
+    "category": "memory",
+    "severity": "high",
+    "cause": "Program exceeds flash memory",
+    "solution": "Enable compiler optimizations (-Os). Remove unused libraries. Use PROGMEM for constant data. Consider larger board.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_004",
+    "pattern": "does not name a type",
+    "category": "compilation",
+    "severity": "medium",
+    "cause": "Missing header file, typo in type name, or missing library",
+    "solution": "Include required header files. Check spelling and case. Install missing library via Library Manager.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_005",
+    "pattern": "was not declared in this scope",
+    "category": "compilation",
+    "severity": "medium",
+    "cause": "Function or variable not declared, wrong scope, or typo",
+    "solution": "Declare functions before use. Check variable scope. Verify function names match.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_006",
+    "pattern": "'Ticker' does not name a type",
+    "category": "library",
+    "severity": "medium",
+    "cause": "Ticker library not installed or not included",
+    "solution": "Install Ticker library via Library Manager: Sketch > Include Library > Ticker. Or use ESP32-specific Ticker.h",
+    "board": "ESP32"
+  },
+  {
+    "id": "arduino_007",
+    "pattern": "Wire.endTransmission()",
+    "category": "i2c",
+    "severity": "medium",
+    "cause": "I2C device not found or wrong address",
+    "solution": "Run I2C scanner to find device address. Check connections. Add pull-up resistors (4.7K-10K). Verify device supports I2C.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_008",
+    "pattern": "SPI.h: No such file or directory",
+    "category": "library",
+    "severity": "medium",
+    "cause": "SPI library not available for this board",
+    "solution": "Ensure board supports SPI. Include SPI.h correctly. For ESP32, use SPI.h from Espressif framework.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_009",
+    "pattern": "low memory available, stability problems may occur",
+    "category": "memory",
+    "severity": "high",
+    "cause": "Stack/heap collision or insufficient SRAM",
+    "solution": "Reduce buffer sizes. Avoid using String class. Move constants to PROGMEM. Use F() macro for Serial.print.",
+    "board": "Arduino (AVR)"
+  },
+  {
+    "id": "arduino_010",
+    "pattern": "exit status 1",
+    "category": "compilation",
+    "severity": "high",
+    "cause": "Generic compilation error",
+    "solution": "Scroll up in error output to find actual error message. Common causes: missing semicolons, undeclared variables, type mismatches.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_011",
+    "pattern": "invalid conversion from 'const char*' to 'char*'",
+    "category": "compilation",
+    "severity": "medium",
+    "cause": "Type mismatch in function call",
+    "solution": "Add const keyword or use strcpy(). Check function signature and parameter types.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_012",
+    "pattern": "collect2.exe: error: ld returned 1 exit status",
+    "category": "linking",
+    "severity": "high",
+    "cause": "Linker error, duplicate symbols, or undefined reference",
+    "solution": "Check for multiple definitions of functions/variables. Ensure all library source files are included. Remove conflicting library versions.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_013",
+    "pattern": "core.a(main.cpp.o): undefined reference to 'setup'",
+    "category": "linking",
+    "severity": "critical",
+    "cause": "setup() or loop() functions not defined",
+    "solution": "Ensure setup() and loop() functions are defined in your sketch. Check for typos in function names.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_014",
+    "pattern": "Serial port not found",
+    "category": "hardware",
+    "severity": "medium",
+    "cause": "Board not connected, wrong port, or driver not installed",
+    "solution": "Check USB connection. Install CH340/FTDI drivers. Select correct COM port. Try different USB cable.",
+    "board": "Arduino (clone)"
+  },
+  {
+    "id": "arduino_015",
+    "pattern": "YunShield/Galileo",
+    "category": "platform",
+    "severity": "medium",
+    "cause": "Incompatible board configuration",
+    "solution": "This board uses Linux processor. Some libraries may not be compatible. Check library documentation for board support.",
+    "board": "Arduino Yún"
+  },
+  {
+    "id": "arduino_016",
+    "pattern": "F() macro",
+    "category": "memory",
+    "severity": "low",
+    "cause": "Using F() macro incorrectly",
+    "solution": "F() stores strings in flash memory: Serial.println(F(\"Hello\")). Don't use F() with variables.",
+    "board": "Arduino (AVR)"
+  },
+  {
+    "id": "arduino_017",
+    "pattern": "digitalRead/analogRead returns 255 or -1",
+    "category": "hardware",
+    "severity": "medium",
+    "cause": "Wrong pin mode not set, or ADC not configured",
+    "solution": "Set pinMode(pin, INPUT) for digitalRead. For analogRead, ensure pin is ADC-capable. Check board pin capabilities.",
+    "board": "Arduino"
+  },
+  {
+    "id": "arduino_018",
+    "pattern": "tone() frequency not working",
+    "category": "pwm",
+    "severity": "low",
+    "cause": "Wrong pin or timer conflict",
+    "solution": "Tone only works on pins with timer support (usually pins 3, 5, 6, 9, 10, 11 on Uno). Check board specifications.",
+    "board": "Arduino (AVR)"
+  }
+]
