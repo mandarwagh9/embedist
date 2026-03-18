@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useUIStore } from './stores/uiStore';
+import { useSettingsStore } from './stores/settingsStore';
 import { TitleBar } from './components/Layout/TitleBar';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TabBar } from './components/Layout/TabBar';
@@ -6,12 +8,37 @@ import { StatusBar } from './components/Layout/StatusBar';
 import { BottomPanel } from './components/Layout/BottomPanel';
 import { CodeEditor } from './components/Editor/CodeEditor';
 import { FileExplorer } from './components/FileExplorer/FileExplorer';
+import { SettingsModal } from './components/Settings/SettingsModal';
 import './styles/global.css';
 
 function App() {
-  const { tabs, activeTabId, sidebarSection } = useUIStore();
+  const { tabs, activeTabId, sidebarSection, setBottomPanelTab, toggleBottomPanel } = useUIStore();
+  const { open: openSettings } = useSettingsStore();
   
   const activeTab = tabs.find(t => t.id === activeTabId);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+, or Ctrl+K to open settings
+      if ((e.ctrlKey || e.metaKey) && (e.key === ',' || e.key === 'k')) {
+        e.preventDefault();
+        openSettings();
+      }
+      // Ctrl+B to toggle bottom panel
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleBottomPanel();
+      }
+      // Ctrl+Shift+B to open build panel
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        setBottomPanelTab('build');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab]);
 
   const getDefaultCode = () => {
     return `// Welcome to Embedist
@@ -66,6 +93,14 @@ void loop() {
             </div>
           </div>
         );
+      case 'ai':
+        return (
+          <div className="sidebar-content">
+            <div className="sidebar-placeholder">
+              <span>AI Assistant</span>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -97,6 +132,7 @@ void loop() {
       </div>
       
       <StatusBar />
+      <SettingsModal />
     </div>
   );
 }

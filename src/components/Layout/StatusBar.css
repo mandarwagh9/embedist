@@ -29,6 +29,21 @@
   color: var(--text-primary);
 }
 
+.statusbar-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 var(--space-xs);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.statusbar-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
 .statusbar-icon {
   display: flex;
   align-items: center;

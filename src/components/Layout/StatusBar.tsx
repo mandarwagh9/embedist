@@ -1,21 +1,21 @@
 import { useUIStore } from '../../stores/uiStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import './StatusBar.css';
 
 export function StatusBar() {
   const { serialConnected, serialPort, serialBaudRate } = useUIStore();
+  const { open: openSettings } = useSettingsStore();
 
   return (
     <div className="statusbar">
       <div className="statusbar-left">
-        <div className="statusbar-item">
-          <span className="statusbar-icon">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="4" y="4" width="16" height="16" rx="2"/>
-              <path d="M9 9h6M9 12h6M9 15h4"/>
-            </svg>
-          </span>
+        <button className="statusbar-button" onClick={openSettings}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <path d="M9 9h6M9 12h6M9 15h4"/>
+          </svg>
           <span>ESP32 Dev Module</span>
-        </div>
+        </button>
         
         <div className="statusbar-item">
           <span className={`status-indicator ${serialConnected ? 'connected' : ''}`} />
@@ -30,6 +30,13 @@ export function StatusBar() {
       </div>
       
       <div className="statusbar-right">
+        <button className="statusbar-button" onClick={openSettings} title="Settings (Ctrl+,)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </button>
+        
         <div className="statusbar-item">
           <span>Ln 1, Col 1</span>
         </div>
@@ -39,12 +46,6 @@ export function StatusBar() {
         </div>
         
         <div className="statusbar-item">
-          <span className="statusbar-icon">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 6v6l4 2"/>
-            </svg>
-          </span>
           <span>OpenAI</span>
         </div>
       </div>
