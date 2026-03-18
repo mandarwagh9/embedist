@@ -3,7 +3,6 @@ import './Sidebar.css';
 
 const sidebarItems = [
   { id: 'files', icon: 'files', label: 'Explorer' },
-  { id: 'search', icon: 'search', label: 'Search' },
   { id: 'ai', icon: 'ai', label: 'AI Assistant' },
   { id: 'serial', icon: 'serial', label: 'Serial Monitor' },
   { id: 'build', icon: 'build', label: 'Build' },
@@ -13,12 +12,6 @@ const icons: Record<string, JSX.Element> = {
   files: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z"/>
-    </svg>
-  ),
-  search: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="11" cy="11" r="7"/>
-      <path d="M16 16L20 20"/>
     </svg>
   ),
   ai: (
@@ -43,24 +36,36 @@ const icons: Record<string, JSX.Element> = {
 };
 
 export function Sidebar() {
-  const { sidebarSection, setSidebarSection, sidebarExpanded, setSidebarExpanded } = useUIStore();
+  const { sidebarSection, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild } = useUIStore();
+
+  const handleClick = (id: string) => {
+    switch (id) {
+      case 'files':
+        navigateToFiles();
+        break;
+      case 'ai':
+        navigateToAI();
+        break;
+      case 'serial':
+        navigateToSerial();
+        break;
+      case 'build':
+        navigateToBuild();
+        break;
+    }
+  };
 
   return (
-    <div 
-      className={`sidebar ${sidebarExpanded ? 'expanded' : ''}`}
-      onMouseEnter={() => setSidebarExpanded(true)}
-      onMouseLeave={() => setSidebarExpanded(false)}
-    >
-      <div className="sidebar-items">
+    <div className="sidebar">
+      <div className="sidebar-icons">
         {sidebarItems.map((item) => (
           <button
             key={item.id}
-            className={`sidebar-item ${sidebarSection === item.id ? 'active' : ''}`}
-            onClick={() => setSidebarSection(item.id)}
+            className={`sidebar-icon-btn ${sidebarSection === item.id ? 'active' : ''}`}
+            onClick={() => handleClick(item.id)}
             title={item.label}
           >
-            <span className="sidebar-icon">{icons[item.icon]}</span>
-            <span className="sidebar-label">{item.label}</span>
+            {icons[item.icon]}
           </button>
         ))}
       </div>
