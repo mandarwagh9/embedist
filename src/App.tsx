@@ -5,6 +5,7 @@ import { TabBar } from './components/Layout/TabBar';
 import { StatusBar } from './components/Layout/StatusBar';
 import { BottomPanel } from './components/Layout/BottomPanel';
 import { CodeEditor } from './components/Editor/CodeEditor';
+import { FileExplorer } from './components/FileExplorer/FileExplorer';
 import './styles/global.css';
 
 function App() {
@@ -13,35 +14,61 @@ function App() {
   const activeTab = tabs.find(t => t.id === activeTabId);
 
   const getDefaultCode = () => {
-    if (sidebarSection === 'serial') {
-      return `// Serial Monitor
-// Connect your ESP32/Arduino to view output
+    return `// Welcome to Embedist
+// AI-Native Embedded Development Environment
 
 #include <Arduino.h>
 
+// Your ESP32/Arduino code here
+
 void setup() {
   Serial.begin(115200);
-  Serial.println("Hello from Embedist!");
+  Serial.println("Embedist ready!");
+  
+  // Initialize your peripherals
+  pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
-  Serial.println("Running...");
+  // Your main loop
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(1000);
+  digitalWrite(LED_BUILTIN, LOW);
   delay(1000);
 }`;
+  };
+
+  const renderSidebarContent = () => {
+    switch (sidebarSection) {
+      case 'files':
+        return <FileExplorer />;
+      case 'search':
+        return (
+          <div className="sidebar-content">
+            <div className="sidebar-placeholder">
+              <span>Search functionality</span>
+            </div>
+          </div>
+        );
+      case 'serial':
+        return (
+          <div className="sidebar-content">
+            <div className="sidebar-placeholder">
+              <span>Serial Monitor</span>
+            </div>
+          </div>
+        );
+      case 'build':
+        return (
+          <div className="sidebar-content">
+            <div className="sidebar-placeholder">
+              <span>Build Panel</span>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
-    return `// Welcome to Embedist
-// Start coding your embedded project here
-
-#include <Arduino.h>
-
-void setup() {
-  // Your setup code
-  Serial.begin(115200);
-}
-
-void loop() {
-  // Your loop code
-}`;
   };
 
   return (
@@ -50,6 +77,10 @@ void loop() {
       
       <div className="app-body">
         <Sidebar />
+        
+        <div className="app-sidebar-content">
+          {renderSidebarContent()}
+        </div>
         
         <div className="app-main">
           <TabBar />
