@@ -12,6 +12,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .manage(commands::SerialState::default())
+        .manage(commands::AIState::default())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             window.set_title("Embedist - AI-Native Embedded Development").ok();
@@ -21,6 +23,20 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::greet,
             commands::get_platform_info,
+            commands::list_serial_ports,
+            commands::get_serial_state,
+            commands::check_platformio,
+            commands::list_connected_boards,
+            commands::get_available_boards,
+            commands::run_platformio_command,
+            commands::build_project,
+            commands::upload_firmware,
+            commands::parse_build_errors,
+            commands::get_ai_providers,
+            commands::add_ai_provider,
+            commands::remove_ai_provider,
+            commands::set_active_provider,
+            commands::chat_completion,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

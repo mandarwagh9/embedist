@@ -6,6 +6,10 @@
     "core:default",
     "dialog:default",
     "fs:default",
-    "shell:default"
+    "shell:allow-open",
+    "shell:allow-execute",
+    "shell:allow-spawn",
+    "shell:allow-stdin-write",
+    "shell:allow-kill"
   ]
 }
