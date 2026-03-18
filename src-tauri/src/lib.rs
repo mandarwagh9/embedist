@@ -37,6 +37,19 @@ pub fn run() {
             commands::remove_ai_provider,
             commands::set_active_provider,
             commands::chat_completion,
+            commands::read_file,
+            commands::write_file,
+            commands::create_file,
+            commands::create_folder,
+            commands::delete_path,
+            commands::rename_path,
+            commands::list_directory,
+            commands::get_directory_tree,
+            commands::file_exists,
+            commands::is_platformio_project,
+            commands::read_platformio_board,
+            commands::get_home_dir,
+            commands::get_parent_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

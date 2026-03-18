@@ -5,11 +5,74 @@
   overflow: hidden;
 }
 
+.file-explorer.empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.file-explorer-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  border: 2px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  margin: var(--space-lg);
+  transition: all var(--transition-normal);
+}
+
+.file-explorer-dropzone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.file-explorer-dropzone svg {
+  color: var(--text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.dropzone-title {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.dropzone-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.dropzone-btn {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.dropzone-btn:hover {
+  background: var(--accent-hover);
+}
+
+.dropzone-shortcut {
+  margin-top: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .file-explorer-header {
   height: 36px;
   min-height: 36px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 var(--space-md);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -20,6 +83,21 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
+}
+
+.file-explorer-action {
+  padding: var(--space-xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.file-explorer-action:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 .file-explorer-content {

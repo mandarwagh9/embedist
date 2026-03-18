@@ -1,0 +1,320 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface FileNode {
+  id: string;
+  name: string;
+  path: string;
+  isDir: boolean;
+  isFile: boolean;
+  size: number;
+  modified?: number;
+  children?: FileNode[];
+  expanded?: boolean;
+}
+
+export interface OpenTab {
+  id: string;
+  title: string;
+  path: string;
+  modified: boolean;
+  pinned: boolean;
+  content?: string;
+}
+
+interface FileState {
+  rootPath: string | null;
+  projectName: string | null;
+  files: FileNode[];
+  openTabs: OpenTab[];
+  activeTabId: string | null;
+  fileContents: Map<string, string>;
+  originalContents: Map<string, string>;
+  isPlatformIOProject: boolean;
+  detectedBoard: string | null;
+  
+  setRootPath: (path: string | null) => void;
+  setFiles: (files: FileNode[]) => void;
+  updateFileNode: (path: string, updates: Partial<FileNode>) => void;
+  setNodeChildren: (path: string, children: FileNode[]) => void;
+  toggleExpanded: (path: string) => void;
+  
+  openFile: (path: string, content?: string) => void;
+  closeTab: (id: string) => void;
+  closeOtherTabs: (keepId: string) => void;
+  closeTabsToRight: (fromId: string) => void;
+  closeAllTabs: () => void;
+  pinTab: (id: string) => void;
+  setActiveTab: (id: string) => void;
+  
+  setFileContent: (path: string, content: string) => void;
+  saveFile: (path: string) => Promise<void>;
+  saveAllFiles: () => Promise<void>;
+  markSaved: (path: string) => void;
+  
+  setIsPlatformIOProject: (isPIO: boolean) => void;
+  setDetectedBoard: (board: string | null) => void;
+}
+
+export const useFileStore = create<FileState>()(
+  persist(
+    (set, get) => ({
+      rootPath: null,
+      projectName: null,
+      files: [],
+      openTabs: [],
+      activeTabId: null,
+      fileContents: new Map(),
+      originalContents: new Map(),
+      isPlatformIOProject: false,
+      detectedBoard: null,
+      
+      setRootPath: (path) => {
+        if (path) {
+          const parts = path.replace(/\\/g, '/').split('/');
+          const name = parts[parts.length - 1] || parts[parts.length - 2];
+          set({ rootPath: path, projectName: name });
+        } else {
+          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null });
+        }
+      },
+      
+      setFiles: (files) => set({ files }),
+      
+      updateFileNode: (path, updates) => {
+        const updateNode = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map(node => {
+            if (node.path === path) {
+              return { ...node, ...updates };
+            }
+            if (node.children) {
+              return { ...node, children: updateNode(node.children) };
+            }
+            return node;
+          });
+        };
+        set(state => ({ files: updateNode(state.files) }));
+      },
+      
+      setNodeChildren: (path, children) => {
+        const updateNode = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map(node => {
+            if (node.path === path) {
+              return { ...node, children, expanded: true };
+            }
+            if (node.children) {
+              return { ...node, children: updateNode(node.children) };
+            }
+            return node;
+          });
+        };
+        set(state => ({ files: updateNode(state.files) }));
+      },
+      
+      toggleExpanded: (path) => {
+        const updateNode = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map(node => {
+            if (node.path === path) {
+              return { ...node, expanded: !node.expanded };
+            }
+            if (node.children) {
+              return { ...node, children: updateNode(node.children) };
+            }
+            return node;
+          });
+        };
+        set(state => ({ files: updateNode(state.files) }));
+      },
+      
+      openFile: (path, content) => {
+        const state = get();
+        const existing = state.openTabs.find(t => t.path === path);
+        
+        if (existing) {
+          set({ activeTabId: existing.id });
+          return;
+        }
+        
+        const parts = path.replace(/\\/g, '/').split('/');
+        const title = parts[parts.length - 1];
+        const id = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const newTab: OpenTab = {
+          id,
+          title,
+          path,
+          modified: false,
+          pinned: false,
+          content: content || '',
+        };
+        
+        const newContents = new Map(state.fileContents);
+        const newOriginal = new Map(state.originalContents);
+        
+        if (content !== undefined) {
+          newContents.set(path, content);
+          newOriginal.set(path, content);
+        }
+        
+        set({
+          openTabs: [...state.openTabs, newTab],
+          activeTabId: id,
+          fileContents: newContents,
+          originalContents: newOriginal,
+        });
+      },
+      
+      closeTab: (id) => {
+        const state = get();
+        const tabIndex = state.openTabs.findIndex(t => t.id === id);
+        const newTabs = state.openTabs.filter(t => t.id !== id);
+        
+        let newActiveId = state.activeTabId;
+        if (state.activeTabId === id) {
+          if (newTabs.length > 0) {
+            const newIndex = Math.min(tabIndex, newTabs.length - 1);
+            newActiveId = newTabs[newIndex].id;
+          } else {
+            newActiveId = null;
+          }
+        }
+        
+        set({ openTabs: newTabs, activeTabId: newActiveId });
+      },
+      
+      closeOtherTabs: (keepId) => {
+        const state = get();
+        const keepTab = state.openTabs.find(t => t.id === keepId);
+        
+        if (keepTab) {
+          const newContents = new Map();
+          const newOriginal = new Map();
+          newContents.set(keepTab.path, state.fileContents.get(keepTab.path) || '');
+          newOriginal.set(keepTab.path, state.originalContents.get(keepTab.path) || '');
+          
+          set({
+            openTabs: [keepTab],
+            activeTabId: keepId,
+            fileContents: newContents,
+            originalContents: newOriginal,
+          });
+        }
+      },
+      
+      closeTabsToRight: (fromId) => {
+        const state = get();
+        const fromIndex = state.openTabs.findIndex(t => t.id === fromId);
+        
+        if (fromIndex >= 0) {
+          const keepTabs = state.openTabs.slice(0, fromIndex + 1);
+          const keepPaths = new Set(keepTabs.map(t => t.path));
+          
+          const newContents = new Map(state.fileContents);
+          const newOriginal = new Map(state.originalContents);
+          
+          for (const path of keepPaths) {
+            const content = state.fileContents.get(path);
+            const original = state.originalContents.get(path);
+            if (content !== undefined) newContents.set(path, content);
+            if (original !== undefined) newOriginal.set(path, original);
+          }
+          
+          set({
+            openTabs: keepTabs,
+            fileContents: newContents,
+            originalContents: newOriginal,
+          });
+        }
+      },
+      
+      closeAllTabs: () => {
+        set({
+          openTabs: [],
+          activeTabId: null,
+          fileContents: new Map(),
+          originalContents: new Map(),
+        });
+      },
+      
+      pinTab: (id) => {
+        set(state => ({
+          openTabs: state.openTabs.map(t =>
+            t.id === id ? { ...t, pinned: !t.pinned } : t
+          ),
+        }));
+      },
+      
+      setActiveTab: (id) => set({ activeTabId: id }),
+      
+      setFileContent: (path, content) => {
+        const state = get();
+        const newContents = new Map(state.fileContents);
+        const original = state.originalContents.get(path);
+        const isModified = original !== undefined && content !== original;
+        
+        newContents.set(path, content);
+        
+        set({
+          fileContents: newContents,
+          openTabs: state.openTabs.map(t =>
+            t.path === path ? { ...t, modified: isModified } : t
+          ),
+        });
+      },
+      
+      saveFile: async (path) => {
+        const content = get().fileContents.get(path);
+        if (content === undefined) return;
+        
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('write_file', { path, content });
+        
+        const newOriginal = new Map(get().originalContents);
+        newOriginal.set(path, content);
+        
+        set(state => ({
+          originalContents: newOriginal,
+          openTabs: state.openTabs.map(t =>
+            t.path === path ? { ...t, modified: false } : t
+          ),
+        }));
+      },
+      
+      saveAllFiles: async () => {
+        const state = get();
+        for (const tab of state.openTabs) {
+          if (tab.modified) {
+            await get().saveFile(tab.path);
+          }
+        }
+      },
+      
+      markSaved: (path) => {
+        const newOriginal = new Map(get().originalContents);
+        const content = get().fileContents.get(path);
+        if (content !== undefined) {
+          newOriginal.set(path, content);
+        }
+        
+        set(state => ({
+          originalContents: newOriginal,
+          openTabs: state.openTabs.map(t =>
+            t.path === path ? { ...t, modified: false } : t
+          ),
+        }));
+      },
+      
+      setIsPlatformIOProject: (isPIO) => set({ isPlatformIOProject: isPIO }),
+      setDetectedBoard: (board) => set({ detectedBoard: board }),
+    }),
+    {
+      name: 'embedist-file-store',
+      partialize: (state) => ({
+        rootPath: state.rootPath,
+        projectName: state.projectName,
+        openTabs: state.openTabs,
+        activeTabId: state.activeTabId,
+      }),
+    }
+  )
+);

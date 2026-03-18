@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useUIStore } from './stores/uiStore';
 import { useSettingsStore } from './stores/settingsStore';
+import { useFileStore } from './stores/fileStore';
 import { TitleBar } from './components/Layout/TitleBar';
+import { MenuBar } from './components/Layout/MenuBar';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TabBar } from './components/Layout/TabBar';
 import { StatusBar } from './components/Layout/StatusBar';
@@ -11,12 +13,11 @@ import { FileExplorer } from './components/FileExplorer/FileExplorer';
 import { AIChatPanel } from './components/AI/AIChatPanel';
 import { SerialMonitor } from './components/Serial/SerialMonitor';
 import { SettingsModal } from './components/Settings/SettingsModal';
+import { useFileSystem } from './hooks/useFileSystem';
 import './styles/global.css';
 
 function App() {
   const { 
-    tabs, 
-    activeTabId, 
     sidebarSection, 
     bottomPanelVisible,
     setBottomPanelTab, 
@@ -27,8 +28,19 @@ function App() {
     navigateToBuild
   } = useUIStore();
   const { open: openSettings } = useSettingsStore();
+  const { 
+    rootPath,
+    openTabs,
+    activeTabId: activeFileTabId,
+    fileContents,
+    setFileContent,
+    saveFile,
+  } = useFileStore();
+  const { openFolder } = useFileSystem();
   
-  const activeTab = tabs.find(t => t.id === activeTabId);
+  const activeFileTab = openTabs.find(t => t.id === activeFileTabId);
+  const activeContent = activeFileTab ? fileContents.get(activeFileTab.path) : undefined;
+  const hasOpenFile = activeContent !== undefined;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,15 +84,35 @@ function App() {
         toggleBottomPanel();
         return;
       }
+      
+      if (ctrl && e.key === 'o') {
+        e.preventDefault();
+        openFolder();
+        return;
+      }
+      
+      if (ctrl && e.key === 's') {
+        e.preventDefault();
+        if (activeFileTab) {
+          saveFile(activeFileTab.path);
+        }
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, activeFileTab, saveFile]);
 
   const getDefaultCode = () => {
+    if (rootPath) {
+      return '// Open a file from the explorer to start editing\n// Or create a new file with File > New File';
+    }
     return `// Welcome to Embedist
 // AI-Native Embedded Development Environment
+
+// Open a folder to get started!
+// Use File > Open Folder or Ctrl+O
 
 #include <Arduino.h>
 
@@ -96,6 +128,12 @@ void loop() {
   digitalWrite(LED_BUILTIN, LOW);
   delay(1000);
 }`;
+  };
+
+  const handleEditorChange = (value: string | undefined) => {
+    if (activeFileTab && value !== undefined) {
+      setFileContent(activeFileTab.path, value);
+    }
   };
 
   const renderSidebarContent = () => {
@@ -116,11 +154,10 @@ void loop() {
   return (
     <div className="app">
       <TitleBar />
+      <MenuBar />
       
       <div className="app-body">
-        <div className="app-sidebar">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="app-sidebar-content">
           {renderSidebarContent()}
@@ -131,8 +168,10 @@ void loop() {
           
           <div className="app-content">
             <CodeEditor 
-              value={activeTab?.path ? '' : getDefaultCode()}
+              value={activeContent !== undefined ? activeContent : getDefaultCode()}
               language="cpp"
+              onChange={handleEditorChange}
+              readOnly={!hasOpenFile}
             />
           </div>
           

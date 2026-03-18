@@ -24,6 +24,10 @@ export function AISettings() {
     }
   };
 
+  const handleSetActiveCustom = (endpointId: string) => {
+    setActiveProvider(endpointId);
+  };
+
   return (
     <div className="ai-settings">
       <div className="settings-section">
@@ -65,12 +69,47 @@ export function AISettings() {
               </div>
             </div>
           ))}
+
+          {customEndpoints.length > 0 && (
+            <>
+              <div className="provider-divider">
+                <span>Custom Endpoints</span>
+              </div>
+              {customEndpoints.map((endpoint) => (
+                <div
+                  key={endpoint.id}
+                  className={`provider-card ${activeProvider === endpoint.id ? 'active' : ''}`}
+                  onClick={() => handleSetActiveCustom(endpoint.id)}
+                >
+                  <div className="provider-card-header">
+                    <span className="provider-name">{endpoint.name}</span>
+                    {activeProvider === endpoint.id && (
+                      <span className="provider-active-badge">Active</span>
+                    )}
+                  </div>
+                  <div className="provider-card-body">
+                    <div className="provider-endpoint-url">{endpoint.baseUrl}</div>
+                    <div className="provider-endpoint-model">Model: {endpoint.model}</div>
+                    <button
+                      className="settings-btn danger small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeCustomEndpoint(endpoint.id);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-header">
-          <h3 className="settings-section-title">Custom Endpoints</h3>
+          <h3 className="settings-section-title">Add Custom Endpoint</h3>
           <button className="settings-btn" onClick={() => setShowAddCustom(!showAddCustom)}>
             {showAddCustom ? 'Cancel' : '+ Add Custom'}
           </button>
@@ -109,25 +148,6 @@ export function AISettings() {
             <button className="settings-btn primary" onClick={handleAddCustom}>
               Add Endpoint
             </button>
-          </div>
-        )}
-
-        {customEndpoints.length > 0 && (
-          <div className="custom-endpoints-list">
-            {customEndpoints.map((endpoint) => (
-              <div key={endpoint.id} className="custom-endpoint-item">
-                <div className="custom-endpoint-info">
-                  <span className="custom-endpoint-name">{endpoint.name}</span>
-                  <span className="custom-endpoint-url">{endpoint.baseUrl}</span>
-                </div>
-                <button
-                  className="settings-btn danger"
-                  onClick={() => removeCustomEndpoint(endpoint.id)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
           </div>
         )}
       </div>

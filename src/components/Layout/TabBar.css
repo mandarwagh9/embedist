@@ -58,6 +58,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tabbar-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .tabbar-tab-modified {
@@ -86,4 +97,24 @@
 .tabbar-tab-close:hover {
   background: var(--bg-surface-hover);
   color: var(--text-primary);
+}
+
+.tabbar-tab.pinned {
+  padding-left: var(--space-xs);
+}
+
+.tabbar-tab-pin {
+  width: 10px;
+  height: 10px;
+  color: var(--text-muted);
+  margin-right: var(--space-xs);
+}
+
+.tabbar-tab.pinned .tabbar-tab-close {
+  display: none;
+}
+
+.tabbar-tab.pinned:hover .tabbar-tab-close {
+  display: flex;
+  opacity: 1;
 }
