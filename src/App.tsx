@@ -8,37 +8,75 @@ import { StatusBar } from './components/Layout/StatusBar';
 import { BottomPanel } from './components/Layout/BottomPanel';
 import { CodeEditor } from './components/Editor/CodeEditor';
 import { FileExplorer } from './components/FileExplorer/FileExplorer';
+import { AIChatPanel } from './components/AI/AIChatPanel';
+import { SerialMonitor } from './components/Serial/SerialMonitor';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import './styles/global.css';
 
 function App() {
-  const { tabs, activeTabId, sidebarSection, setBottomPanelTab, toggleBottomPanel } = useUIStore();
+  const { 
+    tabs, 
+    activeTabId, 
+    sidebarSection, 
+    bottomPanelVisible,
+    setBottomPanelTab, 
+    toggleBottomPanel,
+    navigateToFiles,
+    navigateToAI,
+    navigateToSerial,
+    navigateToBuild
+  } = useUIStore();
   const { open: openSettings } = useSettingsStore();
   
   const activeTab = tabs.find(t => t.id === activeTabId);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+, or Ctrl+K to open settings
-      if ((e.ctrlKey || e.metaKey) && (e.key === ',' || e.key === 'k')) {
+      const ctrl = e.ctrlKey || e.metaKey;
+      
+      if (ctrl && e.key === ',') {
         e.preventDefault();
         openSettings();
+        return;
       }
-      // Ctrl+B to toggle bottom panel
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      
+      if (ctrl && e.shiftKey && e.key === 'E') {
         e.preventDefault();
+        navigateToFiles();
+        return;
+      }
+      
+      if (ctrl && e.shiftKey && e.key === 'X') {
+        e.preventDefault();
+        navigateToAI();
+        return;
+      }
+      
+      if (ctrl && e.shiftKey && e.key === 'L') {
+        e.preventDefault();
+        navigateToSerial();
+        return;
+      }
+      
+      if (ctrl && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        navigateToBuild();
+        return;
+      }
+      
+      if (ctrl && e.key === 'j') {
+        e.preventDefault();
+        if (!bottomPanelVisible) {
+          setBottomPanelTab('terminal');
+        }
         toggleBottomPanel();
-      }
-      // Ctrl+Shift+B to open build panel
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
-        e.preventDefault();
-        setBottomPanelTab('build');
+        return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild]);
 
   const getDefaultCode = () => {
     return `// Welcome to Embedist
@@ -46,18 +84,13 @@ function App() {
 
 #include <Arduino.h>
 
-// Your ESP32/Arduino code here
-
 void setup() {
   Serial.begin(115200);
   Serial.println("Embedist ready!");
-  
-  // Initialize your peripherals
   pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
-  // Your main loop
   digitalWrite(LED_BUILTIN, HIGH);
   delay(1000);
   digitalWrite(LED_BUILTIN, LOW);
@@ -69,40 +102,14 @@ void loop() {
     switch (sidebarSection) {
       case 'files':
         return <FileExplorer />;
-      case 'search':
-        return (
-          <div className="sidebar-content">
-            <div className="sidebar-placeholder">
-              <span>Search functionality</span>
-            </div>
-          </div>
-        );
-      case 'serial':
-        return (
-          <div className="sidebar-content">
-            <div className="sidebar-placeholder">
-              <span>Serial Monitor</span>
-            </div>
-          </div>
-        );
-      case 'build':
-        return (
-          <div className="sidebar-content">
-            <div className="sidebar-placeholder">
-              <span>Build Panel</span>
-            </div>
-          </div>
-        );
       case 'ai':
-        return (
-          <div className="sidebar-content">
-            <div className="sidebar-placeholder">
-              <span>AI Assistant</span>
-            </div>
-          </div>
-        );
+        return <AIChatPanel />;
+      case 'serial':
+        return <SerialMonitor />;
+      case 'build':
+        return <FileExplorer />;
       default:
-        return null;
+        return <FileExplorer />;
     }
   };
 
@@ -111,7 +118,9 @@ void loop() {
       <TitleBar />
       
       <div className="app-body">
-        <Sidebar />
+        <div className="app-sidebar">
+          <Sidebar />
+        </div>
         
         <div className="app-sidebar-content">
           {renderSidebarContent()}

@@ -12,10 +12,13 @@ export interface SerialPort {
   friendlyName?: string;
 }
 
+type SidebarSection = 'files' | 'ai' | 'serial' | 'build';
+type BottomPanelTab = 'terminal' | 'ai' | 'build';
+
 interface UIState {
   // Sidebar
   sidebarExpanded: boolean;
-  sidebarSection: 'files' | 'search' | 'ai' | 'serial' | 'build';
+  sidebarSection: SidebarSection;
   
   // Tabs
   tabs: Tab[];
@@ -24,7 +27,7 @@ interface UIState {
   // Panels
   bottomPanelHeight: number;
   bottomPanelVisible: boolean;
-  bottomPanelTab: 'terminal' | 'ai' | 'build';
+  bottomPanelTab: BottomPanelTab;
   
   // Serial
   serialConnected: boolean;
@@ -36,17 +39,23 @@ interface UIState {
   
   // Actions
   setSidebarExpanded: (expanded: boolean) => void;
-  setSidebarSection: (section: UIState['sidebarSection']) => void;
+  setSidebarSection: (section: SidebarSection) => void;
   openTab: (tab: Tab) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   setBottomPanelHeight: (height: number) => void;
   toggleBottomPanel: () => void;
-  setBottomPanelTab: (tab: UIState['bottomPanelTab']) => void;
+  setBottomPanelTab: (tab: BottomPanelTab) => void;
   setSerialConnected: (connected: boolean) => void;
   setSerialPort: (port: string | null) => void;
   setSerialBaudRate: (rate: number) => void;
   setBuildRunning: (running: boolean) => void;
+  
+  // Navigation actions
+  navigateToFiles: () => void;
+  navigateToAI: () => void;
+  navigateToSerial: () => void;
+  navigateToBuild: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -104,4 +113,10 @@ export const useUIStore = create<UIState>((set) => ({
   setSerialPort: (port) => set({ serialPort: port }),
   setSerialBaudRate: (rate) => set({ serialBaudRate: rate }),
   setBuildRunning: (running) => set({ buildRunning: running }),
+  
+  // Navigation actions
+  navigateToFiles: () => set({ sidebarSection: 'files' }),
+  navigateToAI: () => set({ sidebarSection: 'ai', bottomPanelVisible: false }),
+  navigateToSerial: () => set({ sidebarSection: 'serial', bottomPanelVisible: false }),
+  navigateToBuild: () => set({ sidebarSection: 'build', bottomPanelVisible: true, bottomPanelTab: 'build' }),
 }));
