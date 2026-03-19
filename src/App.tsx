@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useUIStore } from './stores/uiStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useFileStore } from './stores/fileStore';
+import { useAIStore } from './stores/aiStore';
 import { TitleBar } from './components/Layout/TitleBar';
 import { MenuBar } from './components/Layout/MenuBar';
 import { Sidebar } from './components/Layout/Sidebar';
@@ -14,6 +15,8 @@ import { AIChatPanel } from './components/AI/AIChatPanel';
 import { SerialMonitor } from './components/Serial/SerialMonitor';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { useFileSystem } from './hooks/useFileSystem';
+import { MODE_SWITCH_REMINDERS } from './lib/ai-prompts';
+import type { AIMode } from './lib/ai-prompts';
 import './styles/global.css';
 
 function App() {
@@ -37,10 +40,21 @@ function App() {
     saveFile,
   } = useFileStore();
   const { openFolder } = useFileSystem();
+  const { mode: aiMode, setMode, addMessage } = useAIStore();
   
   const activeFileTab = openTabs.find(t => t.id === activeFileTabId);
   const activeContent = activeFileTab ? fileContents.get(activeFileTab.path) : undefined;
   const hasOpenFile = activeContent !== undefined;
+
+  const switchAIMode = (newMode: AIMode) => {
+    if (newMode !== aiMode) {
+      setMode(newMode);
+      const reminder = MODE_SWITCH_REMINDERS[newMode];
+      if (reminder) {
+        addMessage({ role: 'system', content: reminder });
+      }
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -98,11 +112,29 @@ function App() {
         }
         return;
       }
+      
+      if (ctrl && e.key === '1') {
+        e.preventDefault();
+        switchAIMode('chat');
+        return;
+      }
+      
+      if (ctrl && e.key === '2') {
+        e.preventDefault();
+        switchAIMode('plan');
+        return;
+      }
+      
+      if (ctrl && e.key === '3') {
+        e.preventDefault();
+        switchAIMode('debug');
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, activeFileTab, saveFile]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, activeFileTab, saveFile, aiMode, switchAIMode]);
 
   const getDefaultCode = () => {
     if (rootPath) {
