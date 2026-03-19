@@ -1,0 +1,90 @@
+import { useMemo } from 'react';
+
+interface MarkdownRendererProps {
+  content: string;
+  className?: string;
+}
+
+export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
+  const html = useMemo(() => parseMarkdown(content), [content]);
+
+  return (
+    <div className={`md-renderer ${className}`}>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
+  );
+}
+
+function parseMarkdown(text: string): string {
+  let html = escapeHtml(text);
+
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
+    return `<pre class="md-code-block"><code class="md-code" data-lang="${lang}">${code.trim()}</code></pre>`;
+  });
+
+  html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+
+  html = html.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>');
+
+  html = html.replace(/^- \[ \] (.+)$/gm, '<div class="md-checkbox unchecked"><span class="md-checkbox-box"></span>$1</div>');
+  html = html.replace(/^- \[x\] (.+)$/gm, '<div class="md-checkbox checked"><span class="md-checkbox-box-checked"></span>$1</div>');
+  html = html.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
+  html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="md-list-item numbered"><span class="md-number">$1.</span>$2</li>');
+
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  html = html.replace(/^\| (.+) \|$/gm, (_m, row) => {
+    const cells = row.split('|').map((c: string) => c.trim());
+    const isHeader = cells.some((c: string) => c.match(/^-+$/));
+    if (isHeader) return '';
+    const tag = 'td';
+    return `<tr>${cells.map((c: string) => `<${tag} class="md-table-cell">${c}</${tag}>`).join('')}</tr>`;
+  });
+
+  const lines = html.split('\n');
+  const processedLines: string[] = [];
+  let inTable = false;
+  let tableRows: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('<tr>')) {
+      if (!inTable) {
+        inTable = true;
+        tableRows = [];
+      }
+      tableRows.push(line);
+    } else {
+      if (inTable) {
+        processedLines.push('<table class="md-table"><tbody>');
+        tableRows.forEach((r) => processedLines.push(r));
+        processedLines.push('</tbody></table>');
+        tableRows = [];
+        inTable = false;
+      }
+      processedLines.push(line);
+    }
+  }
+  if (inTable) {
+    processedLines.push('<table class="md-table"><tbody>');
+    tableRows.forEach((r) => processedLines.push(r));
+    processedLines.push('</tbody></table>');
+  }
+
+  html = processedLines.join('\n');
+
+  html = html.replace(/\n{3,}/g, '\n\n');
+
+  return html;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

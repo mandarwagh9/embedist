@@ -22,13 +22,7 @@ export function CodeEditor({
   const { editor: editorSettings } = useSettingsStore();
   const { setCursorPosition } = useUIStore();
 
-  const handleEditorDidMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    
-    editor.onDidChangeCursorPosition((e) => {
-      setCursorPosition(e.position.lineNumber, e.position.column);
-    });
-
+  const handleEditorBeforeMount = (monaco: typeof import('monaco-editor')) => {
     monaco.editor.defineTheme('embedist-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -68,6 +62,13 @@ export function CodeEditor({
     });
   };
 
+  const handleEditorDidMount: OnMount = (editor, _monaco) => {
+    editorRef.current = editor;
+    editor.onDidChangeCursorPosition((e) => {
+      setCursorPosition(e.position.lineNumber, e.position.column);
+    });
+  };
+
   const handleChange: OnChange = (newValue) => {
     onChange?.(newValue);
   };
@@ -93,6 +94,7 @@ export function CodeEditor({
         value={value}
         onChange={handleChange}
         theme="embedist-dark"
+        beforeMount={handleEditorBeforeMount}
         onMount={handleEditorDidMount}
         options={{
           readOnly,

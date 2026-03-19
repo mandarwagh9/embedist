@@ -1,16 +1,11 @@
 import { useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useAIStore } from '../stores/aiStore';
+import { useAIStore, AIMessage } from '../stores/aiStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { ragEngine } from '../lib/rag';
-import { SYSTEM_PROMPTS, MODE_SWITCH_REMINDERS } from '../lib/ai-prompts';
+import { buildPlanContext } from './usePlanContext';
+import { SYSTEM_PROMPTS } from '../lib/ai-prompts';
 import type { AIMode } from '../lib/ai-prompts';
-
-interface AIMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
 
 interface AIResponse {
   content: string;
@@ -22,23 +17,27 @@ interface AIResponse {
   };
 }
 
+interface APIMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  mode?: AIMode;
+}
+
 export function useAI() {
   const {
     mode,
     activeProvider,
-    chatMessages,
-    planMessages,
-    debugMessages,
+    messages,
     addMessage,
     clearMessages,
     setLoading,
   } = useAIStore();
-  
+
   const customEndpoints = useSettingsStore((state) => state.customEndpoints);
   const providers = useSettingsStore((state) => state.providers);
   const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
 
-  const messages = mode === 'plan' ? planMessages : mode === 'debug' ? debugMessages : chatMessages;
   const isLoading = useAIStore((state) => state.isLoading);
 
   useEffect(() => {
@@ -47,7 +46,7 @@ export function useAI() {
     if (lastMsg.role === 'assistant' && lastMsg.content.startsWith('Error:')) {
       useAIStore.getState().clearMessages();
     }
-  }, [mode]);
+  }, [mode, messages]);
 
   const getActiveEndpoint = useCallback(() => {
     const customEndpoint = customEndpoints.find(ep => ep.baseUrl && ep.apiKey);
@@ -74,6 +73,20 @@ export function useAI() {
     }
   }, [defaultBoard]);
 
+  const getApprovedPlanFromMessages = useCallback((msgs: AIMessage[]): string | null => {
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (m.role === 'system' && m.content.startsWith('## Plan to Implement')) {
+        const planEnd = m.content.indexOf('\n\n---\n');
+        if (planEnd !== -1) {
+          return m.content.substring(0, planEnd);
+        }
+        return m.content;
+      }
+    }
+    return null;
+  }, []);
+
   const sendMessage = useCallback(async (content: string, boardType?: string): Promise<AIResponse | null> => {
     if (!hasActiveProvider()) {
       return null;
@@ -83,26 +96,39 @@ export function useAI() {
     setLoading(true);
 
     try {
-      const currentMessages = useAIStore.getState().getMessages();
+      const currentMessages = useAIStore.getState().messages;
       const context = getContextForQuery(content, boardType);
       const modeConfig = SYSTEM_PROMPTS[mode];
-      
-      const systemPrompt = `${modeConfig.system}
 
-Knowledge Base:
-${context || 'No relevant context found.'}`;
+      let systemPrompt = modeConfig.system;
 
-      const allMessages: AIMessage[] = [
-        { id: 'system-prompt', role: 'system', content: systemPrompt },
+      if (mode === 'plan') {
+        try {
+          const planContext = await buildPlanContext(content);
+          if (planContext) {
+            systemPrompt += `\n\n## Current Project Context\n${planContext}`;
+          }
+        } catch {
+        }
+      } else if (mode === 'chat') {
+        const approvedPlan = getApprovedPlanFromMessages(currentMessages);
+        if (approvedPlan) {
+          systemPrompt += `\n\n## Approved Implementation Plan\n${approvedPlan}`;
+        }
+      }
+
+      systemPrompt += `\n\nKnowledge Base:\n${context || 'No relevant context found.'}`;
+
+      const allMessages: APIMessage[] = [
+        { id: 'system-prompt', role: 'system', content: systemPrompt, mode },
         ...currentMessages,
-        { id: `temp-${Date.now()}`, role: 'user', content },
+        { id: `temp-${Date.now()}`, role: 'user', content, mode },
       ];
 
       const customEndpoint = getActiveEndpoint();
       let response: AIResponse;
 
       if (customEndpoint) {
-        console.log('[useAI] Using custom endpoint:', customEndpoint.name, 'ID:', customEndpoint.id);
         response = await invoke<AIResponse>('chat_completion', {
           messages: allMessages,
           model: customEndpoint.model || null,
@@ -127,19 +153,20 @@ ${context || 'No relevant context found.'}`;
     } finally {
       setLoading(false);
     }
-  }, [mode, addMessage, setLoading, getContextForQuery, hasActiveProvider, getActiveEndpoint]);
+  }, [mode, addMessage, setLoading, getContextForQuery, hasActiveProvider, getActiveEndpoint, getApprovedPlanFromMessages]);
 
   const clearAllMessages = useCallback(() => {
     useAIStore.getState().clearAllMessages();
   }, []);
 
   const switchMode = useCallback((newMode: AIMode) => {
+    const currentMode = useAIStore.getState().mode;
+    if (currentMode === newMode) return;
+    addMessage({
+      role: 'system',
+      content: `[Switched to ${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode]`,
+    });
     useAIStore.getState().setMode(newMode);
-    
-    const reminder = MODE_SWITCH_REMINDERS[newMode];
-    if (reminder) {
-      addMessage({ role: 'system', content: reminder });
-    }
   }, [addMessage]);
 
   return {

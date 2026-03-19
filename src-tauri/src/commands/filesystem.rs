@@ -193,3 +193,10 @@ pub fn get_parent_dir(path: String) -> Option<String> {
         .parent()
         .map(|p| p.to_string_lossy().to_string())
 }
+
+#[command]
+pub fn save_plan_file(directory: String, name: String, content: String) -> Result<String, String> {
+    let path = PathBuf::from(&directory).join(&name);
+    fs::write(&path, content).map_err(|e| format!("Failed to save plan: {}", e))?;
+    Ok(path.to_string_lossy().to_string())
+}

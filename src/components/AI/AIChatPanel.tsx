@@ -4,9 +4,24 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useAIStore } from '../../stores/aiStore';
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
+import { PlanToolbar } from './PlanToolbar';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { SYSTEM_PROMPTS } from '../../lib/ai-prompts';
 import type { AIMode } from '../../lib/ai-prompts';
 import './AIChatPanel.css';
+import './MarkdownRenderer.css';
+
+const MODE_COLORS: Record<AIMode, string> = {
+  chat: 'var(--accent)',
+  plan: 'var(--info)',
+  debug: 'var(--warning)',
+};
+
+const MODE_LABELS: Record<AIMode, string> = {
+  chat: 'Chat',
+  plan: 'Plan',
+  debug: 'Debug',
+};
 
 function AIChatPanelContent() {
   const {
@@ -18,15 +33,20 @@ function AIChatPanelContent() {
     switchMode,
     hasActiveProvider,
   } = useAI();
-  
-  const getOtherModesWithMessages = useAIStore((state) => state.getOtherModesWithMessages);
+
+  const {
+    planContent,
+    setPlanPhase,
+    setPlanContent,
+  } = useAIStore();
+
   const [input, setInput] = useState('');
+  const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
   const modeConfig = SYSTEM_PROMPTS[mode];
-  const otherModes = getOtherModesWithMessages();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,6 +55,27 @@ function AIChatPanelContent() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      setPlanPhase('explore');
+      setPlanContent('');
+    }
+  }, [mode, messages.length, setPlanPhase, setPlanContent]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'assistant') {
+        setPlanContent(lastMsg.content);
+        if (lastMsg.content.toLowerCase().includes('approve')) {
+          setPlanPhase('ready');
+        } else if (lastMsg.content.includes('?')) {
+          setPlanPhase('clarify');
+        }
+      }
+    }
+  }, [messages, mode, setPlanContent, setPlanPhase]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -60,26 +101,54 @@ function AIChatPanelContent() {
   const handleClear = () => {
     if (messages.length > 0) {
       clearMessages();
+      setPlanPhase('explore');
+      setPlanContent('');
     }
   };
 
-  const handleSwitchToMode = (targetMode: AIMode) => {
-    switchMode(targetMode);
+  const handleApprovePlan = () => {
+    const planText = planContent || (messages.length > 0 ? messages[messages.length - 1].content : '') || '';
+    if (!planText) return;
+
+    setPlanPhase('explore');
+    setPlanContent('');
+    switchMode('chat');
+    setTransitionMsg('Switched to Chat Mode — plan approved');
+    setTimeout(() => setTransitionMsg(null), 2500);
+    setTimeout(() => {
+      useAIStore.getState().addMessage({
+        role: 'system',
+        content: `## Plan to Implement\n\n${planText}\n\n---\n*Please implement the plan above.*`,
+      });
+      useAIStore.getState().addMessage({
+        role: 'user',
+        content: 'Please implement the plan above.',
+      });
+      inputRef.current?.focus();
+    }, 50);
   };
 
-  const formatMessageContent = (content: string) => {
-    return content.split('\n').map((line, i, arr) => (
-      <span key={i}>
-        {line}
-        {i < arr.length - 1 && <br />}
-      </span>
-    ));
+  const handleDiscardPlan = () => {
+    clearMessages();
+    setPlanPhase('explore');
+    setPlanContent('');
   };
 
-  const modeLabels: Record<AIMode, string> = {
-    chat: 'Chat',
-    plan: 'Plan',
-    debug: 'Debug',
+  const renderMessageContent = (msg: { role: string; content: string; mode: AIMode }) => {
+    const isMarkdown = msg.content.includes('## ') || msg.content.includes('```') || msg.content.includes('- ');
+    if ((msg.mode === 'plan' && msg.role === 'assistant') || (msg.role === 'system' && isMarkdown)) {
+      return <MarkdownRenderer content={msg.content} />;
+    }
+    return (
+      <p>
+        {msg.content.split('\n').map((line, i, arr) => (
+          <span key={i}>
+            {line}
+            {i < arr.length - 1 && <br />}
+          </span>
+        ))}
+      </p>
+    );
   };
 
   return (
@@ -98,9 +167,9 @@ function AIChatPanelContent() {
             <span className="ai-message-count">{messages.length}</span>
           )}
         </div>
-        
+
         <ModeToggle mode={mode} onModeChange={switchMode} />
-        
+
         <button className="ai-clear" onClick={handleClear} title="Clear chat" disabled={messages.length === 0}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
@@ -108,19 +177,20 @@ function AIChatPanelContent() {
         </button>
       </div>
 
-      {otherModes.length > 0 && messages.length === 0 && (
-        <div className="ai-mode-banner">
-          {otherModes.map((item: { mode: AIMode; count: number }) => (
-            <button
-              key={item.mode}
-              className="ai-mode-banner-item"
-              data-mode={item.mode}
-              onClick={() => handleSwitchToMode(item.mode)}
-            >
-              <span className="ai-mode-banner-label">{modeLabels[item.mode]}</span>
-              <span className="ai-mode-banner-count">{item.count} message{item.count !== 1 ? 's' : ''}</span>
-            </button>
-          ))}
+      {mode === 'plan' && hasActiveProvider && (
+        <PlanToolbar
+          messages={messages}
+          onApprove={handleApprovePlan}
+          onDiscard={handleDiscardPlan}
+        />
+      )}
+
+      {transitionMsg && (
+        <div className="plan-transition-toast">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>{transitionMsg}</span>
         </div>
       )}
 
@@ -183,11 +253,22 @@ function AIChatPanelContent() {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
                       <path d="M2 17L12 22L22 17"/>
+                      <path d="M2 12L12 17L22 12"/>
                     </svg>
                   )}
                 </div>
-                <div className="ai-message-content">
-                  <p>{formatMessageContent(msg.content)}</p>
+                <div className={`ai-message-body ${msg.mode === 'plan' && msg.role === 'assistant' ? 'md-content' : ''}`}>
+                  <div className={`ai-message-content ${msg.role === 'system' && msg.content.includes('##') ? 'md-content' : ''}`}>
+                    {renderMessageContent(msg)}
+                  </div>
+                  {msg.role !== 'system' && (
+                    <span
+                      className="ai-message-mode-tag"
+                      style={{ color: MODE_COLORS[msg.mode] }}
+                    >
+                      {MODE_LABELS[msg.mode]}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -198,11 +279,13 @@ function AIChatPanelContent() {
                     <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
                   </svg>
                 </div>
-                <div className="ai-message-content">
-                  <div className="ai-loading">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                <div className="ai-message-body">
+                  <div className="ai-message-content">
+                    <div className="ai-loading">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
                   </div>
                 </div>
               </div>

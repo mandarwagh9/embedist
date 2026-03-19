@@ -1,0 +1,173 @@
+{
+  "peripherals": [
+    {
+      "name": "I2C Scanner",
+      "interface": "I2C",
+      "description": "Scans the I2C bus and reports all responding addresses. Essential first step when connecting I2C devices.",
+      "esp32_example": "Wire.begin(SDA, SCL); for(byte addr=1; addr<127; addr++) { Wire.beginTransmission(addr); if(Wire.endTransmission()==0) Serial.printf(\"Found: 0x%02X\\n\", addr); }",
+      "arduino_example": "Same code but Wire.begin() with no pins. Use Serial.begin(9600).",
+      "common_pitfalls": [
+        "SDA/SCL pins not set correctly for ESP32",
+        "Pull-up resistors missing (2.2K-10K on both lines)",
+        "I2C speed too high for long wires",
+        "Multiple devices with same address conflict"
+      ]
+    },
+    {
+      "name": "PWM Motor Control",
+      "interface": "GPIO + PWM",
+      "description": "Controls DC motor speed using PWM. Use motor driver (L298N, TB6612, DRV8833) to handle current. ESP32 has dedicated LEDC PWM with 16 channels.",
+      "esp32_example": "ledcSetup(0, 1000, 8); ledcAttachPin(5, 0); ledcWrite(0, 128); // 50% duty",
+      "arduino_example": "analogWrite(5, 128); // PWM on pin 5, 50% duty",
+      "common_pitfalls": [
+        "Motor driver needs separate power supply from logic",
+        "No flyback diodes on some motor drivers",
+        "PWM frequency too low causes motor whine",
+        "GPIO can't supply enough current - always use driver"
+      ]
+    },
+    {
+      "name": "Servo Motor Control",
+      "interface": "GPIO + PWM",
+      "description": "Controls servo motors using PWM (50Hz, 1-2ms pulse width). ESP32 LEDC or Arduino Servo library.",
+      "esp32_example": "ledcSetup(0, 50, 16); ledcAttachPin(5, 0); ledcWrite(0, map(angle, 0, 180, 1638, 8192)); // 50Hz, 16-bit",
+      "arduino_example": "Servo myservo; myservo.attach(9); myservo.write(90);",
+      "common_pitfalls": [
+        "Servo library on ESP32 uses timer conflicts",
+        "Pulse width out of range damages servo",
+        "Power supply can't supply servo stall current",
+        "Servo draws spikes that reset the MCU"
+      ]
+    },
+    {
+      "name": "NeoPixel (WS2812B) LED Strip",
+      "interface": "Single-wire (timing-sensitive)",
+      "description": "Addressable RGB LED strip. Each LED has IC. 800KHz data rate, very timing sensitive. ESP32 uses RMT peripheral for glitch-free output.",
+      "esp32_example": "FastLED.addLeds<WS2812B, 5, GRB>(leds, NUM_LEDS); fill_solid(leds, NUM_LEDS, CRGB::Red); FastLED.show();",
+      "arduino_example": "Adafruit_NeoPixel strip = Adafruit_NeoPixel(30, 6, NEO_GRB + NEO_KHZ800);",
+      "common_pitfalls": [
+        "No capacitor across +5V/GND on large strips",
+        "Data line needs level shifter (5V strip with 3.3V MCU)",
+        "Too many LEDs exceed power supply or RAM",
+        "Timing too tight for software bit-banging - use RMT"
+      ]
+    },
+    {
+      "name": "OLED Display (SSD1306)",
+      "interface": "I2C or SPI",
+      "description": "128x64 monochrome OLED. I2C is 2-wire simple. SPI is faster but needs more pins. u8g2 library supports many displays.",
+      "esp32_example": "U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 22, 21); u8g2.begin(); u8g2.drawStr(0, 20, \"Hello\"); u8g2.sendBuffer();",
+      "arduino_example": "display.begin(SSD1306_SWITCHCAPVCC, 0x3C); display.clearDisplay(); display.setTextSize(1); display.println(\"Hello\"); display.display();",
+      "common_pitfalls": [
+        "I2C address 0x3C vs 0x3D",
+        "Display buffer size: 128*64/8 = 1024 bytes",
+        "Need to call display() or sendBuffer() after drawing",
+        "Font size affects available lines"
+      ]
+    },
+    {
+      "name": "SD Card Storage",
+      "interface": "SPI",
+      "description": "Read/write files on SD card. Use SPI mode. Supports FAT16/FAT32. Essential for data logging.",
+      "esp32_example": "SD.begin(5); File f = SD.open(\"/log.txt\", FILE_APPEND); f.print(data); f.close();",
+      "arduino_example": "SD.begin(4); File dataFile = SD.open(\"datalog.txt\", FILE_WRITE);",
+      "common_pitfalls": [
+        "SD card needs 3.3V signal (not 5V)",
+        "SPI speed too high causes read/write errors",
+        "Long wires degrade SPI signal quality",
+        "Must close files properly or data is lost"
+      ]
+    },
+    {
+      "name": "IR Remote (Send/Receive)",
+      "interface": "GPIO + PWM or IR library",
+      "description": "Send or receive IR remote signals. ESP32 can use IRremote library for both TX and RX. NEC protocol most common.",
+      "esp32_example": "IRsend irsend(4); irsend.sendNEC(0x20DF10EF); // TX. IRrecv irrecv(15); irrecv.enableIRIn();",
+      "arduino_example": "Same IRremote library. IRsend irsend(3); irsend.sendSony(0xA90, 12);",
+      "common_pitfalls": [
+        "IR LED needs transistor driver for range",
+        "Receiver module needs pull-up on output",
+        "NEC vs Sony vs other protocols",
+        "Ambient IR light causes false triggers"
+      ]
+    },
+    {
+      "name": "Rotary Encoder",
+      "interface": "GPIO interrupts",
+      "description": "Rotary encoder for menu navigation, volume control. Outputs A and B phase signals. Use interrupts for reliable detection.",
+      "esp32_example": "attachInterrupt(25, readEncoder, CHANGE); attachInterrupt(26, readEncoder, CHANGE);",
+      "arduino_example": "Same interrupt approach. Pin 2 and 3 recommended for Uno (interrupt pins).",
+      "common_pitfalls": [
+        "Contact bounce causes multiple counts per click",
+        "Must use interrupts (polling misses pulses)",
+        "Encoder type: incremental vs absolute",
+        "Mechanical vs optical encoders"
+      ]
+    },
+    {
+      "name": "Interrupts (External)",
+      "interface": "GPIO with attachInterrupt",
+      "description": "React to pin state changes instantly. ESP32: any GPIO except strapping pins. Use for: buttons, encoders, sensors, time-critical events.",
+      "esp32_example": "pinMode(25, INPUT_PULLUP); attachInterrupt(25, ISR, FALLING); IRAM_ATTR void ISR() { counter++; }",
+      "arduino_example": "attachInterrupt(digitalPinToInterrupt(2), ISR, FALLING);",
+      "common_pitfalls": [
+        "ISRs must be fast - no Serial.print inside",
+        "Variables shared with ISR need volatile or atomic",
+        "ESP32: ISRs in flash need IRAM_ATTR",
+        "Debounce needed for mechanical switches"
+      ]
+    },
+    {
+      "name": "FreeRTOS Tasks",
+      "interface": "Software",
+      "description": "Run multiple tasks concurrently on ESP32's dual-core. Use queues for inter-task communication. Tasks run on specific cores or either.",
+      "esp32_example": "xTaskCreatePinnedToCore(task1, \"Task1\", 4096, NULL, 1, NULL, 0); // Core 0. vTaskDelay(pdMS_TO_TICKS(100));",
+      "arduino_example": "Arduino uses standard FreeRTOS. xTaskCreate(task1, \"Task1\", 4096, NULL, 1, NULL);",
+      "common_pitfalls": [
+        "Stack size too small causes crash",
+        "Priority inversion deadlock",
+        "Not using vTaskDelay blocks other tasks",
+        "Accessing shared resources without mutex"
+      ]
+    },
+    {
+      "name": "Deep Sleep + Wake Sources",
+      "interface": "RTC GPIO / Timer",
+      "description": "Power saving mode. ESP32 RTC domain stays on. Wake sources: timer, touch, ext0, ext1, GPIO, ULP. Current ~10uA in deep sleep.",
+      "esp32_example": "esp_sleep_enable_timer_wakeup(60 * 1000000); esp_deep_sleep_start(); // Wake every 60s",
+      "arduino_example": "LowPower.deepSleep(60000000); // ArduinoLowPower library",
+      "common_pitfalls": [
+        "GPIO state changes during sleep can wake unexpectedly",
+        "RTC GPIO only (0,2,4,12-15,25-27,32-33) for ext wake",
+        "Values lost in regular RAM during sleep",
+        "Serial output doesn't work after deep sleep"
+      ]
+    },
+    {
+      "name": "OTA (Over-The-Air) Updates",
+      "interface": "WiFi",
+      "description": "Update firmware wirelessly without physical access. ESP32 uses ESP OTA or ArduinoOTA library. HTTPS preferred for security.",
+      "esp32_example": "ArduinoOTA.begin(); // in setup. ArduinoOTA.handle(); // in loop. Add MDNS for easy discovery.",
+      "arduino_example": "Same ArduinoOTA library. Set password, hostname, port 3232.",
+      "common_pitfalls": [
+        "OTA partition size must be configured in platformio.ini",
+        "Power interruption during flash corrupts firmware",
+        "No password = security risk",
+        "MDNS may not resolve on all networks"
+      ]
+    },
+    {
+      "name": "ESP-NOW (Peer-to-Peer)",
+      "interface": "WiFi (no router)",
+      "description": "Fast peer-to-peer communication between ESP32 boards without WiFi router. Low latency ~3ms. Good for remote control, sensor networks.",
+      "esp32_example": "esp_now_init(); esp_now_add_peer(mac, ESP_NOW_ROLE_COMBO, 0, NULL, 0); esp_now_send(mac, data, len);",
+      "arduino_example": "Espnow library wrapper for simpler API.",
+      "common_pitfalls": [
+        "Pairing required before first communication",
+        "MAC address of peer needed",
+        "Encrypted vs unencrypted pairing",
+        "Max 10 peers per device in default config"
+      ]
+    }
+  ]
+}

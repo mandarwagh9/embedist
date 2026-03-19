@@ -50,6 +50,7 @@ pub fn run() {
             commands::read_platformio_board,
             commands::get_home_dir,
             commands::get_parent_dir,
+            commands::save_plan_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

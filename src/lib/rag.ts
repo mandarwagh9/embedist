@@ -3,6 +3,9 @@ import esp32Errors from './knowledge/esp32/errors.json';
 import arduinoPins from './knowledge/arduino/pins.json';
 import arduinoErrors from './knowledge/arduino/errors.json';
 import commonPatterns from './knowledge/common/patterns.json';
+import sensorsData from './knowledge/sensors.json';
+import boardComparison from './knowledge/board-comparison.json';
+import peripheralsData from './knowledge/peripherals.json';
 
 interface KnowledgeDocument {
   id: string;
@@ -25,14 +28,60 @@ function initDocuments(): void {
   if (isInitialized) return;
   
   try {
+    const espPins = esp32Pins as { board: string; variants: string[]; specifications: Record<string, unknown>; memory: Record<string, string> };
+    const specs = espPins.specifications;
+    const memory = espPins.memory;
+
     documents = [
-      ...(esp32Pins as unknown as { pins: Array<{ pin: string; name: string; functions: string[]; description: string }> }).pins.map((p) => ({
-        id: `esp32-pin-${p.pin}`,
+      {
+        id: 'esp32-board-info',
         category: 'hardware',
-        title: `ESP32 Pin ${p.pin}: ${p.name}`,
-        content: `Pin ${p.pin} (${p.name}): ${p.description}. Functions: ${p.functions.join(', ')}`,
-        metadata: { type: 'pin', board: 'esp32', pin: p.pin },
-      })),
+        title: `ESP32 Board Overview`,
+        content: `ESP32 Board Overview. CPU: ${specs.cpu}, Frequency: ${specs.frequency}, Voltage: ${specs.voltage}. Memory: Flash ${memory.flash}, RAM ${memory.ram}, PSRAM ${memory.psram}. Connectivity: WiFi ${specs.wifi}, Bluetooth ${specs.bluetooth}. Peripherals: ${specs.gpio} GPIO, ${specs.uart} UART, ${specs.spi} SPI, ${specs.i2c} I2C, ${specs.adc_channels} ADC, ${specs.dac_channels} DAC channels. Variants: ${espPins.variants.join(', ')}.`,
+        metadata: { type: 'board', board: 'esp32' },
+      },
+      {
+        id: 'esp32-i2c-pins',
+        category: 'hardware',
+        title: 'ESP32 I2C Pins',
+        content: `ESP32 I2C Default: SDA=21, SCL=22. Alternative: SDA=25, SCL=26. The I2C pins are configurable in ESP-IDF. Use Wire.begin(SDA, SCL) in Arduino or i2cdev for ESP-IDF.`,
+        metadata: { type: 'pin', board: 'esp32', interface: 'i2c' },
+      },
+      {
+        id: 'esp32-spi-pins',
+        category: 'hardware',
+        title: 'ESP32 SPI Pins',
+        content: `ESP32 SPI (VSPI default): MOSI=23, MISO=19, SCK=18, SS=5. HSPI alternative: MOSI=13, MISO=12, SCK=14, SS=15. In ESP-IDF use SPI bus. In Arduino use SPIClass(VSPI) or SPIClass(HSPI).`,
+        metadata: { type: 'pin', board: 'esp32', interface: 'spi' },
+      },
+      {
+        id: 'esp32-uart-pins',
+        category: 'hardware',
+        title: 'ESP32 UART Pins',
+        content: `ESP32 UART0 (USB): TX=1, RX=3 (used for flashing). UART1: TX=10, RX=9 (GPIO 9/10 are also PSRAM on WROVER). UART2: TX=17, RX=16. Use Serial.begin(baud) for UART0. For UART2 use Serial2.begin(baud, SERIAL_8N1, RX, TX).`,
+        metadata: { type: 'pin', board: 'esp32', interface: 'uart' },
+      },
+      {
+        id: 'esp32-adc-pins',
+        category: 'hardware',
+        title: 'ESP32 ADC Pins',
+        content: `ESP32 ADC1: GPIO 32-39 (used for WiFi). ADC2: GPIO 0,2,4,12-15,25-27 (conflicts with WiFi). ADC resolution is 12-bit (0-4095). Voltage range 0-1.1V (or 0-3.3V with attenuation). Use analogRead(pin) in Arduino.`,
+        metadata: { type: 'pin', board: 'esp32', interface: 'adc' },
+      },
+      {
+        id: 'esp32-pwm-pins',
+        category: 'hardware',
+        title: 'ESP32 PWM Pins',
+        content: `ESP32 has 16 PWM channels. All GPIO pins support PWM except GPIO 34-39 (input only). Use ledcSetup(channel, freq, bits) and ledcWrite(channel, duty) in Arduino. Typical frequency: 1kHz, 8-bit resolution (0-255).`,
+        metadata: { type: 'pin', board: 'esp32', interface: 'pwm' },
+      },
+      {
+        id: 'esp32-touch-pins',
+        category: 'hardware',
+        title: 'ESP32 Touch Pins',
+        content: `ESP32 has 10 touch pins: T0=GPIO4, T1=GPIO0, T2=GPIO2, T3=GPIO15, T4=GPIO13, T5=GPIO12, T6=GPIO14, T7=GPIO27, T8=GPIO33, T9=GPIO32. Touch threshold typically ~40. Use touchRead(pin) in Arduino.`,
+        metadata: { type: 'pin', board: 'esp32', interface: 'touch' },
+      },
       ...(esp32Errors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
         id: `esp32-error-${i}`,
         category: 'error',
@@ -45,7 +94,7 @@ function initDocuments(): void {
           id: `arduino-${b.name.toLowerCase().replace(/\s+/g, '-')}`,
           category: 'hardware',
           title: `${b.name} Board Specs`,
-          content: `${b.name}: ${b.pins} digital pins, ${b.analog} analog inputs, ${b.pwm} PWM outputs`,
+          content: `${b.name}: ${b.pins} digital pins, ${b.analog} analog inputs, ${b.pwm} PWM outputs. Standard Arduino board.`,
           metadata: { type: 'board', board: 'arduino', name: b.name },
         }] : []
       ),
@@ -56,12 +105,33 @@ function initDocuments(): void {
         content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
         metadata: { type: 'error', board: 'arduino' },
       })),
-      ...(commonPatterns as unknown as { patterns: Array<{ name: string; code: string; description: string; example: string }> }).patterns.map((p, i) => ({
+      ...(commonPatterns as unknown as Array<{ id: string; pattern: string; category: string; cause: string; solution: string }>).map((p, i) => ({
         id: `common-pattern-${i}`,
         category: 'code',
-        title: p.name,
-        content: `${p.name}: ${p.description}. Code: ${p.code}. Example: ${p.example}`,
-        metadata: { type: 'pattern' },
+        title: `${p.pattern} (${p.category})`,
+        content: `Pattern: ${p.pattern}. Category: ${p.category}. Cause: ${p.cause}. Solution: ${p.solution}`,
+        metadata: { type: 'pattern', category: p.category },
+      })),
+      ...(sensorsData as { sensors: Array<{ name: string; interface: string; pins: string; library: string; description: string; common_issues: string[] }> }).sensors.map((s, i) => ({
+        id: `sensor-${i}`,
+        category: 'hardware',
+        title: s.name,
+        content: `${s.name} sensor. Interface: ${s.interface}. Pins: ${s.pins}. Library: ${s.library}. Description: ${s.description}. Common issues: ${s.common_issues.join('. ')}`,
+        metadata: { type: 'sensor', name: s.name, interface: s.interface },
+      })),
+      ...(boardComparison as { boards: Array<{ name: string; category: string; cpu: string; freq: string; ram: string; flash: string; wifi: string; bluetooth: string; gpio: number; price: string; best_for: string }> }).boards.map((b, i) => ({
+        id: `board-comp-${i}`,
+        category: 'hardware',
+        title: `${b.name} Comparison`,
+        content: `${b.name}. Category: ${b.category}. CPU: ${b.cpu} at ${b.freq}. RAM: ${b.ram}. Flash: ${b.flash}. WiFi: ${b.wifi}. Bluetooth: ${b.bluetooth}. GPIO: ${b.gpio}. Price: ${b.price}. Best for: ${b.best_for}.`,
+        metadata: { type: 'board', name: b.name, category: b.category },
+      })),
+      ...(peripheralsData as { peripherals: Array<{ name: string; interface: string; description: string; esp32_example: string; arduino_example: string; common_pitfalls: string[] }> }).peripherals.map((p, i) => ({
+        id: `peripheral-${i}`,
+        category: 'code',
+        title: `${p.name} (${p.interface})`,
+        content: `${p.name} via ${p.interface}. ${p.description}. ESP32 Example: ${p.esp32_example}. Arduino Example: ${p.arduino_example}. Common pitfalls: ${p.common_pitfalls.join('. ')}`,
+        metadata: { type: 'peripheral', name: p.name, interface: p.interface },
       })),
     ];
     isInitialized = true;

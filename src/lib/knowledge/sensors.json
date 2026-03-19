@@ -1,0 +1,160 @@
+{
+  "sensors": [
+    {
+      "name": "HC-SR04 Ultrasonic Sensor",
+      "interface": "UART-like (2 GPIO)",
+      "pins": "Trig=GPIO, Echo=GPIO (any digital pin)",
+      "library": "NewPing (Arduino) / esp-idf gpio driver",
+      "description": "Ultrasonic distance sensor. Range 2-400cm. Accuracy ~3mm. Uses sound waves. Needs 5V supply but 3.3V signal is TTL compatible.",
+      "common_issues": [
+        "Echo pin needs voltage divider (5V to 3.3V)",
+        "Minimum detection distance ~2cm",
+        "Soft surfaces absorb sound waves",
+        "Temperature affects accuracy"
+      ]
+    },
+    {
+      "name": "DHT22 (AM2302) Temperature/Humidity",
+      "interface": "Single-wire digital",
+      "pins": "Data=GPIO, VCC=3.3V/5V, GND (add 10K pull-up resistor on data line)",
+      "library": "DHT sensor library (Arduino) / esp-idf dht driver",
+      "description": "Temperature (0-80C, +-0.5C) and humidity (0-100%, +-2%) sensor. Read every 2 seconds minimum. Protocol is timing-sensitive.",
+      "common_issues": [
+        "Must wait 2 seconds between reads",
+        "Pull-up resistor required on data line",
+        "Long cables cause unreliable readings",
+        "Heats up slightly from own power consumption"
+      ]
+    },
+    {
+      "name": "BMP280 / BMP180 Barometric Pressure",
+      "interface": "I2C or SPI",
+      "pins": "I2C: SDA, SCL, VCC=3.3V, GND. SPI: MOSI, MISO, SCK, CS",
+      "library": "Adafruit BMP280 / Bosch BMP driver",
+      "description": "Barometric pressure and temperature sensor. BMP280: I2C@0x77 or 0x76, SPI 10MHz max. Altitude accuracy ~1m. BMP180 is older, slower, less accurate.",
+      "common_issues": [
+        "Wrong I2C address (0x76 vs 0x77)",
+        "Needs 3.3V (not 5V) - no onboard regulator on some modules",
+        "Compensation needed for altitude calculation",
+        "I2C speed should be 400kHz or lower"
+      ]
+    },
+    {
+      "name": "MPU-6050 Accelerometer/Gyroscope",
+      "interface": "I2C",
+      "pins": "SDA, SCL, VCC=3.3V, GND, INT for interrupt",
+      "library": "Adafruit MPU6050 / I2Cdevlib",
+      "description": "6-axis IMU with 3-axis gyro and 3-axis accelerometer. I2C@0x68 or 0x69. Gyro range up to 2000 deg/s. Accel range up to 16g.",
+      "common_issues": [
+        "I2C address conflict with other devices at 0x68",
+        "Sensor bias/drift needs calibration",
+        "Mounting orientation affects readings",
+        "High I2C speed can cause read errors"
+      ]
+    },
+    {
+      "name": "DS18B20 One-Wire Temperature",
+      "interface": "OneWire",
+      "pins": "Data=GPIO (needs 4.7K pull-up), VCC=3.3V/5V, GND",
+      "library": "OneWire + DallasTemperature (Arduino) / ow_ds18x20 (ESP-IDF)",
+      "description": "Waterproof temperature probe. Range -55 to 125C, accuracy +-0.5C. Supports multiple sensors on single wire (parasitic power mode available). Each sensor has unique 64-bit ID.",
+      "common_issues": [
+        "Strong pull-up needed for parasitic power",
+        "Long wires cause communication errors",
+        "Multiple sensors need ROM search to identify",
+        "Conversion time ~750ms at 12-bit resolution"
+      ]
+    },
+    {
+      "name": "ADS1115 16-bit ADC",
+      "interface": "I2C",
+      "pins": "SDA, SCL, VCC=3.3V-5V, GND. A0-A3 for analog inputs",
+      "library": "Adafruit ADS1X15",
+      "description": "16-bit 4-channel ADC with programmable gain. I2C@0x48-0x4B. Supports single-ended and differential measurements. 860 samples/second. Great for reading sensors that need more precision than ESP32's ADC.",
+      "common_issues": [
+        "Default address may conflict with other sensors",
+        "PGA gain must match expected voltage range",
+        "I2C address selection via ADDR pin",
+        "Single-ended channels share ground reference"
+      ]
+    },
+    {
+      "name": "BH1750 Ambient Light Sensor",
+      "interface": "I2C",
+      "pins": "SDA, SCL, VCC=3.3V, GND",
+      "library": "BH1750 library",
+      "description": "Digital ambient light sensor. I2C@0x23 or 0x5C. Measures lux (0-65535). Spectral response close to human eye. No infrared sensitivity. Great for automatic brightness control.",
+      "common_issues": [
+        "Auto-ranging takes multiple readings",
+        "Needs calibration for accurate lux values",
+        "Window/aperture must be clean",
+        "I2C address selection on board"
+      ]
+    },
+    {
+      "name": "SSD1306 OLED Display 128x64",
+      "interface": "I2C or SPI",
+      "pins": "I2C: SDA, SCL, VCC=3.3V, GND (address 0x3C or 0x3D). SPI: MOSI, SCK, DC, RESET, CS",
+      "library": "Adafruit SSD1306 / u8g2",
+      "description": "128x64 monochrome OLED display. I2C is simpler (2 wires). SPI is faster. Memory: 1KB (128x64/8). u8g2 library supports both. Fonts and bitmaps consume RAM quickly.",
+      "common_issues": [
+        "Display not clearing properly between updates",
+        "I2C address 0x3C vs 0x3D depending on board",
+        "RAM usage high with large fonts",
+        "SPI requires more GPIO pins but is faster"
+      ]
+    },
+    {
+      "name": "INA219 Current/Voltage Sensor",
+      "interface": "I2C",
+      "pins": "SDA, SCL, VCC=3.3V-5V, GND. V+ and V- for load",
+      "library": "Adafruit INA219",
+      "description": "High-side current sensor with 12-bit resolution. I2C@0x40-0x4F. Measures voltage (0-26V), current, and power. Requires shunt resistor (typically 0.1 ohm). Accuracy depends on shunt value.",
+      "common_issues": [
+        "Wrong shunt resistor value in library config",
+        "Maximum current limited by shunt power rating",
+        "V- must be connected to load ground",
+        "Bus voltage must be within 3-26V range"
+      ]
+    },
+    {
+      "name": "RC522 RFID Reader",
+      "interface": "SPI",
+      "pins": "MOSI, MISO, SCK, SDA (CS), RST. VCC=3.3V (NOT 5V!)",
+      "library": "MFRC522",
+      "description": "13.56MHz RFID reader. Reads MIFARE Classic cards/tags. SPI at 10MHz. Power with 3.3V only - 5V damages it. Range ~3-5cm. Each tag has unique UID (4-7 bytes).",
+      "common_issues": [
+        "Powering with 5V destroys the module",
+        "SPI connections need correct pin mapping",
+        "Tags need to be close (2-3cm) for reliable reads",
+        "Not all MIFARE tag types supported"
+      ]
+    },
+    {
+      "name": "NRF24L01 Wireless Transceiver",
+      "interface": "SPI",
+      "pins": "MOSI, MISO, SCK, CSN, CE, IRQ (optional). VCC=3.3V (NOT 5V!)",
+      "library": "RF24 (Arduino/ESP-IDF)",
+      "description": "2.4GHz wireless transceiver. Range up to 100m (with PA+LNA module). SPI up to 10MHz. Requires capacitors across VCC-GND for stability. Pipes for multi-point communication.",
+      "common_issues": [
+        "Power supply insufficient - use 3.3V and add 10uF cap",
+        "PA+LNA modules draw more current - need external supply",
+        "CE and CSN pins must be different",
+        "SPI speed too high causes communication errors"
+      ]
+    },
+    {
+      "name": "VL53L0X Time-of-Flight Distance",
+      "interface": "I2C",
+      "pins": "SDA, SCL, VCC=2.8V-5V (onboard regulator), GND, XSHUT (shutdown)",
+      "library": "Adafruit VL53L0X / Pololu library",
+      "description": "Laser-based time-of-flight distance sensor. I2C@0x29. Range 50-1200mm. Accuracy +-3%. Much better than ultrasonic. Immune to surface color/texture (vs ultrasonic).",
+      "common_issues": [
+        "I2C address conflict when using multiple sensors",
+        "Needs 2.8V (has onboard regulator so 3.3V or 5V works)",
+        "Needs calibration for accurate absolute distance",
+        "Aperture must not be covered"
+      ]
+    }
+  ]
+}

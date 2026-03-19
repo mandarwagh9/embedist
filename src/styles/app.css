@@ -23,13 +23,41 @@
 }
 
 .app-sidebar-content {
-  width: 280px;
-  min-width: 280px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.sidebar-resize-handle {
+  width: 6px;
+  min-width: 6px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-subtle);
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--accent);
+}
+
+.sidebar-resize-line {
+  width: 2px;
+  height: 32px;
+  background: var(--border-default);
+  border-radius: 1px;
+}
+
+.sidebar-resize-handle:hover .sidebar-resize-line,
+.sidebar-resize-handle:active .sidebar-resize-line {
+  background: var(--accent);
 }
 
 .sidebar-content {

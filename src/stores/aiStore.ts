@@ -16,6 +16,7 @@ export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  mode: AIMode;
 }
 
 export interface CustomModel {
@@ -26,16 +27,21 @@ export interface CustomModel {
   model: string;
 }
 
+export type PlanPhase = 'explore' | 'design' | 'review' | 'ready' | 'clarify';
+
 interface AIState {
   mode: AIMode;
   activeProvider: string;
   providers: AIProvider[];
   customModels: CustomModel[];
-  chatMessages: AIMessage[];
-  planMessages: AIMessage[];
-  debugMessages: AIMessage[];
+  messages: AIMessage[];
   isLoading: boolean;
-  
+
+  planPhase: PlanPhase;
+  planContent: string;
+  isEditingPlan: boolean;
+  planToApprove: string | null;
+
   setMode: (mode: AIMode) => void;
   setActiveProvider: (id: string) => void;
   addProvider: (provider: AIProvider) => void;
@@ -43,14 +49,15 @@ interface AIState {
   removeProvider: (id: string) => void;
   addCustomModel: (model: CustomModel) => void;
   removeCustomModel: (id: string) => void;
-  addMessage: (message: Omit<AIMessage, 'id' | 'timestamp'>) => void;
+      addMessage: (message: Omit<AIMessage, 'id' | 'timestamp' | 'mode'>) => void;
   clearMessages: () => void;
   clearAllMessages: () => void;
   setLoading: (loading: boolean) => void;
-  
-  getMessages: () => AIMessage[];
-  getMessageCount: (mode: AIMode) => number;
-  getOtherModesWithMessages: () => Array<{ mode: AIMode; count: number }>;
+
+  setPlanPhase: (phase: PlanPhase) => void;
+  setPlanContent: (content: string) => void;
+  setIsEditingPlan: (editing: boolean) => void;
+  setPlanToApprove: (content: string | null) => void;
 }
 
 const defaultProviders: AIProvider[] = [
@@ -94,113 +101,75 @@ export const useAIStore = create<AIState>()(
       activeProvider: 'openai',
       providers: defaultProviders,
       customModels: [],
-      chatMessages: [],
-      planMessages: [],
-      debugMessages: [],
+      messages: [],
       isLoading: false,
 
-      setMode: (mode) => set({ mode }),
+      planPhase: 'explore',
+      planContent: '',
+      isEditingPlan: false,
+      planToApprove: null,
+
+      setMode: (mode) => set({
+        mode,
+        planPhase: mode === 'plan' ? 'explore' : get().planPhase,
+        isEditingPlan: false,
+        planToApprove: null,
+      }),
 
       setActiveProvider: (id) => set({ activeProvider: id }),
-      
+
       addProvider: (provider) => set((state) => ({
         providers: [...state.providers, provider],
       })),
-      
+
       updateProvider: (id, updates) => set((state) => ({
         providers: state.providers.map(p =>
           p.id === id ? { ...p, ...updates } : p
         ),
       })),
-      
+
       removeProvider: (id) => set((state) => ({
         providers: state.providers.filter(p => p.id !== id),
         activeProvider: state.activeProvider === id ? 'openai' : state.activeProvider,
       })),
-      
+
       addCustomModel: (model) => set((state) => ({
         customModels: [...state.customModels, model],
       })),
-      
+
       removeCustomModel: (id) => set((state) => ({
         customModels: state.customModels.filter(m => m.id !== id),
       })),
-      
+
       addMessage: (message) => {
         const { mode } = get();
         const fullMessage: AIMessage = {
           ...message,
+          mode,
           id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           timestamp: Date.now(),
         };
-        
-        set((state) => ({
-          chatMessages: mode === 'chat' ? [...state.chatMessages, fullMessage] : state.chatMessages,
-          planMessages: mode === 'plan' ? [...state.planMessages, fullMessage] : state.planMessages,
-          debugMessages: mode === 'debug' ? [...state.debugMessages, fullMessage] : state.debugMessages,
-        }));
-      },
-      
-      clearMessages: () => {
-        const { mode } = get();
-        set((state) => ({
-          chatMessages: mode === 'chat' ? [] : state.chatMessages,
-          planMessages: mode === 'plan' ? [] : state.planMessages,
-          debugMessages: mode === 'debug' ? [] : state.debugMessages,
-        }));
+        set((state) => ({ messages: [...state.messages, fullMessage] }));
       },
 
-      clearAllMessages: () => set({
-        chatMessages: [],
-        planMessages: [],
-        debugMessages: [],
-      }),
-      
+      clearMessages: () => set({ messages: [] }),
+
+      clearAllMessages: () => set({ messages: [] }),
+
       setLoading: (loading) => set({ isLoading: loading }),
 
-      getMessages: () => {
-        const { mode, chatMessages, planMessages, debugMessages } = get();
-        switch (mode) {
-          case 'plan': return planMessages;
-          case 'debug': return debugMessages;
-          default: return chatMessages;
-        }
-      },
-
-      getMessageCount: (mode: AIMode) => {
-        const { chatMessages, planMessages, debugMessages } = get();
-        switch (mode) {
-          case 'plan': return planMessages.length;
-          case 'debug': return debugMessages.length;
-          default: return chatMessages.length;
-        }
-      },
-
-      getOtherModesWithMessages: () => {
-        const { mode, chatMessages, planMessages, debugMessages } = get();
-        const others: Array<{ mode: AIMode; count: number }> = [];
-        
-        if (mode !== 'chat' && chatMessages.length > 0) {
-          others.push({ mode: 'chat', count: chatMessages.length });
-        }
-        if (mode !== 'plan' && planMessages.length > 0) {
-          others.push({ mode: 'plan', count: planMessages.length });
-        }
-        if (mode !== 'debug' && debugMessages.length > 0) {
-          others.push({ mode: 'debug', count: debugMessages.length });
-        }
-        
-        return others;
-      },
+      setPlanPhase: (phase) => set({ planPhase: phase }),
+      setPlanContent: (content) => set({ planContent: content }),
+      setIsEditingPlan: (editing) => set({ isEditingPlan: editing }),
+      setPlanToApprove: (content) => set({ planToApprove: content }),
     }),
     {
       name: 'embedist-ai-store',
       partialize: (state) => ({
         mode: state.mode,
         activeProvider: state.activeProvider,
-        chatMessages: state.chatMessages,
-        planMessages: state.planMessages,
-        debugMessages: state.debugMessages,
+        messages: state.messages,
+        customModels: state.customModels,
       }),
     }
   )

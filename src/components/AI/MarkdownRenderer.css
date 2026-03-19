@@ -1,0 +1,161 @@
+.md-renderer {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.md-renderer .md-h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 16px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.md-renderer .md-h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 14px 0 6px;
+}
+
+.md-renderer .md-h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 12px 0 4px;
+}
+
+.md-renderer .md-inline-code {
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.md-renderer .md-code-block {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  margin: var(--space-sm) 0;
+  overflow-x: auto;
+}
+
+.md-renderer .md-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: pre;
+  display: block;
+}
+
+.md-renderer .md-list-item {
+  list-style: none;
+  padding-left: 16px;
+  position: relative;
+  margin: 2px 0;
+}
+
+.md-renderer .md-list-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.md-renderer .md-list-item.numbered {
+  padding-left: 24px;
+}
+
+.md-renderer .md-list-item.numbered::before {
+  display: none;
+}
+
+.md-renderer .md-number {
+  color: var(--accent);
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.md-renderer .md-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 0;
+  list-style: none;
+}
+
+.md-renderer .md-checkbox.unchecked {
+  color: var(--text-secondary);
+}
+
+.md-renderer .md-checkbox.checked {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.md-renderer .md-checkbox-box {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border: 1.5px solid var(--border-default);
+  border-radius: 3px;
+  margin-top: 2px;
+}
+
+.md-renderer .md-checkbox-box-checked {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border: 1.5px solid var(--success);
+  border-radius: 3px;
+  margin-top: 2px;
+  background: var(--success);
+  color: white;
+  font-size: 9px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.md-renderer .md-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-sm) 0;
+  font-size: 12px;
+}
+
+.md-renderer .md-table-cell {
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.md-renderer .md-table tr:first-child .md-table-cell {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.md-renderer p {
+  margin: 6px 0;
+}
+
+.md-renderer strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.md-renderer em {
+  font-style: italic;
+  color: var(--text-secondary);
+}

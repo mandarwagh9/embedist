@@ -19,6 +19,7 @@ interface UIState {
   // Sidebar
   sidebarExpanded: boolean;
   sidebarSection: SidebarSection;
+  sidebarWidth: number;
   
   // Tabs
   tabs: Tab[];
@@ -45,6 +46,7 @@ interface UIState {
   setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
   setSidebarSection: (section: SidebarSection) => void;
+  setSidebarWidth: (width: number) => void;
   openTab: (tab: Tab) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
@@ -68,6 +70,7 @@ export const useUIStore = create<UIState>((set) => ({
   // Sidebar
   sidebarExpanded: false,
   sidebarSection: 'files',
+  sidebarWidth: 360,
   
   // Tabs
   tabs: [],
@@ -94,6 +97,7 @@ export const useUIStore = create<UIState>((set) => ({
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
   toggleSidebar: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
   setSidebarSection: (section) => set({ sidebarSection: section }),
+  setSidebarWidth: (width) => set({ sidebarWidth: width }),
   
   openTab: (tab) => set((state) => {
     const exists = state.tabs.find(t => t.path === tab.path);
