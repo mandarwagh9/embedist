@@ -29,6 +29,16 @@ export interface CustomModel {
 
 export type PlanPhase = 'explore' | 'design' | 'review' | 'ready' | 'clarify';
 
+export type AgentStatus = 'idle' | 'running' | 'done';
+
+export interface ActivityLogEntry {
+  id: string;
+  timestamp: number;
+  type: 'read' | 'write' | 'build' | 'shell' | 'search' | 'info' | 'error' | 'done';
+  message: string;
+  details?: string;
+}
+
 interface AIState {
   mode: AIMode;
   activeProvider: string;
@@ -41,6 +51,10 @@ interface AIState {
   planContent: string;
   isEditingPlan: boolean;
   planToApprove: string | null;
+
+  agentStatus: AgentStatus;
+  agentTask: string | null;
+  agentActivityLog: ActivityLogEntry[];
 
   setMode: (mode: AIMode) => void;
   setActiveProvider: (id: string) => void;
@@ -58,6 +72,11 @@ interface AIState {
   setPlanContent: (content: string) => void;
   setIsEditingPlan: (editing: boolean) => void;
   setPlanToApprove: (content: string | null) => void;
+
+  setAgentStatus: (status: AgentStatus) => void;
+  setAgentTask: (task: string | null) => void;
+  addActivityLog: (entry: ActivityLogEntry) => void;
+  clearActivityLog: () => void;
 }
 
 const defaultProviders: AIProvider[] = [
@@ -109,11 +128,16 @@ export const useAIStore = create<AIState>()(
       isEditingPlan: false,
       planToApprove: null,
 
+      agentStatus: 'idle',
+      agentTask: null,
+      agentActivityLog: [],
+
       setMode: (mode) => set({
         mode,
         planPhase: mode === 'plan' ? 'explore' : get().planPhase,
         isEditingPlan: false,
         planToApprove: null,
+        agentStatus: mode === 'agent' ? 'idle' : get().agentStatus,
       }),
 
       setActiveProvider: (id) => set({ activeProvider: id }),
@@ -162,6 +186,13 @@ export const useAIStore = create<AIState>()(
       setPlanContent: (content) => set({ planContent: content }),
       setIsEditingPlan: (editing) => set({ isEditingPlan: editing }),
       setPlanToApprove: (content) => set({ planToApprove: content }),
+
+      setAgentStatus: (status) => set({ agentStatus: status }),
+      setAgentTask: (task) => set({ agentTask: task }),
+      addActivityLog: (entry) => set((state) => ({
+        agentActivityLog: [...state.agentActivityLog, entry],
+      })),
+      clearActivityLog: () => set({ agentActivityLog: [] }),
     }),
     {
       name: 'embedist-ai-store',

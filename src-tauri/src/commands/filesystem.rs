@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::command;
+use tokio::process::Command as AsyncCommand;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -199,4 +200,124 @@ pub fn save_plan_file(directory: String, name: String, content: String) -> Resul
     let path = PathBuf::from(&directory).join(&name);
     fs::write(&path, content).map_err(|e| format!("Failed to save plan: {}", e))?;
     Ok(path.to_string_lossy().to_string())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub path: String,
+    pub line_number: usize,
+    pub content: String,
+}
+
+#[command]
+pub fn grep_search(
+    root_path: String,
+    pattern: String,
+    file_pattern: Option<String>,
+    max_results: Option<usize>,
+) -> Result<Vec<SearchResult>, String> {
+    let max = max_results.unwrap_or(100);
+    let pattern_lower = pattern.to_lowercase();
+    let file_pat = file_pattern.as_deref();
+
+    fn matches_file(name: &str, pattern: Option<&str>) -> bool {
+        match pattern {
+            None => true,
+            Some(pat) => {
+                let pat = pat.to_lowercase();
+                if pat.starts_with('*') && pat.ends_with('*') {
+                    name.to_lowercase().contains(&pat[1..pat.len()-1])
+                } else if pat.starts_with('*') {
+                    name.to_lowercase().ends_with(&pat[1..])
+                } else if pat.ends_with('*') {
+                    name.to_lowercase().starts_with(&pat[..pat.len()-1])
+                } else {
+                    name.to_lowercase() == pat
+                }
+            }
+        }
+    }
+
+    fn search_dir(dir: &str, pat: &str, file_pat: Option<&str>, max: usize, results: &mut Vec<SearchResult>) {
+        if results.len() >= max { return; }
+        let entries = match fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return,
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            if results.len() >= max { break; }
+            let path = entry.path();
+            if path.is_dir() {
+                let dirs_to_skip = ["target", ".git", ".pio", "node_modules"];
+                let name = path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                if !dirs_to_skip.contains(&name.as_str()) {
+                    search_dir(&path.to_string_lossy(), pat, file_pat, max, results);
+                }
+            } else if path.is_file() {
+                let name = path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                if !matches_file(&name, file_pat) { continue; }
+                match fs::read_to_string(&path) {
+                    Ok(content) => {
+                        for (line_num, line) in content.lines().enumerate() {
+                            if line.to_lowercase().contains(pat) {
+                                results.push(SearchResult {
+                                    path: path.to_string_lossy().to_string(),
+                                    line_number: line_num + 1,
+                                    content: line.trim_end().to_string(),
+                                });
+                                if results.len() >= max { break; }
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                }
+            }
+        }
+    }
+
+    let mut results = Vec::new();
+    search_dir(&root_path, &pattern_lower, file_pat, max, &mut results);
+    Ok(results)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ShellResult {
+    pub stdout: String,
+    pub stderr: String,
+    pub return_code: i32,
+}
+
+#[command]
+pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResult, String> {
+    let (cmd, _args) = if cfg!(target_os = "windows") {
+        ("cmd".to_string(), vec!["/C".to_string(), command.clone()])
+    } else {
+        ("sh".to_string(), vec!["-c".to_string(), command.clone()])
+    };
+
+    let mut builder = AsyncCommand::new(&cmd);
+    if cfg!(target_os = "windows") {
+        builder.args(&["/C", &command]);
+    } else {
+        builder.args(&["sh", "-c", &command]);
+    }
+
+    if let Some(dir) = &cwd {
+        builder.current_dir(dir);
+    }
+
+    let output = builder
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute shell command: {}", e))?;
+
+    Ok(ShellResult {
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        return_code: output.status.code().unwrap_or(-1),
+    })
 }

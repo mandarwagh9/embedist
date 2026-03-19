@@ -1,0 +1,314 @@
+import { useCallback, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useAIStore } from '../stores/aiStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useFileStore } from '../stores/fileStore';
+import { buildPlanContext } from './usePlanContext';
+import { SYSTEM_PROMPTS } from '../lib/ai-prompts';
+import { getAllToolDefinitions, executeTool, type ToolCall } from '../lib/agent-tools';
+
+interface AIResponse {
+  content: string;
+  model: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  tool_calls: ToolCall[];
+}
+
+interface ActivityEntry {
+  id: string;
+  timestamp: number;
+  type: 'read' | 'write' | 'build' | 'shell' | 'search' | 'info' | 'error' | 'done';
+  message: string;
+  details?: string;
+}
+
+const MAX_ITERATIONS = 50;
+
+export function useAgent() {
+  const {
+    activeProvider,
+    messages,
+    addMessage,
+    setLoading,
+    setAgentStatus,
+    addActivityLog,
+    clearActivityLog,
+    setAgentTask,
+    agentStatus,
+    agentActivityLog,
+  } = useAIStore();
+
+  const customEndpoints = useSettingsStore((s) => s.customEndpoints);
+  const providerConfigs = useSettingsStore((s) => s.providers);
+
+  const isRunningRef = useRef(false);
+  const cancelRef = useRef(false);
+
+  const getActiveEndpoint = useCallback(() => {
+    const ep = customEndpoints.find(e => e.baseUrl && e.apiKey);
+    return ep || null;
+  }, [customEndpoints]);
+
+  const hasActiveProvider = useCallback(() => {
+    const ep = getActiveEndpoint();
+    if (ep) return true;
+    const p = providerConfigs[activeProvider as keyof typeof providerConfigs];
+    if (p?.apiKey) return true;
+    return false;
+  }, [activeProvider, providerConfigs, getActiveEndpoint]);
+
+  const getActiveModel = useCallback(() => {
+    const ep = getActiveEndpoint();
+    if (ep) return { apiKey: ep.apiKey, baseUrl: ep.baseUrl, model: ep.model, provider: ep.id };
+    const p = providerConfigs[activeProvider as keyof typeof providerConfigs];
+    if (p?.apiKey) return { apiKey: p.apiKey, baseUrl: undefined, model: p.model, provider: activeProvider };
+    return null;
+  }, [activeProvider, providerConfigs, getActiveEndpoint]);
+
+  const callAI = useCallback(async (
+    msgs: Array<{ id: string; role: string; content: string }>,
+    tools?: boolean
+  ): Promise<AIResponse | null> => {
+    const modelConfig = getActiveModel();
+    if (!modelConfig) return null;
+
+    const toolDefs = tools ? getAllToolDefinitions() : undefined;
+
+    try {
+      const response = await invoke<AIResponse>('chat_completion', {
+        messages: msgs,
+        model: modelConfig.model || null,
+        provider: modelConfig.provider || null,
+        apiKey: modelConfig.apiKey || null,
+        baseUrl: modelConfig.baseUrl || null,
+        tools: toolDefs || null,
+      });
+      return response;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(msg);
+    }
+  }, [getActiveModel]);
+
+  const buildSystemPrompt = useCallback(async (): Promise<string> => {
+    const modeConfig = SYSTEM_PROMPTS['agent'];
+    let prompt = modeConfig.system;
+
+    const { rootPath } = useFileStore.getState();
+    if (rootPath) {
+      const context = await buildPlanContext('');
+      if (context) {
+        prompt += `\n\n## Current Project Context\n${context}`;
+      }
+    }
+
+    const currentMessages = useAIStore.getState().messages;
+    const approvedPlan = extractApprovedPlan(currentMessages);
+    if (approvedPlan) {
+      prompt += `\n\n## Approved Implementation Plan\n${approvedPlan}`;
+    }
+
+    return prompt;
+  }, []);
+
+  const extractApprovedPlan = (msgs: typeof messages): string | null => {
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (m.role === 'system' && m.content.startsWith('## Plan to Implement')) {
+        const end = m.content.indexOf('\n\n---\n');
+        if (end > 0) return m.content.substring(0, end);
+        return m.content;
+      }
+    }
+    return null;
+  };
+
+  const logActivity = useCallback((
+    type: ActivityEntry['type'],
+    message: string,
+    details?: string
+  ) => {
+    const entry: ActivityEntry = {
+      id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      timestamp: Date.now(),
+      type,
+      message,
+      details,
+    };
+    addActivityLog(entry);
+    return entry;
+  }, [addActivityLog]);
+
+  const getIconForTool = (name: string): ActivityEntry['type'] => {
+    switch (name) {
+      case 'read_file': return 'read';
+      case 'write_file': return 'write';
+      case 'build_project': return 'build';
+      case 'run_shell': return 'shell';
+      case 'search_code': return 'search';
+      case 'create_file':
+      case 'create_folder': return 'write';
+      default: return 'info';
+    }
+  };
+
+  const startAgentTask = useCallback(async (task: string) => {
+    if (!hasActiveProvider()) {
+      logActivity('error', 'No AI provider configured', 'Please add an AI provider in Settings.');
+      return;
+    }
+
+    isRunningRef.current = true;
+    cancelRef.current = false;
+
+    clearActivityLog();
+    setAgentTask(task);
+    setAgentStatus('running');
+    setLoading(true);
+
+    logActivity('info', 'Starting agent task', task);
+
+    try {
+      const systemPrompt = await buildSystemPrompt();
+
+      const conversationMessages: Array<{ id: string; role: string; content: string }> = [
+        { id: 'system', role: 'system', content: systemPrompt },
+      ];
+
+      for (const msg of messages) {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          conversationMessages.push({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+          });
+        }
+      }
+
+      conversationMessages.push({
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: task,
+      });
+
+      let iteration = 0;
+
+      while (isRunningRef.current && iteration < MAX_ITERATIONS) {
+        iteration++;
+
+        if (cancelRef.current) {
+          logActivity('info', 'Agent task cancelled by user');
+          break;
+        }
+
+        setLoading(true);
+
+        let response: AIResponse | null = null;
+        let lastError = '';
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            response = await callAI(conversationMessages, true);
+            break;
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            if (attempt < 2) {
+              logActivity('info', `Retrying API call (attempt ${attempt + 2}/3)`, lastError);
+              await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            }
+          }
+        }
+
+        if (!response) {
+          logActivity('error', 'Failed to get AI response', lastError);
+          addMessage({ role: 'assistant', content: `I encountered an error: ${lastError}` });
+          break;
+        }
+
+        if (response.content && response.content.trim()) {
+          addMessage({ role: 'assistant', content: response.content });
+          conversationMessages.push({
+            id: `asst-${Date.now()}-${iteration}`,
+            role: 'assistant',
+            content: response.content,
+          });
+        }
+
+        if (response.tool_calls && response.tool_calls.length > 0) {
+          for (const tc of response.tool_calls) {
+            if (cancelRef.current) break;
+
+            const toolIcon = getIconForTool(tc.name);
+            logActivity(toolIcon, `Calling ${tc.name}...`, tc.arguments);
+
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(tc.arguments);
+            } catch {
+              args = {};
+            }
+
+            const result = await executeTool(tc.id, tc.name, args);
+
+            const resultMsg: ActivityEntry['type'] = result.success ? toolIcon : 'error';
+            logActivity(resultMsg, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 500));
+
+            const toolResultContent = result.success
+              ? `Tool "${tc.name}" result:\n${result.output}`
+              : `Tool "${tc.name}" failed:\n${result.output}`;
+
+            conversationMessages.push({
+              id: `tool-${tc.id}`,
+              role: 'tool',
+              content: toolResultContent,
+            });
+
+            addMessage({ role: 'assistant', content: `[Tool: ${tc.name}]\n${result.output}` });
+          }
+
+          if (response.content && response.content.trim()) {
+            logActivity('info', 'AI response', response.content.substring(0, 200));
+          }
+        } else {
+          if (response.content && response.content.trim()) {
+            logActivity('done', 'Agent task complete', response.content.substring(0, 300));
+          } else {
+            logActivity('done', 'Agent task complete', 'No more actions needed.');
+          }
+          break;
+        }
+      }
+
+      if (iteration >= MAX_ITERATIONS) {
+        logActivity('error', 'Max iterations reached', 'The agent ran for too long. Consider breaking the task into smaller steps.');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logActivity('error', 'Agent error', msg);
+      addMessage({ role: 'assistant', content: `Error: ${msg}` });
+    } finally {
+      isRunningRef.current = false;
+      setLoading(false);
+      setAgentStatus('done');
+    }
+  }, [hasActiveProvider, buildSystemPrompt, callAI, addMessage, setLoading, setAgentStatus, clearActivityLog, logActivity, setAgentTask, messages]);
+
+  const cancelAgentTask = useCallback(() => {
+    cancelRef.current = true;
+    isRunningRef.current = false;
+    logActivity('info', 'Cancelling...', 'Stopping the agent task.');
+    setAgentStatus('idle');
+    setLoading(false);
+  }, [logActivity, setAgentStatus, setLoading]);
+
+  return {
+    startAgentTask,
+    cancelAgentTask,
+    agentStatus,
+    agentActivityLog,
+    isRunning: agentStatus === 'running',
+  };
+}

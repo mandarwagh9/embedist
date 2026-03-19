@@ -42,6 +42,7 @@ interface SettingsState {
     defaultBoard: string;
     uploadSpeed: number;
   };
+  defaultImplementationMode: 'chat' | 'agent';
   open: () => void;
   close: () => void;
   setActiveSection: (section: string) => void;
@@ -51,6 +52,7 @@ interface SettingsState {
   updateEditor: (config: Partial<SettingsState['editor']>) => void;
   updateSerial: (config: Partial<SettingsState['serial']>) => void;
   updateBuild: (config: Partial<SettingsState['build']>) => void;
+  setDefaultImplementationMode: (mode: 'chat' | 'agent') => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -84,6 +86,7 @@ export const useSettingsStore = create<SettingsState>()(
         defaultBoard: 'esp32dev',
         uploadSpeed: 921600,
       },
+      defaultImplementationMode: 'chat',
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
@@ -118,6 +121,8 @@ export const useSettingsStore = create<SettingsState>()(
       updateBuild: (config) => set((state) => ({
         build: { ...state.build, ...config },
       })),
+
+      setDefaultImplementationMode: (mode) => set({ defaultImplementationMode: mode }),
     }),
     { name: 'embedist-settings' }
   )

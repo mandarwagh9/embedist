@@ -4,6 +4,53 @@ use std::sync::Mutex;
 use tauri::{command, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolParamProperty {
+    #[serde(rename = "type")]
+    pub param_type: String,
+    pub description: Option<String>,
+    #[serde(default)]
+    pub enum_values: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolParams {
+    #[serde(rename = "type")]
+    pub params_type: String,
+    pub properties: HashMap<String, ToolParamProperty>,
+    #[serde(default)]
+    pub required: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolDefinition {
+    #[serde(rename = "type")]
+    pub tool_type: String,
+    #[serde(rename = "function")]
+    pub function: ToolFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolFunction {
+    pub name: String,
+    pub description: String,
+    pub parameters: ToolParams,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCall {
+    pub id: String,
+    pub name: String,
+    pub arguments: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCallResult {
+    pub call_id: String,
+    pub output: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AIMessage {
     pub role: String,
     pub content: String,
@@ -14,6 +61,8 @@ pub struct AIResponse {
     pub content: String,
     pub model: String,
     pub usage: Option<TokenUsage>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCall>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,6 +122,7 @@ pub async fn chat_completion(
     provider: Option<String>,
     api_key: Option<String>,
     base_url: Option<String>,
+    tools: Option<Vec<ToolDefinition>>,
 ) -> Result<AIResponse, String> {
     let (active, config, use_direct_config) = {
         let active = state.active_provider.lock().unwrap().clone();
@@ -114,14 +164,14 @@ pub async fn chat_completion(
     if use_direct_config {
         let url = base_url.ok_or("Direct endpoint requires a base URL")?;
         if url.contains("openai") {
-            chat_openai(&api_key, &model_name, &messages).await
+            chat_openai(&api_key, &model_name, &messages, tools.as_ref()).await
         } else {
             chat_custom(&url, &api_key, &model_name, &messages).await
         }
     } else {
         match active.as_str() {
-            "openai" => chat_openai(&api_key, &model_name, &messages).await,
-            "anthropic" => chat_anthropic(&api_key, &model_name, &messages).await,
+            "openai" => chat_openai(&api_key, &model_name, &messages, tools.as_ref()).await,
+            "anthropic" => chat_anthropic(&api_key, &model_name, &messages, tools.as_ref()).await,
             "deepseek" => chat_deepseek(&api_key, &model_name, &messages).await,
             "ollama" => {
                 let url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
@@ -137,14 +187,18 @@ pub async fn chat_completion(
     }
 }
 
-async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
     
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
         "messages": messages,
         "stream": false,
     });
+    
+    if let Some(t) = tools {
+        body["tools"] = serde_json::json!(t);
+    }
     
     let response = client
         .post("https://api.openai.com/v1/chat/completions")
@@ -168,6 +222,20 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
         .unwrap_or("")
         .to_string();
     
+    let tool_calls: Vec<ToolCall> = data["choices"][0]["message"]["tool_calls"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|tc| {
+                    let id = tc["id"].as_str()?.to_string();
+                    let name = tc["function"]["name"].as_str()?.to_string();
+                    let args = tc["function"]["arguments"].as_str().unwrap_or("{}").to_string();
+                    Some(ToolCall { id, name, arguments: args })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    
     let usage = data["usage"].as_object().map(|u| TokenUsage {
         prompt_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         completion_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
@@ -178,10 +246,11 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
         content,
         model: model.to_string(),
         usage,
+        tool_calls,
     })
 }
 
-async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
     
     let system = messages.iter()
@@ -201,12 +270,16 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage]) -> R
         })
     }).collect();
     
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
         "messages": formatted_messages,
         "max_tokens": 4096,
         "system": system,
     });
+    
+    if let Some(t) = tools {
+        body["tools"] = serde_json::json!(t);
+    }
     
     let response = client
         .post("https://api.anthropic.com/v1/messages")
@@ -226,15 +299,33 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage]) -> R
     
     let data: serde_json::Value = response.json().await.map_err(|e| format!("Parse error: {}", e))?;
     
-    let content = data["content"][0]["text"]
-        .as_str()
+    let content = data["content"]
+        .as_array()
+        .and_then(|arr| arr.iter().find(|c| c["type"] == "text"))
+        .and_then(|c| c["text"].as_str())
         .unwrap_or("")
         .to_string();
+    
+    let tool_calls: Vec<ToolCall> = data["content"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter(|c| c["type"] == "tool_use")
+                .filter_map(|tc| {
+                    let id = tc["id"].as_str()?.to_string();
+                    let name = tc["name"].as_str()?.to_string();
+                    let input = serde_json::to_string(&tc["input"]).unwrap_or_else(|_| "{}".to_string());
+                    Some(ToolCall { id, name, arguments: input })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
     
     Ok(AIResponse {
         content,
         model: model.to_string(),
         usage: None,
+        tool_calls,
     })
 }
 
@@ -273,6 +364,7 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage]) -> Re
         content,
         model: model.to_string(),
         usage: None,
+        tool_calls: vec![],
     })
 }
 
@@ -319,6 +411,7 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Res
         content,
         model: model.to_string(),
         usage: None,
+        tool_calls: vec![],
     })
 }
 
@@ -384,6 +477,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
         content,
         model: model.to_string(),
         usage: None,
+        tool_calls: vec![],
     })
 }
 
@@ -435,5 +529,6 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
         content,
         model: model.to_string(),
         usage,
+        tool_calls: vec![],
     })
 }

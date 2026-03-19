@@ -1,0 +1,287 @@
+import { invoke } from '@tauri-apps/api/core';
+
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, {
+        type: string;
+        description?: string;
+        enum?: string[];
+      }>;
+      required: string[];
+    };
+  };
+}
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface ToolResult {
+  callId: string;
+  success: boolean;
+  output: string;
+}
+
+interface ToolExecuteFn {
+  (args: Record<string, unknown>): Promise<unknown>;
+}
+
+interface ToolEntry {
+  definition: ToolDefinition;
+  execute: ToolExecuteFn;
+}
+
+const toolRegistry: Record<string, ToolEntry> = {};
+
+export function registerTool(name: string, def: ToolDefinition, exec: ToolExecuteFn) {
+  toolRegistry[name] = { definition: def, execute: exec };
+}
+
+registerTool('read_file', {
+  type: 'function',
+  function: {
+    name: 'read_file',
+    description: 'Read contents of a file. Use for understanding existing code before making changes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the file' },
+      },
+      required: ['path'],
+    },
+  },
+}, async (args) => {
+  const content = await invoke<string>('read_file', { path: args.path as string });
+  return content;
+});
+
+registerTool('write_file', {
+  type: 'function',
+  function: {
+    name: 'write_file',
+    description: 'Create or overwrite a file with content. Use for creating new files or modifying existing ones.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path for the file' },
+        content: { type: 'string', description: 'Full file content to write' },
+      },
+      required: ['path', 'content'],
+    },
+  },
+}, async (args) => {
+  await invoke('write_file', { path: args.path as string, content: args.content as string });
+  return `Written ${args.path}`;
+});
+
+registerTool('create_file', {
+  type: 'function',
+  function: {
+    name: 'create_file',
+    description: 'Create an empty file at a specific location.',
+    parameters: {
+      type: 'object',
+      properties: {
+        parent: { type: 'string', description: 'Parent directory path' },
+        name: { type: 'string', description: 'File name (not full path)' },
+      },
+      required: ['parent', 'name'],
+    },
+  },
+}, async (args) => {
+  const path = await invoke<string>('create_file', { parent: args.parent as string, name: args.name as string });
+  return path;
+});
+
+registerTool('create_folder', {
+  type: 'function',
+  function: {
+    name: 'create_folder',
+    description: 'Create a directory (and any intermediate directories).',
+    parameters: {
+      type: 'object',
+      properties: {
+        parent: { type: 'string', description: 'Parent directory path' },
+        name: { type: 'string', description: 'Folder name (not full path)' },
+      },
+      required: ['parent', 'name'],
+    },
+  },
+}, async (args) => {
+  const path = await invoke<string>('create_folder', { parent: args.parent as string, name: args.name as string });
+  return path;
+});
+
+registerTool('list_directory', {
+  type: 'function',
+  function: {
+    name: 'list_directory',
+    description: 'List files and folders in a directory.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Directory path to list' },
+      },
+      required: ['path'],
+    },
+  },
+}, async (args) => {
+  const entries = await invoke<Array<{
+    name: string;
+    path: string;
+    is_dir: boolean;
+    is_file: boolean;
+    size: number;
+  }>>('list_directory', { path: args.path as string });
+  return entries.map(e => `${e.is_dir ? '[DIR]' : '[FILE]'} ${e.name}`).join('\n');
+});
+
+registerTool('get_directory_tree', {
+  type: 'function',
+  function: {
+    name: 'get_directory_tree',
+    description: 'Get the full directory tree structure starting from a root.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Root directory path' },
+        depth: { type: 'number', description: 'Maximum depth (default 3)' },
+      },
+      required: ['path'],
+    },
+  },
+}, async (args) => {
+  const tree = await invoke<{
+    name: string;
+    path: string;
+    is_dir: boolean;
+    children: unknown[];
+  }>('get_directory_tree', { path: args.path as string, depth: (args.depth as number) ?? 3 });
+
+  function formatNode(node: typeof tree, indent: number): string {
+    const prefix = '  '.repeat(indent);
+    const icon = node.is_dir ? '[DIR]' : '[FILE]';
+    let result = `${prefix}${icon} ${node.name}\n`;
+    if (node.is_dir && node.children) {
+      for (const child of node.children as typeof tree[]) {
+        result += formatNode(child, indent + 1);
+      }
+    }
+    return result;
+  }
+
+  return formatNode(tree, 0);
+});
+
+registerTool('search_code', {
+  type: 'function',
+  function: {
+    name: 'search_code',
+    description: 'Search for text patterns in files within a directory.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Root directory to search in' },
+        pattern: { type: 'string', description: 'Text pattern to find' },
+        filePattern: { type: 'string', description: 'File name pattern e.g. "*.cpp" or "*main*" (optional)' },
+      },
+      required: ['path', 'pattern'],
+    },
+  },
+}, async (args) => {
+  const results = await invoke<Array<{
+    path: string;
+    line_number: number;
+    content: string;
+  }>>('grep_search', {
+    root_path: args.path as string,
+    pattern: args.pattern as string,
+    file_pattern: (args.filePattern as string) ?? null,
+    max_results: 50,
+  });
+
+  if (results.length === 0) return 'No matches found.';
+  return results.map(r => `${r.path}:${r.line_number}: ${r.content}`).join('\n');
+});
+
+registerTool('build_project', {
+  type: 'function',
+  function: {
+    name: 'build_project',
+    description: 'Build the PlatformIO project.',
+    parameters: {
+      type: 'object',
+      properties: {
+        projectPath: { type: 'string', description: 'Absolute path to project root (directory with platformio.ini)' },
+      },
+      required: ['projectPath'],
+    },
+  },
+}, async (args) => {
+  const result = await invoke<{
+    success: boolean;
+    stdout: string;
+    stderr: string;
+    return_code: number;
+    duration_ms: number;
+  }>('build_project', { project_path: args.projectPath as string });
+
+  if (result.success) {
+    return `Build successful (${result.duration_ms}ms)\n\n--- Build Output ---\n${result.stdout}`;
+  }
+  return `Build FAILED (${result.duration_ms}ms)\n\n--- Stdout ---\n${result.stdout}\n\n--- Stderr ---\n${result.stderr}`;
+});
+
+registerTool('run_shell', {
+  type: 'function',
+  function: {
+    name: 'run_shell',
+    description: 'Run an arbitrary shell command.',
+    parameters: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Shell command to execute' },
+        cwd: { type: 'string', description: 'Working directory (optional)' },
+      },
+      required: ['command'],
+    },
+  },
+}, async (args) => {
+  const result = await invoke<{
+    stdout: string;
+    stderr: string;
+    return_code: number;
+  }>('run_shell', { command: args.command as string, cwd: (args.cwd as string) ?? null });
+
+  const output = `Exit code: ${result.return_code}\n\n--- Stdout ---\n${result.stdout}\n\n--- Stderr ---\n${result.stderr}`;
+  return output;
+});
+
+export function getAllToolDefinitions(): ToolDefinition[] {
+  return Object.values(toolRegistry).map(t => t.definition);
+}
+
+export async function executeTool(callId: string, name: string, args: Record<string, unknown>): Promise<ToolResult> {
+  const tool = toolRegistry[name];
+  if (!tool) {
+    return { callId, success: false, output: `Unknown tool: ${name}` };
+  }
+  try {
+    const output = await tool.execute(args);
+    return { callId, success: true, output: typeof output === 'string' ? output : JSON.stringify(output) };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { callId, success: false, output: `Error: ${msg}` };
+  }
+}
+
+export function getToolNames(): string[] {
+  return Object.keys(toolRegistry);
+}

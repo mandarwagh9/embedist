@@ -152,3 +152,5 @@ src-tauri/src/
 - Stop build button doesn't stop the process
 - Ctrl+Alt+S (Save All) shortcut not registered in App.tsx
 - Recent Files, file rename/delete, theme settings, AI model params, board auto-detect not implemented
+- Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only mode (no tool execution)
+- Agent Mode: Settings toggle for "default implementation mode" is not exposed in the Settings UI (edit settingsStore directly for now)

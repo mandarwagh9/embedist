@@ -1,26 +1,33 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAI } from '../../hooks/useAI';
+import { useAgent } from '../../hooks/useAgent';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAIStore } from '../../stores/aiStore';
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
 import { PlanToolbar } from './PlanToolbar';
+import { AgentToolbar } from './AgentToolbar';
+import { AgentActivityPanel } from './AgentActivityPanel';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { SYSTEM_PROMPTS } from '../../lib/ai-prompts';
 import type { AIMode } from '../../lib/ai-prompts';
 import './AIChatPanel.css';
 import './MarkdownRenderer.css';
+import './AgentToolbar.css';
+import './AgentActivityPanel.css';
 
 const MODE_COLORS: Record<AIMode, string> = {
   chat: 'var(--accent)',
   plan: 'var(--info)',
   debug: 'var(--warning)',
+  agent: '#9b59b6',
 };
 
 const MODE_LABELS: Record<AIMode, string> = {
   chat: 'Chat',
   plan: 'Plan',
   debug: 'Debug',
+  agent: 'Agent',
 };
 
 function AIChatPanelContent() {
@@ -38,7 +45,15 @@ function AIChatPanelContent() {
     planContent,
     setPlanPhase,
     setPlanContent,
+    agentStatus,
+    agentTask,
+    agentActivityLog,
   } = useAIStore();
+
+  const {
+    startAgentTask,
+    cancelAgentTask,
+  } = useAgent();
 
   const [input, setInput] = useState('');
   const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
@@ -46,6 +61,7 @@ function AIChatPanelContent() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
+  const defaultImplMode = useSettingsStore((state) => state.defaultImplementationMode);
   const modeConfig = SYSTEM_PROMPTS[mode];
 
   const scrollToBottom = () => {
@@ -64,15 +80,15 @@ function AIChatPanelContent() {
   }, [mode, messages.length, setPlanPhase, setPlanContent]);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.role === 'assistant') {
-        setPlanContent(lastMsg.content);
-        if (lastMsg.content.toLowerCase().includes('approve')) {
-          setPlanPhase('ready');
-        } else if (lastMsg.content.includes('?')) {
-          setPlanPhase('clarify');
-        }
+    if (mode !== 'agent') return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === 'assistant' && lastMsg.mode === 'agent') {
+      setPlanContent(lastMsg.content);
+      if (lastMsg.content.toLowerCase().includes('approve')) {
+        setPlanPhase('ready');
+      } else if (lastMsg.content.includes('?')) {
+        setPlanPhase('clarify');
       }
     }
   }, [messages, mode, setPlanContent, setPlanPhase]);
@@ -83,6 +99,11 @@ function AIChatPanelContent() {
 
     const userMessage = input.trim();
     setInput('');
+
+    if (mode === 'agent') {
+      startAgentTask(userMessage);
+      return;
+    }
 
     try {
       await sendMessage(userMessage, defaultBoard);
@@ -110,20 +131,29 @@ function AIChatPanelContent() {
     const planText = planContent || (messages.length > 0 ? messages[messages.length - 1].content : '') || '';
     if (!planText) return;
 
+    const targetMode = defaultImplMode;
     setPlanPhase('explore');
     setPlanContent('');
-    switchMode('chat');
-    setTransitionMsg('Switched to Chat Mode — plan approved');
+    switchMode(targetMode);
+    setTransitionMsg(`Switched to ${MODE_LABELS[targetMode]} Mode — plan approved`);
     setTimeout(() => setTransitionMsg(null), 2500);
     setTimeout(() => {
       useAIStore.getState().addMessage({
         role: 'system',
         content: `## Plan to Implement\n\n${planText}\n\n---\n*Please implement the plan above.*`,
       });
-      useAIStore.getState().addMessage({
-        role: 'user',
-        content: 'Please implement the plan above.',
-      });
+      if (targetMode === 'agent') {
+        useAIStore.getState().addMessage({
+          role: 'user',
+          content: 'Please implement the plan above.',
+        });
+        startAgentTask('Please implement the plan above.');
+      } else {
+        useAIStore.getState().addMessage({
+          role: 'user',
+          content: 'Please implement the plan above.',
+        });
+      }
       inputRef.current?.focus();
     }, 50);
   };
@@ -150,6 +180,10 @@ function AIChatPanelContent() {
       </p>
     );
   };
+
+  const showInput = mode !== 'agent' || agentStatus === 'idle' || agentStatus === 'done';
+  const showAgentToolbar = mode === 'agent' && hasActiveProvider;
+  const showActivityPanel = mode === 'agent' && hasActiveProvider;
 
   return (
     <div className="ai-chat-panel">
@@ -185,12 +219,26 @@ function AIChatPanelContent() {
         />
       )}
 
+      {showAgentToolbar && (
+        <AgentToolbar
+          status={agentStatus}
+          task={agentTask}
+          onStop={cancelAgentTask}
+        />
+      )}
+
       {transitionMsg && (
         <div className="plan-transition-toast">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
           <span>{transitionMsg}</span>
+        </div>
+      )}
+
+      {showActivityPanel && (
+        <div className="agent-activity-wrapper">
+          <AgentActivityPanel entries={agentActivityLog} />
         </div>
       )}
 
@@ -228,6 +276,15 @@ function AIChatPanelContent() {
               {mode === 'debug' && (
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
                   <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                </svg>
+              )}
+              {mode === 'agent' && (
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <rect x="3" y="11" width="18" height="10" rx="2"/>
+                  <circle cx="12" cy="5" r="3"/>
+                  <path d="M12 8v3"/>
+                  <circle cx="8" cy="16" r="1" fill="currentColor"/>
+                  <circle cx="16" cy="16" r="1" fill="currentColor"/>
                 </svg>
               )}
             </div>
@@ -295,27 +352,41 @@ function AIChatPanelContent() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form className="ai-input-area" onSubmit={handleSubmit}>
-        <textarea
-          ref={inputRef}
-          className="ai-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={hasActiveProvider ? `Ask about your ${mode === 'plan' ? 'project' : mode === 'debug' ? 'issue' : 'code'}...` : 'Configure AI provider in Settings...'}
-          rows={1}
-          disabled={isLoading || !hasActiveProvider}
-        />
-        <button
-          type="submit"
-          className="ai-send"
-          disabled={!input.trim() || isLoading || !hasActiveProvider}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-          </svg>
-        </button>
-      </form>
+      {showInput && (
+        <form className="ai-input-area" onSubmit={handleSubmit}>
+          <textarea
+            ref={inputRef}
+            className="ai-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              hasActiveProvider
+                ? mode === 'agent' && agentStatus === 'running'
+                  ? 'Agent is running — cancel to type...'
+                  : `Ask about your ${mode === 'plan' ? 'project' : mode === 'debug' ? 'issue' : mode === 'agent' ? 'task' : 'code'}...`
+                : 'Configure AI provider in Settings...'
+            }
+            rows={1}
+            disabled={isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
+          />
+          <button
+            type="submit"
+            className="ai-send"
+            disabled={!input.trim() || isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
+          >
+            {mode === 'agent' && input.trim() ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+              </svg>
+            )}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

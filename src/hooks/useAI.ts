@@ -135,11 +135,13 @@ export function useAI() {
           provider: customEndpoint.id,
           apiKey: customEndpoint.apiKey,
           baseUrl: customEndpoint.baseUrl,
+          tools: null,
         });
       } else {
         response = await invoke<AIResponse>('chat_completion', {
           messages: allMessages,
           model: null,
+          tools: null,
         });
       }
 
@@ -162,6 +164,11 @@ export function useAI() {
   const switchMode = useCallback((newMode: AIMode) => {
     const currentMode = useAIStore.getState().mode;
     if (currentMode === newMode) return;
+    if (currentMode === 'agent') {
+      useAIStore.getState().setAgentStatus('idle');
+      useAIStore.getState().clearActivityLog();
+      useAIStore.getState().setAgentTask(null);
+    }
     addMessage({
       role: 'system',
       content: `[Switched to ${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode]`,

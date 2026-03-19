@@ -357,3 +357,12 @@
   from { opacity: 1; }
   to { opacity: 0; }
 }
+
+.agent-activity-wrapper {
+  max-height: 200px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
