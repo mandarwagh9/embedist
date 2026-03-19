@@ -46,7 +46,7 @@ interface SettingsState {
   close: () => void;
   setActiveSection: (section: string) => void;
   updateProvider: (provider: string, config: Partial<ProviderConfig>) => void;
-  addCustomEndpoint: (endpoint: { name: string; baseUrl: string; apiKey: string; model: string }) => void;
+  addCustomEndpoint: (endpoint: { id?: string; name: string; baseUrl: string; apiKey: string; model: string }) => void;
   removeCustomEndpoint: (id: string) => void;
   updateEditor: (config: Partial<SettingsState['editor']>) => void;
   updateSerial: (config: Partial<SettingsState['serial']>) => void;

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from '../../../stores/settingsStore';
 import { useAIStore } from '../../../stores/aiStore';
 
@@ -16,16 +17,74 @@ export function AISettings() {
     { id: 'ollama', name: 'Ollama (Local)', models: ['llama3.2', 'mistral', 'qwen', 'phi'] },
   ];
 
-  const handleAddCustom = () => {
+  const handleAddCustom = async () => {
     if (customForm.name && customForm.baseUrl && customForm.model) {
-      addCustomEndpoint(customForm);
+      const endpointId = `custom-${Date.now()}`;
+      
+      addCustomEndpoint({
+        id: endpointId,
+        name: customForm.name,
+        baseUrl: customForm.baseUrl,
+        apiKey: customForm.apiKey,
+        model: customForm.model,
+      });
+      
+      try {
+        await invoke('add_ai_provider', {
+          config: {
+            id: endpointId,
+            name: customForm.name,
+            api_key: customForm.apiKey || '',
+            base_url: customForm.baseUrl,
+            default_model: customForm.model,
+          }
+        });
+        
+        await invoke('set_active_provider', { providerId: endpointId });
+        setActiveProvider(endpointId);
+      } catch (err) {
+        console.error('Failed to register custom endpoint with backend:', err);
+      }
+      
       setCustomForm({ name: '', baseUrl: '', apiKey: '', model: '' });
       setShowAddCustom(false);
     }
   };
 
-  const handleSetActiveCustom = (endpointId: string) => {
+  const handleSetActiveCustom = async (endpointId: string) => {
     setActiveProvider(endpointId);
+    try {
+      await invoke('set_active_provider', { providerId: endpointId });
+    } catch (err) {
+      console.error('Failed to set active provider:', err);
+    }
+  };
+
+  const handleSetActive = async (providerId: string) => {
+    setActiveProvider(providerId);
+    try {
+      await invoke('set_active_provider', { providerId });
+    } catch (err) {
+      console.error('Failed to set active provider:', err);
+    }
+  };
+
+  const handleProviderUpdate = async (providerId: string, updates: { apiKey?: string; model?: string }) => {
+    updateProvider(providerId, updates);
+    
+    try {
+      const config = providers[providerId as keyof typeof providers];
+      await invoke('add_ai_provider', {
+        config: {
+          id: providerId,
+          name: providerId.charAt(0).toUpperCase() + providerId.slice(1),
+          api_key: updates.apiKey ?? config?.apiKey ?? '',
+          default_model: updates.model ?? config?.model ?? '',
+        }
+      });
+    } catch (err) {
+      console.error('Failed to sync provider config:', err);
+    }
   };
 
   return (
@@ -37,7 +96,7 @@ export function AISettings() {
             <div
               key={provider.id}
               className={`provider-card ${activeProvider === provider.id ? 'active' : ''}`}
-              onClick={() => setActiveProvider(provider.id)}
+              onClick={() => handleSetActive(provider.id)}
             >
               <div className="provider-card-header">
                 <span className="provider-name">{provider.name}</span>
@@ -52,14 +111,14 @@ export function AISettings() {
                   className="settings-input"
                   placeholder="sk-..."
                   value={providers[provider.id as keyof typeof providers]?.apiKey || ''}
-                  onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })}
+                  onChange={(e) => handleProviderUpdate(provider.id, { apiKey: e.target.value })}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <label className="provider-label">Model</label>
                 <select
                   className="settings-select"
                   value={providers[provider.id as keyof typeof providers]?.model || ''}
-                  onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
+                  onChange={(e) => handleProviderUpdate(provider.id, { model: e.target.value })}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {provider.models.map((m) => (

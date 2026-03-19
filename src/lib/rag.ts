@@ -17,45 +17,59 @@ interface SearchResult {
   score: number;
 }
 
-const documents: KnowledgeDocument[] = [
-  ...(esp32Pins as unknown as { pins: Array<{ pin: string; name: string; functions: string[]; description: string }> }).pins.map((p) => ({
-    id: `esp32-pin-${p.pin}`,
-    category: 'hardware',
-    title: `ESP32 Pin ${p.pin}: ${p.name}`,
-    content: `Pin ${p.pin} (${p.name}): ${p.description}. Functions: ${p.functions.join(', ')}`,
-    metadata: { type: 'pin', board: 'esp32', pin: p.pin },
-  })),
-  ...(esp32Errors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
-    id: `esp32-error-${i}`,
-    category: 'error',
-    title: `ESP32 Error: ${e.error.substring(0, 50)}`,
-    content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
-    metadata: { type: 'error', board: 'esp32' },
-  })),
-  ...(arduinoPins as unknown as { boards: Array<{ name: string; pins: number; analog: number; pwm: number }> }).boards.flatMap((b) =>
-    b.pins ? [{
-      id: `arduino-${b.name.toLowerCase().replace(/\s+/g, '-')}`,
-      category: 'hardware',
-      title: `${b.name} Board Specs`,
-      content: `${b.name}: ${b.pins} digital pins, ${b.analog} analog inputs, ${b.pwm} PWM outputs`,
-      metadata: { type: 'board', board: 'arduino', name: b.name },
-    }] : []
-  ),
-  ...(arduinoErrors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
-    id: `arduino-error-${i}`,
-    category: 'error',
-    title: `Arduino Error: ${e.error.substring(0, 50)}`,
-    content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
-    metadata: { type: 'error', board: 'arduino' },
-  })),
-  ...(commonPatterns as unknown as { patterns: Array<{ name: string; code: string; description: string; example: string }> }).patterns.map((p, i) => ({
-    id: `common-pattern-${i}`,
-    category: 'code',
-    title: p.name,
-    content: `${p.name}: ${p.description}. Code: ${p.code}. Example: ${p.example}`,
-    metadata: { type: 'pattern' },
-  })),
-];
+let documents: KnowledgeDocument[] | null = null;
+let isInitialized = false;
+let initError: Error | null = null;
+
+function initDocuments(): void {
+  if (isInitialized) return;
+  
+  try {
+    documents = [
+      ...(esp32Pins as unknown as { pins: Array<{ pin: string; name: string; functions: string[]; description: string }> }).pins.map((p) => ({
+        id: `esp32-pin-${p.pin}`,
+        category: 'hardware',
+        title: `ESP32 Pin ${p.pin}: ${p.name}`,
+        content: `Pin ${p.pin} (${p.name}): ${p.description}. Functions: ${p.functions.join(', ')}`,
+        metadata: { type: 'pin', board: 'esp32', pin: p.pin },
+      })),
+      ...(esp32Errors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
+        id: `esp32-error-${i}`,
+        category: 'error',
+        title: `ESP32 Error: ${e.error.substring(0, 50)}`,
+        content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
+        metadata: { type: 'error', board: 'esp32' },
+      })),
+      ...(arduinoPins as unknown as { boards: Array<{ name: string; pins: number; analog: number; pwm: number }> }).boards.flatMap((b) =>
+        b.pins ? [{
+          id: `arduino-${b.name.toLowerCase().replace(/\s+/g, '-')}`,
+          category: 'hardware',
+          title: `${b.name} Board Specs`,
+          content: `${b.name}: ${b.pins} digital pins, ${b.analog} analog inputs, ${b.pwm} PWM outputs`,
+          metadata: { type: 'board', board: 'arduino', name: b.name },
+        }] : []
+      ),
+      ...(arduinoErrors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
+        id: `arduino-error-${i}`,
+        category: 'error',
+        title: `Arduino Error: ${e.error.substring(0, 50)}`,
+        content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
+        metadata: { type: 'error', board: 'arduino' },
+      })),
+      ...(commonPatterns as unknown as { patterns: Array<{ name: string; code: string; description: string; example: string }> }).patterns.map((p, i) => ({
+        id: `common-pattern-${i}`,
+        category: 'code',
+        title: p.name,
+        content: `${p.name}: ${p.description}. Code: ${p.code}. Example: ${p.example}`,
+        metadata: { type: 'pattern' },
+      })),
+    ];
+    isInitialized = true;
+  } catch (err) {
+    initError = err instanceof Error ? err : new Error(String(err));
+    console.error('Failed to initialize RAG documents:', initError);
+  }
+}
 
 function tokenize(text: string): string[] {
   return text
@@ -77,12 +91,12 @@ function computeTF(tokens: string[]): Map<string, number> {
   return tf;
 }
 
-function computeIDF(documents: string[][]): Map<string, number> {
+function computeIDF(docs: string[][]): Map<string, number> {
   const idf = new Map<string, number>();
-  const N = documents.length;
+  const N = docs.length;
   const df = new Map<string, number>();
   
-  for (const doc of documents) {
+  for (const doc of docs) {
     const unique = new Set(doc);
     for (const term of unique) {
       df.set(term, (df.get(term) || 0) + 1);
@@ -130,10 +144,28 @@ class RAGEngine {
   private idf: Map<string, number> = new Map();
   
   constructor() {
-    this.index();
+    console.log('[RAGEngine] Creating instance (lazy initialization)');
+  }
+  
+  private ensureInitialized(): void {
+    initDocuments();
+    
+    if (initError) {
+      throw initError;
+    }
+    
+    if (documents === null || !isInitialized) {
+      throw new Error('RAG documents not initialized');
+    }
+    
+    if (this.documentTokens.size === 0) {
+      this.index();
+    }
   }
   
   private index(): void {
+    if (!documents) return;
+    
     const allTokens: string[][] = [];
     
     for (const doc of documents) {
@@ -148,9 +180,20 @@ class RAGEngine {
       const tf = computeTF(tokens);
       this.documentTFIDF.set(id, computeTFIDF(tf, this.idf));
     }
+    
+    console.log(`[RAGEngine] Indexed ${documents.length} documents`);
   }
   
   search(query: string, limit: number = 5): SearchResult[] {
+    try {
+      this.ensureInitialized();
+    } catch (err) {
+      console.error('[RAGEngine] Search failed:', err);
+      return [];
+    }
+    
+    if (!documents) return [];
+    
     const queryTokens = tokenize(query);
     const queryTF = computeTF(queryTokens);
     const queryTFIDF = computeTFIDF(queryTF, this.idf);
@@ -182,6 +225,15 @@ class RAGEngine {
   }
   
   getBoardContext(boardType: string, query: string): string {
+    try {
+      this.ensureInitialized();
+    } catch (err) {
+      console.error('[RAGEngine] getBoardContext failed:', err);
+      return '';
+    }
+    
+    if (!documents) return '';
+    
     const relevant = documents.filter(
       (d) => d.metadata.board === boardType || !boardType
     );

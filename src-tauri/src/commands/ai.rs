@@ -70,28 +70,70 @@ pub async fn chat_completion(
     state: State<'_, AIState>,
     messages: Vec<AIMessage>,
     model: Option<String>,
+    provider: Option<String>,
+    api_key: Option<String>,
+    base_url: Option<String>,
 ) -> Result<AIResponse, String> {
-    let (active, config) = {
+    let (active, config, use_direct_config) = {
         let active = state.active_provider.lock().unwrap().clone();
         let providers = state.providers.lock().unwrap();
-        let config = providers.get(&active)
-            .ok_or("No active AI provider configured")?
-            .clone();
-        (active, config)
+        
+        if api_key.is_some() || base_url.is_some() {
+            let model_name = model.clone().unwrap_or_else(|| "".to_string());
+            let api_key_val = api_key.clone().unwrap_or_else(|| "".to_string());
+            let base_url_val = base_url.clone();
+            (
+                active,
+                AIProviderConfig {
+                    id: provider.clone().unwrap_or_else(|| "direct".to_string()),
+                    name: "Direct".to_string(),
+                    api_key: api_key_val,
+                    base_url: base_url_val,
+                    default_model: model_name,
+                },
+                true,
+            )
+        } else if let Some(ref p) = provider {
+            if let Some(cfg) = providers.get(p) {
+                (p.clone(), cfg.clone(), false)
+            } else {
+                return Err(format!("Provider '{}' not found. Please add it in Settings.", p));
+            }
+        } else {
+            let config = providers.get(&active)
+                .ok_or("No active AI provider configured. Please add one in Settings.")?
+                .clone();
+            (active, config, false)
+        }
     };
     
     let model_name = model.unwrap_or_else(|| config.default_model.clone());
+    let api_key = api_key.unwrap_or_else(|| config.api_key.clone());
+    let base_url = base_url.or(config.base_url.clone());
     
-    match active.as_str() {
-        "openai" => chat_openai(&config.api_key, &model_name, &messages).await,
-        "anthropic" => chat_anthropic(&config.api_key, &model_name, &messages).await,
-        "deepseek" => chat_deepseek(&config.api_key, &model_name, &messages).await,
-        "ollama" => {
-            let base_url = config.base_url.clone().unwrap_or_else(|| "http://localhost:11434".to_string());
-            chat_ollama(&base_url, &model_name, &messages).await
+    if use_direct_config {
+        let url = base_url.ok_or("Direct endpoint requires a base URL")?;
+        if url.contains("openai") {
+            chat_openai(&api_key, &model_name, &messages).await
+        } else {
+            chat_custom(&url, &api_key, &model_name, &messages).await
         }
-        "google" => chat_google(&config.api_key, &model_name, &messages).await,
-        _ => Err("Unknown provider".to_string()),
+    } else {
+        match active.as_str() {
+            "openai" => chat_openai(&api_key, &model_name, &messages).await,
+            "anthropic" => chat_anthropic(&api_key, &model_name, &messages).await,
+            "deepseek" => chat_deepseek(&api_key, &model_name, &messages).await,
+            "ollama" => {
+                let url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
+                chat_ollama(&url, &model_name, &messages).await
+            }
+            "google" => chat_google(&api_key, &model_name, &messages).await,
+            _ if active.starts_with("custom-") => {
+                let url = base_url.ok_or("Custom endpoint requires a base URL")?;
+                chat_custom(&url, &api_key, &model_name, &messages).await
+            }
+            _ => Err(format!("Unknown provider '{}'. Please add it in Settings.", active)),
+        }
     }
 }
 
@@ -342,5 +384,56 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
         content,
         model: model.to_string(),
         usage: None,
+    })
+}
+
+async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+    let client = reqwest::Client::new();
+    
+    let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
+        serde_json::json!({
+            "role": m.role,
+            "content": m.content
+        })
+    }).collect();
+    
+    let body = serde_json::json!({
+        "model": model,
+        "messages": formatted_messages,
+        "stream": false,
+    });
+    
+    let response = client
+        .post(format!("{}/chat/completions", base_url.trim_end_matches('/')))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    
+    if !response.status().is_success() {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("API error {}: {}", status, text));
+    }
+    
+    let data: serde_json::Value = response.json().await.map_err(|e| format!("Parse error: {}", e))?;
+    
+    let content = data["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    
+    let usage = data["usage"].as_object().map(|u| TokenUsage {
+        prompt_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        completion_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        total_tokens: u.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+    });
+    
+    Ok(AIResponse {
+        content,
+        model: model.to_string(),
+        usage,
     })
 }
