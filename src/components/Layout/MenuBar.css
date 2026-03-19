@@ -120,3 +120,246 @@
   background: var(--border-subtle);
   margin: var(--space-xs) 0;
 }
+
+/* About Modal */
+.about-dialog {
+  min-width: 400px;
+  max-width: 480px;
+}
+
+.about-dialog .dialog-content {
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.about-logo {
+  margin-bottom: var(--space-md);
+  color: var(--accent);
+}
+
+.about-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-xs);
+}
+
+.about-version {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-md);
+}
+
+.about-description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-sm);
+}
+
+.about-tech {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-md);
+}
+
+.about-links {
+  margin-bottom: var(--space-md);
+}
+
+.about-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.about-links a:hover {
+  text-decoration: underline;
+}
+
+.about-separator {
+  margin: 0 var(--space-sm);
+  color: var(--text-muted);
+}
+
+.about-copyright {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Shortcuts Modal */
+.shortcuts-dialog {
+  min-width: 500px;
+  max-width: 600px;
+}
+
+.shortcuts-content {
+  padding: var(--space-md);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.shortcuts-section {
+  margin-bottom: var(--space-lg);
+}
+
+.shortcuts-section:last-child {
+  margin-bottom: 0;
+}
+
+.shortcuts-section h4 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+  font-size: var(--text-sm);
+}
+
+.shortcut-row kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.shortcut-row span {
+  color: var(--text-primary);
+}
+
+/* Reuse dialog styles */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dialog-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+
+.dialog-content {
+  padding: var(--space-md);
+}
+
+.dialog-form {
+  padding: var(--space-md);
+}
+
+.dialog-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.dialog-input:focus {
+  border-color: var(--accent);
+}
+
+.dialog-input::placeholder {
+  color: var(--text-muted);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.dialog-btn {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dialog-btn.cancel {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+}
+
+.dialog-btn.cancel:hover {
+  background: var(--bg-surface-hover);
+}
+
+.dialog-btn.submit {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: white;
+}
+
+.dialog-btn.submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.dialog-btn.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

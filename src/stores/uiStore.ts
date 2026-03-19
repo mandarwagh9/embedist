@@ -39,6 +39,7 @@ interface UIState {
   
   // Actions
   setSidebarExpanded: (expanded: boolean) => void;
+  toggleSidebar: () => void;
   setSidebarSection: (section: SidebarSection) => void;
   openTab: (tab: Tab) => void;
   closeTab: (id: string) => void;
@@ -82,6 +83,7 @@ export const useUIStore = create<UIState>((set) => ({
   
   // Actions
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
+  toggleSidebar: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
   setSidebarSection: (section) => set({ sidebarSection: section }),
   
   openTab: (tab) => set((state) => {
