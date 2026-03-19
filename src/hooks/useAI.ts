@@ -1,9 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAIStore } from '../stores/aiStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { ragEngine } from '../lib/rag';
+import { SYSTEM_PROMPTS, MODE_SWITCH_REMINDERS } from '../lib/ai-prompts';
+import type { AIMode } from '../lib/ai-prompts';
 
 interface AIMessage {
+  id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
@@ -18,151 +22,135 @@ interface AIResponse {
   };
 }
 
-interface AIProviderConfig {
-  id: string;
-  name: string;
-  api_key: string;
-  base_url?: string;
-  default_model: string;
-}
-
 export function useAI() {
-  const [messages, setMessages] = useState<AIMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { activeProvider, addProvider, removeProvider, setActiveProvider } = useAIStore();
+  const {
+    mode,
+    activeProvider,
+    chatMessages,
+    planMessages,
+    debugMessages,
+    addMessage,
+    clearMessages,
+    setLoading,
+  } = useAIStore();
+  
+  const customEndpoints = useSettingsStore((state) => state.customEndpoints);
+  const providers = useSettingsStore((state) => state.providers);
+  const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
+
+  const messages = mode === 'plan' ? planMessages : mode === 'debug' ? debugMessages : chatMessages;
+  const isLoading = useAIStore((state) => state.isLoading);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === 'assistant' && lastMsg.content.startsWith('Error:')) {
+      useAIStore.getState().clearMessages();
+    }
+  }, [mode]);
+
+  const getActiveEndpoint = useCallback(() => {
+    const customEndpoint = customEndpoints.find(ep => ep.baseUrl && ep.apiKey);
+    return customEndpoint || null;
+  }, [customEndpoints]);
+
+  const hasActiveProvider = useCallback(() => {
+    const customEndpoint = getActiveEndpoint();
+    if (customEndpoint) return true;
+    if (activeProvider && providers[activeProvider as keyof typeof providers]?.apiKey) return true;
+    return false;
+  }, [activeProvider, providers, getActiveEndpoint]);
 
   const getContextForQuery = useCallback((query: string, boardType?: string): string => {
-    if (boardType) {
-      return ragEngine.getBoardContext(boardType, query);
+    try {
+      const board = boardType || defaultBoard;
+      if (board) {
+        return ragEngine.getBoardContext(board, query);
+      }
+      return ragEngine.getRelevantContext(query);
+    } catch (err) {
+      console.warn('[useAI] Failed to get RAG context:', err);
+      return '';
     }
-    return ragEngine.getRelevantContext(query);
-  }, []);
+  }, [mode, defaultBoard]);
 
-  const sendMessage = useCallback(async (content: string, boardType?: string) => {
-    if (!activeProvider) {
-      setError('No AI provider configured. Please add one in Settings.');
+  const sendMessage = useCallback(async (content: string, boardType?: string): Promise<AIResponse | null> => {
+    if (!hasActiveProvider()) {
       return null;
     }
 
-    const userMessage: AIMessage = { role: 'user', content };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-    setError(null);
+    addMessage({ role: 'user', content });
+    setLoading(true);
 
     try {
+      const currentMessages = useAIStore.getState().getMessages();
       const context = getContextForQuery(content, boardType);
-      const systemPrompt = `You are an expert embedded systems developer assistant. 
-Your name is Embedist.
-You specialize in ESP32, Arduino, and embedded C/C++ development.
-Use the following knowledge base to provide accurate, hardware-specific answers:
+      const modeConfig = SYSTEM_PROMPTS[mode];
+      
+      const systemPrompt = `${modeConfig.system}
 
-${context || 'No relevant context found.'}
-
-Provide concise, actionable answers. Include code examples when relevant.`;
+Knowledge Base:
+${context || 'No relevant context found.'}`;
 
       const allMessages: AIMessage[] = [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-        userMessage,
+        { id: 'system-prompt', role: 'system', content: systemPrompt },
+        ...currentMessages,
+        { id: `temp-${Date.now()}`, role: 'user', content },
       ];
 
-      const response = await invoke<AIResponse>('chat_completion', {
-        messages: allMessages,
-        model: null,
-      });
+      const customEndpoint = getActiveEndpoint();
+      let response: AIResponse;
 
-      const assistantMessage: AIMessage = {
-        role: 'assistant',
-        content: response.content,
-      };
+      if (customEndpoint) {
+        console.log('[useAI] Using custom endpoint:', customEndpoint.name, 'ID:', customEndpoint.id);
+        response = await invoke<AIResponse>('chat_completion', {
+          messages: allMessages,
+          model: customEndpoint.model || null,
+          provider: customEndpoint.id,
+          apiKey: customEndpoint.apiKey,
+          baseUrl: customEndpoint.baseUrl,
+        });
+      } else {
+        response = await invoke<AIResponse>('chat_completion', {
+          messages: allMessages,
+          model: null,
+        });
+      }
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      addMessage({ role: 'assistant', content: response.content });
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
+      console.error('[useAI] sendMessage error:', err);
+      addMessage({ role: 'assistant', content: `Error: ${errorMessage}` });
       return null;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [activeProvider, messages, getContextForQuery]);
+  }, [mode, addMessage, setLoading, getContextForQuery, hasActiveProvider, getActiveEndpoint]);
 
-  const loadProviders = useCallback(async () => {
-    try {
-      const stored = await invoke<AIProviderConfig[]>('get_ai_providers');
-      stored.forEach((p) => addProvider({
-        id: p.id,
-        name: p.name,
-        type: 'cloud',
-        models: [p.default_model],
-        apiKey: p.api_key,
-        baseUrl: p.base_url,
-      }));
-    } catch (err) {
-      console.error('Failed to load AI providers:', err);
-    }
-  }, [addProvider]);
-
-  const saveProvider = useCallback(async (config: { id: string; name: string; api_key: string; base_url?: string; default_model: string }) => {
-    try {
-      await invoke('add_ai_provider', { config });
-      addProvider({
-        id: config.id,
-        name: config.name,
-        type: 'cloud',
-        models: [config.default_model],
-        apiKey: config.api_key,
-        baseUrl: config.base_url,
-      });
-      if (!activeProvider) {
-        await invoke('set_active_provider', { providerId: config.id });
-        setActiveProvider(config.id);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-    }
-  }, [activeProvider, addProvider, setActiveProvider]);
-
-  const deleteProvider = useCallback(async (providerId: string) => {
-    try {
-      await invoke('remove_ai_provider', { providerId });
-      removeProvider(providerId);
-      if (activeProvider === providerId) {
-        setActiveProvider('openai');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-    }
-  }, [activeProvider, removeProvider, setActiveProvider]);
-
-  const selectProvider = useCallback(async (providerId: string) => {
-    try {
-      await invoke('set_active_provider', { providerId });
-      setActiveProvider(providerId);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-    }
-  }, [setActiveProvider]);
-
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setError(null);
+  const clearAllMessages = useCallback(() => {
+    useAIStore.getState().clearAllMessages();
   }, []);
 
+  const switchMode = useCallback((newMode: AIMode) => {
+    useAIStore.getState().setMode(newMode);
+    
+    const reminder = MODE_SWITCH_REMINDERS[newMode];
+    if (reminder) {
+      addMessage({ role: 'system', content: reminder });
+    }
+  }, [addMessage]);
+
   return {
+    mode,
     messages,
     isLoading,
-    error,
     sendMessage,
-    loadProviders,
-    saveProvider,
-    deleteProvider,
-    selectProvider,
     clearMessages,
+    clearAllMessages,
+    switchMode,
     getContextForQuery,
+    hasActiveProvider: hasActiveProvider(),
   };
 }
