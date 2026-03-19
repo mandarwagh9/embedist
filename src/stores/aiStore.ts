@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { AIMode } from '../lib/ai-prompts';
 
 export interface AIProvider {
   id: string;
@@ -12,7 +13,7 @@ export interface AIProvider {
 
 export interface AIMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
 }
@@ -26,12 +27,16 @@ export interface CustomModel {
 }
 
 interface AIState {
+  mode: AIMode;
   activeProvider: string;
   providers: AIProvider[];
   customModels: CustomModel[];
-  messages: AIMessage[];
+  chatMessages: AIMessage[];
+  planMessages: AIMessage[];
+  debugMessages: AIMessage[];
   isLoading: boolean;
   
+  setMode: (mode: AIMode) => void;
   setActiveProvider: (id: string) => void;
   addProvider: (provider: AIProvider) => void;
   updateProvider: (id: string, updates: Partial<AIProvider>) => void;
@@ -40,7 +45,12 @@ interface AIState {
   removeCustomModel: (id: string) => void;
   addMessage: (message: Omit<AIMessage, 'id' | 'timestamp'>) => void;
   clearMessages: () => void;
+  clearAllMessages: () => void;
   setLoading: (loading: boolean) => void;
+  
+  getMessages: () => AIMessage[];
+  getMessageCount: (mode: AIMode) => number;
+  getOtherModesWithMessages: () => Array<{ mode: AIMode; count: number }>;
 }
 
 const defaultProviders: AIProvider[] = [
@@ -79,12 +89,17 @@ const defaultProviders: AIProvider[] = [
 
 export const useAIStore = create<AIState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      mode: 'chat',
       activeProvider: 'openai',
       providers: defaultProviders,
       customModels: [],
-      messages: [],
+      chatMessages: [],
+      planMessages: [],
+      debugMessages: [],
       isLoading: false,
+
+      setMode: (mode) => set({ mode }),
 
       setActiveProvider: (id) => set({ activeProvider: id }),
       
@@ -111,20 +126,82 @@ export const useAIStore = create<AIState>()(
         customModels: state.customModels.filter(m => m.id !== id),
       })),
       
-      addMessage: (message) => set((state) => ({
-        messages: [...state.messages, {
+      addMessage: (message) => {
+        const { mode } = get();
+        const fullMessage: AIMessage = {
           ...message,
           id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           timestamp: Date.now(),
-        }],
-      })),
+        };
+        
+        set((state) => ({
+          chatMessages: mode === 'chat' ? [...state.chatMessages, fullMessage] : state.chatMessages,
+          planMessages: mode === 'plan' ? [...state.planMessages, fullMessage] : state.planMessages,
+          debugMessages: mode === 'debug' ? [...state.debugMessages, fullMessage] : state.debugMessages,
+        }));
+      },
       
-      clearMessages: () => set({ messages: [] }),
+      clearMessages: () => {
+        const { mode } = get();
+        set((state) => ({
+          chatMessages: mode === 'chat' ? [] : state.chatMessages,
+          planMessages: mode === 'plan' ? [] : state.planMessages,
+          debugMessages: mode === 'debug' ? [] : state.debugMessages,
+        }));
+      },
+
+      clearAllMessages: () => set({
+        chatMessages: [],
+        planMessages: [],
+        debugMessages: [],
+      }),
       
       setLoading: (loading) => set({ isLoading: loading }),
+
+      getMessages: () => {
+        const { mode, chatMessages, planMessages, debugMessages } = get();
+        switch (mode) {
+          case 'plan': return planMessages;
+          case 'debug': return debugMessages;
+          default: return chatMessages;
+        }
+      },
+
+      getMessageCount: (mode: AIMode) => {
+        const { chatMessages, planMessages, debugMessages } = get();
+        switch (mode) {
+          case 'plan': return planMessages.length;
+          case 'debug': return debugMessages.length;
+          default: return chatMessages.length;
+        }
+      },
+
+      getOtherModesWithMessages: () => {
+        const { mode, chatMessages, planMessages, debugMessages } = get();
+        const others: Array<{ mode: AIMode; count: number }> = [];
+        
+        if (mode !== 'chat' && chatMessages.length > 0) {
+          others.push({ mode: 'chat', count: chatMessages.length });
+        }
+        if (mode !== 'plan' && planMessages.length > 0) {
+          others.push({ mode: 'plan', count: planMessages.length });
+        }
+        if (mode !== 'debug' && debugMessages.length > 0) {
+          others.push({ mode: 'debug', count: debugMessages.length });
+        }
+        
+        return others;
+      },
     }),
     {
       name: 'embedist-ai-store',
+      partialize: (state) => ({
+        mode: state.mode,
+        activeProvider: state.activeProvider,
+        chatMessages: state.chatMessages,
+        planMessages: state.planMessages,
+        debugMessages: state.debugMessages,
+      }),
     }
   )
 );
