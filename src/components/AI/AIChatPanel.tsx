@@ -1,12 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
-import { useAIStore } from '../../stores/aiStore';
+import { useAI } from '../../hooks/useAI';
+import { useSettingsStore } from '../../stores/settingsStore';
 import './AIChatPanel.css';
 
 export function AIChatPanel() {
-  const { messages, isLoading, addMessage, setLoading, activeProvider, providers } = useAIStore();
+  const {
+    messages,
+    isLoading,
+    error,
+    sendMessage,
+    clearMessages,
+  } = useAI();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -20,23 +29,10 @@ export function AIChatPanel() {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMessage = input;
+    const userMessage = input.trim();
     setInput('');
-    addMessage({ role: 'user', content: userMessage });
-    setLoading(true);
 
-    // Simulate AI response (replace with actual API call later)
-    setTimeout(() => {
-      const responses = [
-        "I've analyzed your code. The issue is likely related to the I2C pin configuration. On ESP32, the default SDA is GPIO21 and SCL is GPIO22.",
-        "Looking at your build output, I see a memory warning. Consider using `PROGMEM` for constant data to reduce RAM usage.",
-        "The upload timeout error typically occurs when the board is not in flashing mode. Hold the BOOT button while pressing EN/RST.",
-        "Your sensor isn't responding because the I2C address may be incorrect. Try running an I2C scanner to find the correct address.",
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      addMessage({ role: 'assistant', content: randomResponse });
-      setLoading(false);
-    }, 1500);
+    await sendMessage(userMessage, defaultBoard);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -45,8 +41,6 @@ export function AIChatPanel() {
       handleSubmit();
     }
   };
-
-  const currentProvider = providers.find(p => p.id === activeProvider);
 
   return (
     <div className="ai-chat-panel">
@@ -59,9 +53,9 @@ export function AIChatPanel() {
               <path d="M2 12L12 17L22 12"/>
             </svg>
           </span>
-          <span className="ai-provider-name">{currentProvider?.name || 'Select Provider'}</span>
+          <span className="ai-provider-name">AI Assistant</span>
         </div>
-        <button className="ai-clear" onClick={() => useAIStore.getState().clearMessages()}>
+        <button className="ai-clear" onClick={clearMessages} title="Clear chat">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
           </svg>
@@ -123,6 +117,13 @@ export function AIChatPanel() {
               </div>
             )}
           </>
+        )}
+        {error && (
+          <div className="ai-message assistant error">
+            <div className="ai-message-content">
+              <p className="ai-error">Error: {error}</p>
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

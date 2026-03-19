@@ -232,3 +232,13 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.ai-error {
+  color: var(--error);
+  font-size: var(--text-sm);
+}
+
+.ai-message.error .ai-message-content {
+  background: var(--error-bg, rgba(239, 68, 68, 0.1));
+  border-color: var(--error, #ef4444);
+}
