@@ -4,10 +4,8 @@ import { useAIStore } from '../stores/aiStore';
 import { ragEngine } from '../lib/rag';
 
 interface AIMessage {
-  id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp?: number;
 }
 
 interface AIResponse {
@@ -47,12 +45,7 @@ export function useAI() {
       return null;
     }
 
-    const userMessage: AIMessage = { 
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      role: 'user', 
-      content,
-      timestamp: Date.now(),
-    };
+    const userMessage: AIMessage = { role: 'user', content };
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);
@@ -69,7 +62,7 @@ ${context || 'No relevant context found.'}
 Provide concise, actionable answers. Include code examples when relevant.`;
 
       const allMessages: AIMessage[] = [
-        { id: 'system-prompt', role: 'system', content: systemPrompt },
+        { role: 'system', content: systemPrompt },
         ...messages,
         userMessage,
       ];
@@ -80,10 +73,8 @@ Provide concise, actionable answers. Include code examples when relevant.`;
       });
 
       const assistantMessage: AIMessage = {
-        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'assistant',
         content: response.content,
-        timestamp: Date.now(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
