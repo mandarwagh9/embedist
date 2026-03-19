@@ -1,0 +1,134 @@
+.ai-mode-dropdown {
+  position: relative;
+}
+
+.ai-mode-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ai-mode-trigger:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-hover);
+}
+
+.ai-mode-trigger.open {
+  border-color: var(--accent);
+}
+
+.ai-mode-trigger[data-mode="chat"] .ai-mode-trigger-icon {
+  color: var(--accent);
+}
+
+.ai-mode-trigger[data-mode="plan"] .ai-mode-trigger-icon {
+  color: var(--info);
+}
+
+.ai-mode-trigger[data-mode="debug"] .ai-mode-trigger-icon {
+  color: var(--warning);
+}
+
+.ai-mode-trigger-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-mode-trigger-label {
+  display: none;
+}
+
+@media (min-width: 1000px) {
+  .ai-mode-trigger-label {
+    display: inline;
+  }
+}
+
+.ai-mode-trigger-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.ai-mode-trigger.open .ai-mode-trigger-arrow {
+  transform: rotate(180deg);
+}
+
+.ai-mode-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.ai-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.ai-mode-option:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.ai-mode-option.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.ai-mode-option[data-mode="chat"].active .ai-mode-option-icon {
+  color: var(--accent);
+}
+
+.ai-mode-option[data-mode="plan"].active .ai-mode-option-icon {
+  color: var(--info);
+}
+
+.ai-mode-option[data-mode="debug"].active .ai-mode-option-icon {
+  color: var(--warning);
+}
+
+.ai-mode-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.ai-mode-option-label {
+  flex: 1;
+}
+
+.ai-mode-option-check {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
