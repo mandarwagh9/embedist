@@ -155,6 +155,36 @@ export function MenuBar() {
     closeMenu();
   }, [closeMenu]);
   
+  const handleUndo = useCallback(() => {
+    document.execCommand('undo', false);
+    closeMenu();
+  }, [closeMenu]);
+  
+  const handleRedo = useCallback(() => {
+    document.execCommand('redo', false);
+    closeMenu();
+  }, [closeMenu]);
+  
+  const handleCut = useCallback(() => {
+    document.execCommand('cut', false);
+    closeMenu();
+  }, [closeMenu]);
+  
+  const handleCopy = useCallback(() => {
+    document.execCommand('copy', false);
+    closeMenu();
+  }, [closeMenu]);
+  
+  const handlePaste = useCallback(() => {
+    document.execCommand('paste', false);
+    closeMenu();
+  }, [closeMenu]);
+  
+  const handleSelectAll = useCallback(() => {
+    document.execCommand('selectAll', false);
+    closeMenu();
+  }, [closeMenu]);
+  
   const menus: Record<string, MenuProps> = {
     file: {
       label: 'File',
@@ -175,14 +205,14 @@ export function MenuBar() {
       label: 'Edit',
       onClose: closeMenu,
       items: [
-        { label: 'Undo', shortcut: 'Ctrl+Z' },
-        { label: 'Redo', shortcut: 'Ctrl+Y' },
+        { label: 'Undo', shortcut: 'Ctrl+Z', onClick: handleUndo },
+        { label: 'Redo', shortcut: 'Ctrl+Y', onClick: handleRedo },
         { divider: true, label: '' },
-        { label: 'Cut', shortcut: 'Ctrl+X' },
-        { label: 'Copy', shortcut: 'Ctrl+C' },
-        { label: 'Paste', shortcut: 'Ctrl+V' },
+        { label: 'Cut', shortcut: 'Ctrl+X', onClick: handleCut },
+        { label: 'Copy', shortcut: 'Ctrl+C', onClick: handleCopy },
+        { label: 'Paste', shortcut: 'Ctrl+V', onClick: handlePaste },
         { divider: true, label: '' },
-        { label: 'Select All', shortcut: 'Ctrl+A' },
+        { label: 'Select All', shortcut: 'Ctrl+A', onClick: handleSelectAll },
       ],
     },
     view: {

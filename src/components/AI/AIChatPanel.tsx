@@ -67,6 +67,15 @@ function AIChatPanelContent() {
     switchMode(targetMode);
   };
 
+  const formatMessageContent = (content: string) => {
+    return content.split('\n').map((line, i, arr) => (
+      <span key={i}>
+        {line}
+        {i < arr.length - 1 && <br />}
+      </span>
+    ));
+  };
+
   const modeLabels: Record<AIMode, string> = {
     chat: 'Chat',
     plan: 'Plan',
@@ -178,7 +187,7 @@ function AIChatPanelContent() {
                   )}
                 </div>
                 <div className="ai-message-content">
-                  <p>{msg.content}</p>
+                  <p>{formatMessageContent(msg.content)}</p>
                 </div>
               </div>
             ))}

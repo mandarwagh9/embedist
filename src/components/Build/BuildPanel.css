@@ -20,6 +20,27 @@
   gap: var(--space-sm);
 }
 
+.board-select {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.board-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.board-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .build-action-btn {
   display: flex;
   align-items: center;
@@ -146,4 +167,8 @@
 
 .build-status-idle {
   color: var(--text-muted);
+}
+
+.build-status-error {
+  color: var(--error);
 }

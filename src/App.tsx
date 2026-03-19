@@ -13,6 +13,7 @@ import { CodeEditor } from './components/Editor/CodeEditor';
 import { FileExplorer } from './components/FileExplorer/FileExplorer';
 import { AIChatPanel } from './components/AI/AIChatPanel';
 import { SerialMonitor } from './components/Serial/SerialMonitor';
+import { BuildPanel } from './components/Build/BuildPanel';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { useFileSystem } from './hooks/useFileSystem';
 import { MODE_SWITCH_REMINDERS } from './lib/ai-prompts';
@@ -177,7 +178,7 @@ void loop() {
       case 'serial':
         return <SerialMonitor />;
       case 'build':
-        return <FileExplorer />;
+        return <BuildPanel />;
       default:
         return <FileExplorer />;
     }

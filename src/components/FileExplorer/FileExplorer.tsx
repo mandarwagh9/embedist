@@ -180,7 +180,6 @@ export function FileExplorer() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    // Handle dropped files/folders if needed
   };
 
   if (!rootPath) {

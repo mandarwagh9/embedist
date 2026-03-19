@@ -72,7 +72,7 @@ export function useAI() {
       console.warn('[useAI] Failed to get RAG context:', err);
       return '';
     }
-  }, [mode, defaultBoard]);
+  }, [defaultBoard]);
 
   const sendMessage = useCallback(async (content: string, boardType?: string): Promise<AIResponse | null> => {
     if (!hasActiveProvider()) {

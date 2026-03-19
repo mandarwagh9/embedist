@@ -6,11 +6,15 @@ const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 
 export function SerialMonitor() {
   const { serialConnected, serialBaudRate, setSerialConnected, setSerialPort, setSerialBaudRate } = useUIStore();
-  const [logs, setLogs] = useState<{ id: number; text: string; type: 'info' | 'error' | 'input' }[]>([]);
+  const [logs, setLogs] = useState<{ id: number; text: string; type: 'info' | 'error' | 'input'; timestamp: number }[]>([]);
   const [input, setInput] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
+  
+  const addLog = (text: string, type: 'info' | 'error' | 'input') => {
+    setLogs(prev => [...prev, { id: Date.now(), text, type, timestamp: Date.now() }]);
+  };
 
   const scrollToBottom = () => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -22,7 +26,7 @@ export function SerialMonitor() {
 
   const connect = async () => {
     if (!('serial' in navigator)) {
-      setLogs(prev => [...prev, { id: Date.now(), text: 'Web Serial API not supported in this browser', type: 'error' }]);
+      addLog('Web Serial API not supported in this browser', 'error');
       return;
     }
 
@@ -34,7 +38,7 @@ export function SerialMonitor() {
       setSerialPort(port.getInfo?.()?.path || 'Connected');
       setSerialConnected(true);
       
-      setLogs(prev => [...prev, { id: Date.now(), text: `Connected at ${serialBaudRate} baud`, type: 'info' }]);
+      addLog(`Connected at ${serialBaudRate} baud`, 'info');
 
       const reader = port.readable.getReader();
       readerRef.current = reader;
@@ -48,7 +52,7 @@ export function SerialMonitor() {
             const text = new TextDecoder().decode(value);
             const lines = text.split('\n').filter(l => l.trim());
             lines.forEach(line => {
-              setLogs(prev => [...prev, { id: Date.now(), text: line, type: 'info' }]);
+              addLog(line, 'info');
             });
           }
         } catch (err) {
@@ -58,7 +62,7 @@ export function SerialMonitor() {
 
       readLoop();
     } catch (err) {
-      setLogs(prev => [...prev, { id: Date.now(), text: `Connection failed: ${err}`, type: 'error' }]);
+      addLog(`Connection failed: ${err}`, 'error');
     }
     setIsConnecting(false);
   };
@@ -70,12 +74,12 @@ export function SerialMonitor() {
     }
     setSerialConnected(false);
     setSerialPort(null);
-    setLogs(prev => [...prev, { id: Date.now(), text: 'Disconnected', type: 'info' }]);
+    addLog('Disconnected', 'info');
   };
 
   const sendCommand = async () => {
     if (!input.trim()) return;
-    setLogs(prev => [...prev, { id: Date.now(), text: `> ${input}`, type: 'input' }]);
+    addLog(`> ${input}`, 'input');
     setInput('');
   };
 
@@ -121,7 +125,7 @@ export function SerialMonitor() {
           logs.map((log) => (
             <div key={log.id} className={`serial-line ${log.type}`}>
               <span className="serial-timestamp">
-                {new Date().toLocaleTimeString()}
+                {new Date(log.timestamp).toLocaleTimeString()}
               </span>
               <span className="serial-text">{log.text}</span>
             </div>

@@ -144,7 +144,6 @@ class RAGEngine {
   private idf: Map<string, number> = new Map();
   
   constructor() {
-    console.log('[RAGEngine] Creating instance (lazy initialization)');
   }
   
   private ensureInitialized(): void {

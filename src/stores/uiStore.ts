@@ -37,6 +37,10 @@ interface UIState {
   // Build
   buildRunning: boolean;
   
+  // Cursor position
+  cursorLine: number;
+  cursorColumn: number;
+  
   // Actions
   setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
@@ -51,6 +55,7 @@ interface UIState {
   setSerialPort: (port: string | null) => void;
   setSerialBaudRate: (rate: number) => void;
   setBuildRunning: (running: boolean) => void;
+  setCursorPosition: (line: number, column: number) => void;
   
   // Navigation actions
   navigateToFiles: () => void;
@@ -80,6 +85,10 @@ export const useUIStore = create<UIState>((set) => ({
   
   // Build
   buildRunning: false,
+  
+  // Cursor position
+  cursorLine: 1,
+  cursorColumn: 1,
   
   // Actions
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
@@ -115,6 +124,7 @@ export const useUIStore = create<UIState>((set) => ({
   setSerialPort: (port) => set({ serialPort: port }),
   setSerialBaudRate: (rate) => set({ serialBaudRate: rate }),
   setBuildRunning: (running) => set({ buildRunning: running }),
+  setCursorPosition: (line, column) => set({ cursorLine: line, cursorColumn: column }),
   
   // Navigation actions
   navigateToFiles: () => set({ sidebarSection: 'files' }),

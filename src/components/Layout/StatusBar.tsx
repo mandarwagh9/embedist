@@ -5,7 +5,7 @@ import { useAIStore } from '../../stores/aiStore';
 import './StatusBar.css';
 
 export function StatusBar() {
-  const { serialConnected, serialPort, serialBaudRate } = useUIStore();
+  const { serialConnected, serialPort, serialBaudRate, cursorLine, cursorColumn } = useUIStore();
   const { open: openSettings } = useSettingsStore();
   const { detectedBoard, projectName, isPlatformIOProject } = useFileStore();
   const { providers, activeProvider } = useAIStore();
@@ -52,7 +52,7 @@ export function StatusBar() {
         </button>
         
         <div className="statusbar-item">
-          <span>Ln 1, Col 1</span>
+          <span>Ln {cursorLine}, Col {cursorColumn}</span>
         </div>
         
         <div className="statusbar-item">
