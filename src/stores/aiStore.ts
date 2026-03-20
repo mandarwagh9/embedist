@@ -179,7 +179,7 @@ export const useAIStore = create<AIState>()(
 
       addMessage: (message) => {
         const { mode } = get();
-        const id = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const id = `msg-${crypto.randomUUID()}`;
         const fullMessage: AIMessage = {
           ...message,
           mode,

@@ -137,7 +137,6 @@ function initDocuments(): void {
     isInitialized = true;
   } catch (err) {
     initError = err instanceof Error ? err : new Error(String(err));
-    console.error('Failed to initialize RAG documents:', initError);
   }
 }
 

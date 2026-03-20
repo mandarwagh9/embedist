@@ -8,10 +8,22 @@ interface PlatformInfo {
 
 interface BuildResult {
   success: boolean;
+  stdout: string;
+  stderr: string;
+  return_code: number;
+  duration_ms: number;
+  cancelled: boolean;
   output: string;
   errors: string[];
   warnings: string[];
   duration?: number;
+}
+
+interface ParsedErrorRust {
+  type: 'error' | 'warning';
+  file: string;
+  line: string;
+  message: string;
 }
 
 interface Board {
@@ -83,11 +95,11 @@ export function useBuild() {
     try {
       appendOutput('[BUILD] Starting build...');
       const result = await invoke<BuildResult>('build_project', { projectPath });
-      
+
       result.output.split('\n').forEach((line) => {
         if (line.trim()) appendOutput(line);
       });
-      
+
       result.errors.forEach((err) => appendOutput(`[ERROR] ${err}`));
       result.warnings.forEach((warn) => appendOutput(`[WARN] ${warn}`));
 
@@ -109,6 +121,18 @@ export function useBuild() {
       setIsBuilding(false);
     }
   }, [appendOutput, clearOutput]);
+
+  const stopBuild = useCallback(async () => {
+    try {
+      await invoke('stop_build');
+      appendOutput('[BUILD] Build cancelled by user');
+      setError(null);
+    } catch (err) {
+      console.error('Failed to stop build:', err);
+    } finally {
+      setIsBuilding(false);
+    }
+  }, [appendOutput]);
 
   const upload = useCallback(async (projectPath?: string) => {
     setIsUploading(true);
@@ -148,7 +172,7 @@ export function useBuild() {
 
   const parseErrors = useCallback(async (output: string) => {
     try {
-      const errors = await invoke<string[]>('parse_build_errors', { output });
+      const errors = await invoke<ParsedErrorRust[]>('parse_build_errors', { output });
       return errors;
     } catch (err) {
       console.error('Failed to parse errors:', err);
@@ -170,6 +194,7 @@ export function useBuild() {
     listBoards,
     build,
     upload,
+    stopBuild,
     parseErrors,
     clearOutput,
     appendOutput,

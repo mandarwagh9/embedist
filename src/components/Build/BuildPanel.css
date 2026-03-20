@@ -172,3 +172,67 @@
 .build-status-error {
   color: var(--error);
 }
+
+.build-problems {
+  border-top: 1px solid var(--border-subtle);
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+}
+
+.build-problems-header {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.build-problems-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.build-problem-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.build-problem-row:hover {
+  background: var(--bg-surface-hover);
+}
+
+.build-problem-icon {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+}
+
+.build-problem-row.error .build-problem-icon {
+  color: var(--error);
+}
+
+.build-problem-row.warning .build-problem-icon {
+  color: var(--warning);
+}
+
+.build-problem-message {
+  flex: 1;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.build-problem-location {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}

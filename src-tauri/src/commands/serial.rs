@@ -1,20 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
-use tauri::{command, State};
+use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SerialPortInfo {
     pub path: String,
     pub name: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SerialConfig {
-    pub path: String,
-    pub baud_rate: u32,
-    pub data_bits: u8,
-    pub stop_bits: u8,
-    pub parity: String,
 }
 
 pub struct SerialState {
@@ -31,11 +22,6 @@ impl Default for SerialState {
             baud_rate: Mutex::new(115200),
         }
     }
-}
-
-#[command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! Welcome to Embedist.", name)
 }
 
 #[tauri::command]

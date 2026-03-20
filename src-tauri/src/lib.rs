@@ -14,6 +14,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(commands::SerialState::default())
         .manage(commands::AIState::default())
+        .manage(commands::BuildState::default())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             window.set_title("Embedist - AI-Native Embedded Development").ok();
@@ -21,7 +22,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::greet,
             commands::get_platform_info,
             commands::list_serial_ports,
             commands::get_serial_state,
@@ -31,6 +31,7 @@ pub fn run() {
             commands::run_platformio_command,
             commands::build_project,
             commands::upload_firmware,
+            commands::stop_build,
             commands::parse_build_errors,
             commands::get_ai_providers,
             commands::add_ai_provider,

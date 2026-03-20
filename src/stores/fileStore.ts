@@ -252,7 +252,7 @@ export const useFileStore = create<FileState>()(
 
         const parts = path.replace(/\\/g, '/').split('/');
         const title = parts[parts.length - 1];
-        const id = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const id = `tab-${crypto.randomUUID()}`;
 
         const newTab: OpenTab = {
           id,

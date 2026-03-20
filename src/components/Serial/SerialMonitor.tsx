@@ -25,14 +25,18 @@ export function SerialMonitor() {
   }, [logs]);
 
   const connect = async () => {
-    if (!('serial' in navigator)) {
+    if (!navigator.serial) {
       addLog('Web Serial API not supported in this browser', 'error');
       return;
     }
 
     setIsConnecting(true);
     try {
-      const port = await (navigator as any).serial.requestPort();
+      const port = await navigator.serial!.requestPort() as unknown as {
+        readable: ReadableStream<ArrayBuffer>;
+        open(opts: { baudRate: number }): Promise<void>;
+        getInfo(): { path: string };
+      };
       await port.open({ baudRate: serialBaudRate });
       
       setSerialPort(port.getInfo?.()?.path || 'Connected');
@@ -40,7 +44,7 @@ export function SerialMonitor() {
       
       addLog(`Connected at ${serialBaudRate} baud`, 'info');
 
-      const reader = port.readable.getReader();
+      const reader = port.readable!.getReader();
       readerRef.current = reader;
 
       const readLoop = async () => {

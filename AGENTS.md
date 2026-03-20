@@ -2,7 +2,8 @@
 
 **Project**: AI-native embedded development environment (Tauri 2 + React + TypeScript + Rust)
 **Platform**: Windows only
-**Latest release**: v0.6.0
+**Git repo**: `embedist/embedist/` (not the root `embedist/` directory)
+**Latest release**: v0.8.4
 
 ---
 
@@ -25,132 +26,173 @@ npm run tauri build  # Build release EXE → src-tauri/target/release/embedist.e
 ### Rust Backend
 ```bash
 cd embedist/embedist/src-tauri
-cargo check         # Quick type check
-cargo build         # Debug build
-cargo build --release  # Release build
-cargo clippy         # Lint (run before committing Rust code)
+cargo check             # Quick type check
+cargo build             # Debug build
+cargo build --release   # Release build
+cargo clippy            # Lint — fix all warnings before committing
 ```
 
 ### Running Single Test
+No test framework is currently set up. All testing is manual via `npm run tauri dev`.
+
+### Pre-commit Checklist
 ```bash
-# No test framework currently set up. Manual testing via:
-npm run tauri dev   # Full app in dev mode
+# TypeScript
+cd embedist/embedist && npm run build
+
+# Rust
+cd embedist/embedist/src-tauri && cargo clippy
 ```
 
 ---
 
 ## Code Style
 
-### TypeScript / React Conventions
+### TypeScript / React
 
-**File naming**: `PascalCase.tsx` for components, `camelCase.ts` for others.
-**Component files**: Co-locate CSS in `ComponentName.css` next to `ComponentName.tsx`.
+**File naming**: `PascalCase.tsx` for components, `camelCase.ts` for utilities/hooks/stores/types.
+**CSS co-location**: Every `.tsx` component has a sibling `.css` file.
 
-**Imports order**:
-1. React/framework imports (`react`, `@tauri-apps/api`)
+**Imports order** (strict, top to bottom):
+1. React/framework (`react`, `@tauri-apps/api`)
 2. Internal type imports (`../types`, `./types`)
 3. Store imports (`../../stores/`)
 4. Hook imports (`../../hooks/`)
 5. Component imports (`../../components/`)
 6. Utility/lib imports (`../../lib/`)
-7. CSS imports (`./Component.css`)
+7. CSS import (`./Component.css`)
 
-**State management**: Use Zustand with `persist` middleware for persistent state. Follow the existing pattern:
-- Define TypeScript interface for state shape
+**TypeScript strictness** (tsconfig.json):
+- `strict: true`, `noUnusedLocals: true`, `noUnusedParameters: true`
+- Always use explicit types for function parameters and return values
+- Never use `any`; use `unknown` + type narrowing if needed
+
+**State management (Zustand)**:
+- Define a TypeScript `interface` for the store state
 - Use `create<Interface>()` with `persist((set, get) => ({...}))`
-- Use `set(state => ({ ... }))` for immutable updates
+- Immutable updates: `set(state => ({ ...state, field: newValue }))`
+- **Critical**: Agents reading store state inside async functions must use `get()` (not captured closure values) — stale closures are a common bug source. Example: `const messages = useAIStore.getState().messages` inside `startAgentTask`, NOT `const { messages } = useAIStore()` from a hook.
 
-**Error handling**: Use `err instanceof Error ? err.message : String(err)` pattern for error extraction. Wrap async operations in try/catch, always call `setLoading(false)` in `finally`.
+**Error handling**: Wrap async ops in try/catch, always reset loading state in `finally`. Extract errors with `err instanceof Error ? err.message : String(err)`.
 
-**Hooks**: Custom hooks in `src/hooks/` that wrap Tauri `invoke` calls. Use `useCallback` for functions passed as deps to child components. Use `useEffect` for side effects.
+**Hooks**: Custom hooks live in `src/hooks/` and wrap Tauri `invoke` calls. Use `useCallback` for functions passed as props. Use `useEffect` for side effects (subscribe to store changes, keyboard listeners, etc.).
 
 **No comments**: Do not add explanatory comments unless explicitly requested.
 
-### Rust Conventions
+### Rust
 
-**Module structure**: `src-tauri/src/commands/` with one file per domain (`platformio.rs`, `ai.rs`, `serial.rs`, `filesystem.rs`), registered in `mod.rs` and `lib.rs`.
+**Module structure**: `src-tauri/src/commands/` — one file per domain (`ai.rs`, `filesystem.rs`, `platformio.rs`, `serial.rs`), all re-exported from `mod.rs` via `pub use filesystem::*`.
 
-**Tauri commands**: Use `#[tauri::command]` attribute, return `Result<T, String>` for fallible operations. Use `serde` for serialization (`#[derive(Serialize, Deserialize)]`).
+**Tauri commands**: Use `#[tauri::command]`, return `Result<T, String>` for fallible operations. Serialize with `#[derive(Serialize, Deserialize)]` from serde.
 
 **Error handling**: Use `anyhow::Result` for application errors, `thiserror` for typed errors. Propagate with `?`.
 
 **State management**: Use `tauri::State<T>` with `parking_lot::Mutex` for interior mutability. Default state structs with `#[derive(Default)]`.
 
-**Naming**: snake_case for variables/functions, PascalCase for types, SCREAMING_SNAKE_CASE for constants.
+**Naming**: `snake_case` for variables/functions, `PascalCase` for types, `SCREAMING_SNAKE_CASE` for constants.
+
+**Formatting**: Run `cargo fmt` before committing. Clippy warnings are errors — fix them all.
 
 ---
 
 ## Project Architecture
 
-### Frontend
+### Frontend (`src/`)
 ```
-src/
-├── components/      # UI (AI, Build, Common, Editor, FileExplorer, Layout, Serial, Settings)
-├── stores/          # Zustand stores (aiStore, fileStore, settingsStore, uiStore)
-├── hooks/           # Custom hooks (useAI, useBuild, useFileSystem, useSerial)
-├── lib/             # Utilities (ai-prompts.ts, rag.ts, knowledge/)
-├── types/           # Shared types (index.ts)
-└── styles/          # Global CSS (global.css, styles.css)
+components/
+  AI/          # AIChatPanel, MessageBubble, CodeBlock, MarkdownRenderer,
+               # StreamingIndicator, FeedbackPanel, AgentActivityPanel,
+               # PromptSuggestions, PlanToolbar
+  Build/       # Build panel components
+  Common/      # Shared UI (resizable panels, etc.)
+  Editor/      # Monaco editor wrapper
+  FileExplorer/# FileExplorer, ContextMenu, Breadcrumbs, CommandPalette,
+               # RecentFiles
+  Layout/      # Sidebar, MenuBar, StatusBar
+  Serial/      # Serial monitor
+  Settings/    # Settings panel
+stores/        # Zustand: aiStore, fileStore, settingsStore, uiStore
+hooks/         # useAI, useAgent, useBuild, useFileSystem, useSerial, usePlanContext
+lib/           # ai-prompts.ts, rag.ts, agent-tools.ts
+types/         # index.ts (shared types)
 ```
 
-### Backend
+### Backend (`src-tauri/src/`)
 ```
-src-tauri/src/
-├── lib.rs           # App entry, plugin init, command registration
-├── main.rs          # Binary entry (calls lib::run())
-└── commands/        # Tauri commands (ai.rs, filesystem.rs, platformio.rs, serial.rs)
+lib.rs         # App entry, plugin init, invoke_handler registration
+main.rs       # Binary entry
+commands/
+  ai.rs        # AI API calls (OpenAI, Anthropic, vLLM, etc.)
+  filesystem.rs # File CRUD + PlatformIO commands
+  platformio.rs # Build/upload commands
+  serial.rs    # Serial port communication
 ```
 
 ### Zustand Stores
-- `fileStore`: File tree, open tabs, file contents, dirty state, PlatformIO detection
-- `uiStore`: Sidebar, bottom panel, tabs, cursor position, serial/build state
-- `settingsStore`: Editor/serial/build settings, AI providers, persisted via `localStorage`
-- `aiStore`: AI mode (chat/plan/debug), per-mode message histories, active provider
+- **fileStore**: File tree, open tabs, file contents (Maps), dirty state, PlatformIO detection
+- **uiStore**: Sidebar, bottom panel, tabs, cursor position, serial/build state
+- **settingsStore**: Editor/serial/build settings, AI providers, persisted via `localStorage`
+- **aiStore**: AI mode (chat/plan/agent/debug), per-mode message histories, streaming state, feedback
 
 ---
 
 ## Git Workflow
 
-- **Branch**: `main` (single branch, no feature branches required)
-- **Commits**: Small, focused commits. One feature or fix per commit.
-- **Before committing Rust**: Run `cargo clippy` and fix all warnings
-- **Before committing TypeScript**: Run `npm run build` to catch type errors
-- **Releases**: After each feature, tag and push. Deprecated old releases via GitHub UI.
-- **EXE in releases**: Always include `embedist.exe` in the release assets
+- **Branch**: `main` only — no feature branches required
+- **Commits**: One logical change per commit. Small, focused, descriptive messages.
+- **Releases**: Tag and push after each meaningful fix or feature. Use `gh release create` with the EXE.
+- **EXE**: Always include `embedist.exe` (from `src-tauri/target/release/embedist.exe`) in release assets.
+
+### Release Commands
+```bash
+gh release create v0.x.x --title "v0.x.x" --notes "Changelog"
+gh release upload v0.x.x embedist/embedist/src-tauri/target/release/embedist.exe
+```
 
 ---
 
 ## Common Patterns
 
-### Adding a new Tauri command
-1. Add function with `#[tauri::command]` in appropriate `src-tauri/src/commands/*.rs`
-2. Export from `commands/mod.rs`
+### Adding a Tauri command
+1. Add `#[tauri::command]` fn in `src-tauri/src/commands/<domain>.rs`
+2. Re-export from `commands/mod.rs` with `pub use <domain>::*`
 3. Register in `lib.rs` `invoke_handler`
-4. Import and call via `invoke()` in TypeScript hook
+4. Call from TypeScript via `invoke()` in a hook
 
-### Adding a new store
-1. Create `stores/NewStore.ts` with Zustand pattern
+### Adding a store
+1. Create `stores/NewStore.ts` with Zustand `persist` pattern
 2. Import in `App.tsx` if needed at app level
 
 ### Adding a keyboard shortcut
-1. Add handler in `App.tsx` `useEffect` (app-level) or `MenuBar.tsx` `useEffect` (menu-specific)
-2. Use `e.ctrlKey || e.metaKey` pattern for cross-platform compatibility
-3. Always `e.preventDefault()` to avoid browser defaults
+1. Add handler in `App.tsx` `useEffect` (app-level) or `MenuBar.tsx` `useEffect`
+2. Use `e.ctrlKey` for cross-platform compatibility
+3. Always `e.preventDefault()` to suppress browser defaults
 
 ### Adding a UI component
 1. Create `src/components/Category/ComponentName.tsx` + `ComponentName.css`
-2. Export as named export: `export function ComponentName() { ... }`
+2. Named export: `export function ComponentName() { ... }`
 3. Import in parent component
+
+---
+
+## Critical Agent Notes
+
+- **Agent Mode state**: `startAgentTask` in `useAgent.ts` must call `useAIStore.getState()` (not React hook closure) to get current `messages` and `mode`.
+- **Store closure bugs**: When adding to store state in async flows, always read fresh state via `get()` or `getState()`, not destructured values from `useStore()` at render time.
+- **File persistence**: `activeFileTab.content` in `App.tsx` is the fallback for unsaved content on restart. If adding new content sources, sync to `fileContents` Map in `fileStore`.
+- **RefreshRoot merge**: `refreshRoot` in `useFileSystem.ts` must merge with existing tree (via `setFiles` with merged entries), not replace the root. The `updateInTree` helper exists for this.
+- **Provider routing**: Only `api.openai.com` routes to OpenAI format. All other endpoints (vLLM, custom) go through generic routing in `ai-prompts.ts`.
+- **Build state**: `BuildState` (in `platformio.rs`) is managed via `tauri::State` in `lib.rs`. When adding async commands that use state, ensure the state is passed as `tauri::State<'_, BuildState>` parameter and returns `Result<T, String>`.
+- **Build cancellation**: `stop_build` uses PID-based killing (via `taskkill` on Windows). The child PID is stored in `BuildState.child_id`.
 
 ---
 
 ## Known Issues / TODO
 
-- `parseErrors` in `useBuild.ts` is defined but unused (could integrate error parsing)
-- Edit menu uses deprecated `document.execCommand` (could upgrade to Clipboard API)
 - Drag-drop files in FileExplorer is a stub
-- Stop build button doesn't stop the process
-- Ctrl+Alt+S (Save All) shortcut not registered in App.tsx
+- Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only (no tool execution)
+- Agent Mode: Settings toggle for "default implementation mode" not exposed in Settings UI
 - Recent Files, file rename/delete, theme settings, AI model params, board auto-detect not implemented
-- Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only mode (no tool execution)
-- Agent Mode: Settings toggle for "default implementation mode" is not exposed in the Settings UI (edit settingsStore directly for now)
+- Agent Mode: DeepSeek, Ollama, Google fall back to text-only (no tool execution)
+- Settings toggle for "default implementation mode" not exposed in Settings UI
+- `SerialConfig` struct in `serial.rs` generates dead_code warning

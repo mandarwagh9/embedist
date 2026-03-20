@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBuild } from '../../hooks/useBuild';
 import { useFileStore } from '../../stores/fileStore';
 import './BuildPanel.css';
@@ -6,6 +6,13 @@ import './BuildPanel.css';
 interface BuildPanelProps {
   onBuild?: () => void;
   onUpload?: () => void;
+}
+
+interface ParsedError {
+  type: 'error' | 'warning';
+  file: string;
+  line: string;
+  message: string;
 }
 
 export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
@@ -22,9 +29,12 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
     listBoards,
     build,
     upload,
+    stopBuild,
+    parseErrors,
     clearOutput,
   } = useBuild();
-  
+
+  const [parsedProblems, setParsedProblems] = useState<ParsedError[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const isRunning = isBuilding || isUploading;
 
@@ -42,6 +52,11 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
       return;
     }
     const result = await build(rootPath);
+    if (result) {
+      const combined = `${result.output}\n${result.stderr}`;
+      const problems = await parseErrors(combined);
+      setParsedProblems(problems);
+    }
     if (result?.success) {
       onBuild?.();
     }
@@ -52,6 +67,11 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
       return;
     }
     const result = await upload(rootPath);
+    if (result) {
+      const combined = `${result.output}\n${result.stderr}`;
+      const problems = await parseErrors(combined);
+      setParsedProblems(problems);
+    }
     if (result?.success) {
       onUpload?.();
     }
@@ -130,7 +150,7 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
           </button>
           <button
             className="build-action-btn stop"
-            onClick={() => {}}
+            onClick={stopBuild}
             disabled={!isRunning}
             style={{ display: isRunning ? 'flex' : 'none' }}
           >
@@ -140,7 +160,7 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
             Stop
           </button>
         </div>
-        <button className="build-action-btn clear" onClick={clearOutput}>
+        <button className="build-action-btn clear" onClick={() => { clearOutput(); setParsedProblems([]); }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
           </svg>
@@ -175,6 +195,23 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
         )}
         <div ref={logsEndRef} />
       </div>
+
+      {parsedProblems.length > 0 && (
+        <div className="build-problems">
+          <div className="build-problems-header">
+            <span className="build-problems-title">
+              Problems ({parsedProblems.filter(p => p.type === 'error').length} errors, {parsedProblems.filter(p => p.type === 'warning').length} warnings)
+            </span>
+          </div>
+          {parsedProblems.map((problem, i) => (
+            <div key={i} className={`build-problem-row ${problem.type}`}>
+              <span className="build-problem-icon">{problem.type === 'error' ? '✕' : '⚠'}</span>
+              <span className="build-problem-message">{problem.message}</span>
+              {problem.file && <span className="build-problem-location">{problem.file}:{problem.line}</span>}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="build-status">
         {isRunning ? (

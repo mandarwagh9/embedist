@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Dialog } from '../Common/Dialog';
+import packageJson from '../../../package.json';
 import './MenuBar.css';
 
 interface MenuItem {
@@ -67,6 +68,7 @@ export function MenuBar() {
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [heardCtrlK, setHeardCtrlK] = useState(false);
   
   const {
     rootPath,
@@ -159,27 +161,40 @@ export function MenuBar() {
     document.execCommand('undo', false);
     closeMenu();
   }, [closeMenu]);
-  
+
   const handleRedo = useCallback(() => {
     document.execCommand('redo', false);
     closeMenu();
   }, [closeMenu]);
-  
-  const handleCut = useCallback(() => {
-    document.execCommand('cut', false);
+
+  const handleCut = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.getSelection()?.toString() || '');
+    } catch {}
     closeMenu();
   }, [closeMenu]);
-  
-  const handleCopy = useCallback(() => {
-    document.execCommand('copy', false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.getSelection()?.toString() || '');
+    } catch {}
     closeMenu();
   }, [closeMenu]);
-  
-  const handlePaste = useCallback(() => {
-    document.execCommand('paste', false);
+
+  const handlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+        const start = active.selectionStart || 0;
+        const end = active.selectionEnd || 0;
+        active.value = active.value.slice(0, start) + text + active.value.slice(end);
+        active.selectionStart = active.selectionEnd = start + text.length;
+      }
+    } catch {}
     closeMenu();
   }, [closeMenu]);
-  
+
   const handleSelectAll = useCallback(() => {
     document.execCommand('selectAll', false);
     closeMenu();
@@ -310,11 +325,23 @@ export function MenuBar() {
         e.preventDefault();
         handleFullscreen();
       }
+
+      if (ctrl && e.key === 'k') {
+        e.preventDefault();
+        setHeardCtrlK(true);
+        setTimeout(() => setHeardCtrlK(false), 2000);
+      }
+
+      if (heardCtrlK && ctrl && e.key === 's') {
+        e.preventDefault();
+        setHeardCtrlK(false);
+        setShowShortcutsModal(true);
+      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTabId, bottomPanelVisible, handleSave, handleOpenFolder, handleToggleSidebar, handleZoomIn, handleZoomOut, handleZoomReset]);
+  }, [activeTabId, bottomPanelVisible, handleSave, handleOpenFolder, handleToggleSidebar, handleZoomIn, handleZoomOut, handleZoomReset, heardCtrlK]);
   
   return (
     <>
@@ -392,7 +419,7 @@ export function MenuBar() {
                 </svg>
               </div>
               <h2 className="about-title">Embedist</h2>
-              <p className="about-version">Version 0.4.0</p>
+              <p className="about-version">Version {packageJson.version}</p>
               <p className="about-description">
                 AI-Native Embedded Development Environment for Windows
               </p>

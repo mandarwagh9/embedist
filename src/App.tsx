@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useUIStore } from './stores/uiStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useFileStore } from './stores/fileStore';
+import { useAIStore } from './stores/aiStore';
 import { useFileSystem } from './hooks/useFileSystem';
 import { TitleBar } from './components/Layout/TitleBar';
 import { MenuBar } from './components/Layout/MenuBar';
@@ -41,7 +42,9 @@ function App() {
     fileContents,
     setFileContent,
     saveFile,
+    saveAllFiles,
   } = useFileStore();
+  const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
 
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -138,11 +141,35 @@ function App() {
         }
         return;
       }
+
+      if (ctrl && e.altKey && e.key === 's') {
+        e.preventDefault();
+        saveAllFiles();
+        return;
+      }
+
+      if (ctrl && e.key === '1') {
+        e.preventDefault();
+        setMode('chat');
+        return;
+      }
+
+      if (ctrl && e.key === '2') {
+        e.preventDefault();
+        setMode('plan');
+        return;
+      }
+
+      if (ctrl && e.key === '3') {
+        e.preventDefault();
+        setMode('agent');
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, activeFileTab, saveFile]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, activeFileTab, saveFile, saveAllFiles, setMode]);
 
   const getDefaultCode = () => {
     if (rootPath) {

@@ -153,7 +153,7 @@ ALL files you read or write MUST be inside this directory. Never reference files
     details?: string
   ) => {
     const entry: ActivityEntry = {
-      id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      id: `act-${crypto.randomUUID()}`,
       timestamp: Date.now(),
       type,
       message,
