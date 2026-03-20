@@ -18,6 +18,7 @@ export function useFileSystem() {
     files,
     setRootPath,
     setFiles,
+    setNodeChildren,
     toggleExpanded,
     openFile,
     saveFile,
@@ -56,22 +57,8 @@ export function useFileSystem() {
 
   const refreshDirectory = useCallback(async (path: string) => {
     const entries = await listDirectory(path);
-    
-    const updateInTree = (nodes: FileNode[]): FileNode[] => {
-      return nodes.map(node => {
-        if (node.path === path) {
-          return { ...node, children: entries };
-        }
-        if (node.children) {
-          return { ...node, children: updateInTree(node.children) };
-        }
-        return node;
-      });
-    };
-    
-    const rootEntries = await listDirectory(rootPath || path);
-    setFiles(rootEntries);
-  }, [listDirectory, rootPath, setFiles]);
+    setNodeChildren(path, entries);
+  }, [listDirectory, setNodeChildren]);
 
   const openFolder = useCallback(async () => {
     setIsLoading(true);
