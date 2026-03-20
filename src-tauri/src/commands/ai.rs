@@ -167,7 +167,7 @@ pub async fn chat_completion(
     
     if use_direct_config {
         let url = base_url.ok_or("Direct endpoint requires a base URL")?;
-        if url.contains("openai") {
+        if url.contains("api.openai.com") {
             chat_openai(&api_key, &model_name, &messages, tools.as_ref()).await
         } else {
             chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref()).await
@@ -521,17 +521,80 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
 
 async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
-    
+
+    let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
+        let mut msg = serde_json::Map::new();
+        match m.role.as_str() {
+            "system" => {
+                msg.insert("role".to_string(), serde_json::json!("system"));
+                if !m.content.is_empty() {
+                    msg.insert("content".to_string(), serde_json::json!([{
+                        "type": "text",
+                        "text": m.content
+                    }]));
+                } else {
+                    msg.insert("content".to_string(), serde_json::json!([]));
+                }
+            }
+            "user" => {
+                msg.insert("role".to_string(), serde_json::json!("user"));
+                if !m.content.is_empty() {
+                    msg.insert("content".to_string(), serde_json::json!([{
+                        "type": "text",
+                        "text": m.content
+                    }]));
+                } else {
+                    msg.insert("content".to_string(), serde_json::json!([]));
+                }
+            }
+            "assistant" => {
+                msg.insert("role".to_string(), serde_json::json!("assistant"));
+                if !m.content.is_empty() {
+                    msg.insert("content".to_string(), serde_json::json!([{
+                        "type": "text",
+                        "text": m.content
+                    }]));
+                } else {
+                    msg.insert("content".to_string(), serde_json::json!([]));
+                }
+            }
+            "tool" => {
+                msg.insert("role".to_string(), serde_json::json!("tool"));
+                let tool_id = m.id.as_ref()
+                    .and_then(|id| id.strip_prefix("tool-"))
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| m.id.clone().unwrap_or_default());
+                msg.insert("tool_call_id".to_string(), serde_json::json!(tool_id));
+                if !m.content.is_empty() {
+                    msg.insert("content".to_string(), serde_json::json!([{
+                        "type": "text",
+                        "text": m.content
+                    }]));
+                } else {
+                    msg.insert("content".to_string(), serde_json::json!([]));
+                }
+            }
+            _ => {
+                msg.insert("role".to_string(), serde_json::json!(m.role));
+                msg.insert("content".to_string(), serde_json::json!([{
+                    "type": "text",
+                    "text": m.content
+                }]));
+            }
+        }
+        serde_json::Value::Object(msg)
+    }).collect();
+
     let mut body = serde_json::json!({
         "model": model,
-        "messages": messages,
+        "messages": formatted_messages,
         "stream": false,
     });
-    
+
     if let Some(t) = tools {
         body["tools"] = serde_json::json!(t);
     }
-    
+
     let response = client
         .post(format!("{}/chat/completions", base_url.trim_end_matches('/')))
         .header("Authorization", format!("Bearer {}", api_key))
@@ -540,20 +603,20 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;
-    
+
     if !response.status().is_success() {
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
         return Err(format!("API error {}: {}", status, text));
     }
-    
+
     let data: serde_json::Value = response.json().await.map_err(|e| format!("Parse error: {}", e))?;
-    
+
     let content = data["choices"][0]["message"]["content"]
         .as_str()
         .unwrap_or("")
         .to_string();
-    
+
     let tool_calls: Vec<ToolCall> = data["choices"][0]["message"]["tool_calls"]
         .as_array()
         .map(|arr| {
@@ -567,13 +630,13 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
                 .collect()
         })
         .unwrap_or_default();
-    
+
     let usage = data["usage"].as_object().map(|u| TokenUsage {
         prompt_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         completion_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         total_tokens: u.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
     });
-    
+
     Ok(AIResponse {
         content,
         model: model.to_string(),
