@@ -292,6 +292,49 @@ pub struct ShellResult {
 }
 
 #[command]
+pub fn reveal_in_explorer(path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    let target = if p.is_file() || p.is_dir() {
+        &path
+    } else {
+        return Err(format!("Path does not exist: {}", path));
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .args(["/select,", target])
+            .spawn()
+            .map_err(|e| format!("Failed to open explorer: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .args(["-R", target])
+            .spawn()
+            .map_err(|e| format!("Failed to open finder: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let dir = p.parent().unwrap_or(&p);
+        std::process::Command::new("xdg-open")
+            .arg(dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        let _ = path;
+        return Err("Unsupported platform".to_string());
+    }
+
+    Ok(())
+}
+
+#[command]
 pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResult, String> {
     let (cmd, _args) = if cfg!(target_os = "windows") {
         ("cmd".to_string(), vec!["/C".to_string(), command.clone()])

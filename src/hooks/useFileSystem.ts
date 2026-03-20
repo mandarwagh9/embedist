@@ -26,7 +26,7 @@ export function useFileSystem() {
     setIsPlatformIOProject,
     setDetectedBoard,
   } = useFileStore();
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,18 +63,18 @@ export function useFileSystem() {
   const openFolder = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const selected = await open({
         directory: true,
         multiple: false,
         title: 'Open Folder',
       });
-      
+
       if (selected && typeof selected === 'string') {
         const isPIO = await invoke<boolean>('is_platformio_project', { path: selected });
         setIsPlatformIOProject(isPIO);
-        
+
         let board: string | null = null;
         if (isPIO) {
           try {
@@ -84,9 +84,9 @@ export function useFileSystem() {
             board = null;
           }
         }
-        
+
         setRootPath(selected);
-        
+
         const entries = await listDirectory(selected);
         setFiles(entries);
       }
@@ -162,6 +162,38 @@ export function useFileSystem() {
     }
   }, [refreshDirectory]);
 
+  const copyPath = useCallback(async (path: string) => {
+    try {
+      await navigator.clipboard.writeText(path);
+      return true;
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = path;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return true;
+    }
+  }, []);
+
+  const revealInExplorer = useCallback(async (path: string) => {
+    try {
+      await invoke('reveal_in_explorer', { path });
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      return false;
+    }
+  }, []);
+
+  const refreshRoot = useCallback(async () => {
+    if (!rootPath) return;
+    const entries = await listDirectory(rootPath);
+    setFiles(entries);
+  }, [rootPath, listDirectory, setFiles]);
+
   const readFileContent = useCallback(async (path: string): Promise<string | null> => {
     try {
       return await invoke<string>('read_file', { path });
@@ -183,11 +215,14 @@ export function useFileSystem() {
     createNewFolder,
     deleteItem,
     renameItem,
+    copyPath,
+    revealInExplorer,
     saveFile,
     saveAllFiles,
     listDirectory,
     loadChildren,
     refreshDirectory,
+    refreshRoot,
     toggleExpanded,
     readFileContent,
   };

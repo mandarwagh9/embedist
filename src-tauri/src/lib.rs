@@ -53,6 +53,7 @@ pub fn run() {
             commands::save_plan_file,
             commands::grep_search,
             commands::run_shell,
+            commands::reveal_in_explorer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
