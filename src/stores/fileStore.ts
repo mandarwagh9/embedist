@@ -534,6 +534,7 @@ export const useFileStore = create<FileState>()(
         openTabs: state.openTabs,
         activeTabId: state.activeTabId,
         recentFiles: state.recentFiles,
+        files: state.files,
       }),
     }
   )

@@ -1,9 +1,11 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useFileStore } from '../../stores/fileStore';
 import './TitleBar.css';
 
 const appWindow = getCurrentWindow();
 
 export function TitleBar() {
+  const { projectName } = useFileStore();
   const handleMinimize = () => appWindow.minimize();
   const handleMaximize = () => appWindow.toggleMaximize();
   const handleClose = () => appWindow.close();
@@ -21,7 +23,7 @@ export function TitleBar() {
       </div>
       
       <div className="titlebar-center">
-        <span className="titlebar-project">No Project Open</span>
+        <span className="titlebar-project">{projectName || 'No Project Open'}</span>
       </div>
       
       <div className="titlebar-controls">
