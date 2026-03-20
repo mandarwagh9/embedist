@@ -39,6 +39,8 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 Download the executable and run it directly — no installation required.
 
+> **Windows SmartScreen warning?** When you first run the app, Windows may show a blue SmartScreen warning. This is not a virus warning — it's a standard Windows security screen for unsigned applications. Simply click **"More info"** then **"Run anyway"** to launch Embedist.
+
 **[All Releases](https://github.com/mandarwagh9/embedist/releases)**
 
 ---
@@ -189,23 +191,6 @@ embedist/
 - Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only responses and do not execute tools
 - Drag-and-drop files in the File Explorer is not yet implemented
 - Settings toggle for "default implementation mode" is not exposed in the Settings UI
-
----
-
-## Running Embedist on Windows
-
-When you first download and run Embedist, Windows SmartScreen may show a blue warning screen. **This is not a virus warning.** It's how Windows handles any unsigned application.
-
-### How to Run Anyway
-
-1. Click **"More info"**
-2. Click **"Run anyway"**
-
-The app will launch normally. Windows remembers your choice for that file.
-
-### Why This Happens
-
-Embedist is distributed as an unsigned executable. As an independent open-source project, it has not yet obtained a commercial code signing certificate. Every unsigned app triggers the same SmartScreen warning — even completely benign software. The warning is based solely on the absence of a paid certificate, not on whether the app is safe.
 
 ---
 
