@@ -266,9 +266,44 @@
 }
 
 .tree-loading {
-  font-size: 11px;
-  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
   margin-left: 4px;
+}
+
+.tree-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--space-sm);
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.tree-skeleton-icon {
+  width: 16px;
+  height: 16px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tree-skeleton-name {
+  height: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  flex: 1;
+  max-width: 120px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.tree-skeleton-name.short {
+  max-width: 60px;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
 }
 
 .tree-row-actions {
@@ -293,17 +328,30 @@
 }
 
 .tree-action-btn {
-  width: 20px;
-  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 6px;
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
+  box-sizing: content-box;
+}
+
+.tree-action-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.tree-row-actions {
+  position: relative;
 }
 
 .tree-action-btn:hover {
@@ -331,4 +379,48 @@
 
 .tree-children {
   margin-left: 0;
+}
+
+.file-type-section {
+  margin: 0;
+}
+
+.file-type-section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 3px var(--space-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.file-type-section-header:hover {
+  color: var(--text-secondary);
+}
+
+.file-type-chevron {
+  transition: transform var(--transition-fast);
+}
+
+.file-type-chevron.open {
+  transform: rotate(90deg);
+}
+
+.file-type-icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+}
+
+.file-type-label {
+  flex: 1;
+  text-align: left;
 }

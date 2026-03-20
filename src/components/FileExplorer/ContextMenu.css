@@ -1,7 +1,8 @@
 .ctx-menu {
   position: fixed;
   z-index: 1000;
-  min-width: 180px;
+  min-width: 200px;
+  max-width: 280px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -74,5 +75,22 @@
 .ctx-menu-separator {
   height: 1px;
   background: var(--border-subtle);
-  margin: var(--space-xs) 0;
+  margin: var(--space-xs) var(--space-sm);
+}
+
+.ctx-menu-category {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 8px var(--space-md) 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: default;
+  pointer-events: none;
 }

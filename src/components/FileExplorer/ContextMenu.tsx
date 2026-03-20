@@ -8,6 +8,7 @@ export interface ContextMenuItem {
   disabled?: boolean;
   danger?: boolean;
   separator?: boolean;
+  category?: string;
   onClick: () => void;
 }
 
@@ -16,8 +17,6 @@ interface ContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
-  targetPath: string | null;
-  targetNode: { isDir: boolean; isFile: boolean } | null;
 }
 
 export function ContextMenu({ items, x, y, onClose }: ContextMenuProps) {
@@ -49,6 +48,8 @@ export function ContextMenu({ items, x, y, onClose }: ContextMenuProps) {
       let adjY = y;
       if (x + rect.width > vpW) adjX = vpW - rect.width - 8;
       if (y + rect.height > vpH) adjY = vpH - rect.height - 8;
+      if (adjX < 0) adjX = 8;
+      if (adjY < 0) adjY = 8;
       menuRef.current.style.left = `${adjX}px`;
       menuRef.current.style.top = `${adjY}px`;
     }
@@ -60,6 +61,8 @@ export function ContextMenu({ items, x, y, onClose }: ContextMenuProps) {
     onClose();
   };
 
+  let lastCategory = '';
+
   return (
     <div
       ref={menuRef}
@@ -69,20 +72,27 @@ export function ContextMenu({ items, x, y, onClose }: ContextMenuProps) {
     >
       {items.map((item, i) => {
         if (item.separator) {
+          lastCategory = '';
           return <div key={`sep-${i}`} className="ctx-menu-separator" />;
         }
+        const showCategory = item.category && item.category !== lastCategory;
+        if (showCategory) lastCategory = item.category!;
         return (
-          <button
-            key={item.id}
-            className={`ctx-menu-item ${item.danger ? 'danger' : ''} ${item.disabled ? 'disabled' : ''}`}
-            onClick={() => handleItemClick(item)}
-            disabled={item.disabled}
-            role="menuitem"
-          >
-            {item.icon && <span className="ctx-menu-icon">{item.icon}</span>}
-            <span className="ctx-menu-label">{item.label}</span>
-            {item.shortcut && <span className="ctx-menu-shortcut">{item.shortcut}</span>}
-          </button>
+          <div key={item.id}>
+            {showCategory && (
+              <div className="ctx-menu-category">{item.category}</div>
+            )}
+            <button
+              className={`ctx-menu-item ${item.danger ? 'danger' : ''} ${item.disabled ? 'disabled' : ''}`}
+              onClick={() => handleItemClick(item)}
+              disabled={item.disabled}
+              role="menuitem"
+            >
+              {item.icon && <span className="ctx-menu-icon">{item.icon}</span>}
+              <span className="ctx-menu-label">{item.label}</span>
+              {item.shortcut && <span className="ctx-menu-shortcut">{item.shortcut}</span>}
+            </button>
+          </div>
         );
       })}
     </div>

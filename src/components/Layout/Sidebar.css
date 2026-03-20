@@ -28,6 +28,14 @@
   cursor: pointer;
 }
 
+.sidebar-icon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: var(--radius-sm);
+  z-index: -1;
+}
+
 .sidebar-icon-btn:hover {
   color: var(--text-primary);
 }

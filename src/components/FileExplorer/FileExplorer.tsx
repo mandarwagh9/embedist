@@ -89,6 +89,7 @@ function TreeItem({
   onCancelRename,
   searchQuery,
   openTabs,
+  loadingPaths,
 }: {
   node: FileNode;
   level: number;
@@ -104,10 +105,11 @@ function TreeItem({
   onCancelRename: () => void;
   searchQuery: string;
   openTabs: { path: string; modified: boolean }[];
+  loadingPaths: Set<string>;
 }) {
   const [renameValue, setRenameValue] = useState(node.name);
-  const [isLoading] = useState(false);
   const renameRef = useRef<HTMLInputElement>(null);
+  const isLoading = loadingPaths.has(node.path);
   const isSelected = selectedPaths.includes(node.path);
   const isHovered = hoveredPath === node.path;
   const isRenaming = renamingPath === node.path;
@@ -230,10 +232,32 @@ function TreeItem({
           </div>
         )}
 
-        {isLoading && <span className="tree-loading">...</span>}
+        {isLoading ? (
+          <>
+            <span className="tree-skeleton">
+              <span className="tree-skeleton-name short" />
+            </span>
+            <span className="tree-loading">Loading...</span>
+          </>
+        ) : null}
       </div>
 
-      {node.isDir && node.expanded && children.length > 0 && (
+      {isLoading && (
+        <div className="tree-children">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="tree-item">
+              <div className="tree-item-row" style={{ paddingLeft: `${(level + 1) * 12 + 8}px` }}>
+                <span className="tree-skeleton">
+                  <span className="tree-skeleton-icon" />
+                  <span className="tree-skeleton-name" />
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {node.isDir && node.expanded && !isLoading && children.length > 0 && (
         <div className="tree-children">
           {children.map((child) => (
             <TreeItem
@@ -252,10 +276,95 @@ function TreeItem({
               onCancelRename={onCancelRename}
               searchQuery={searchQuery}
               openTabs={openTabs}
+              loadingPaths={loadingPaths}
             />
           ))}
         </div>
       )}
+
+      {node.isDir && node.expanded && isLoading && (
+        <div className="tree-children">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="tree-item">
+              <div className="tree-item-row" style={{ paddingLeft: `${(level + 1) * 12 + 8}px` }}>
+                <span className="tree-skeleton">
+                  <span className="tree-skeleton-icon" />
+                  <span className="tree-skeleton-name" />
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function fuzzyScore(query: string, target: string): number {
+  if (!query) return 1;
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  if (t === q) return 100;
+  if (t.startsWith(q)) return 80;
+  if (t.includes(q)) return 60;
+  let score = 0;
+  let qi = 0;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) {
+      score += 10;
+      qi++;
+      if (ti === 0) score += 5;
+    }
+  }
+  return qi === q.length ? score : 0;
+}
+
+const FILE_TYPE_GROUPS = [
+  {
+    label: 'Source',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+    patterns: ['.ino', '.cpp', '.c', '.h', '.hpp', '.cc', '.cxx', '.m', '.mm'],
+  },
+  {
+    label: 'Config',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+    patterns: ['.json', '.ini', '.toml', '.yaml', '.yml', '.xml', '.properties'],
+  },
+  {
+    label: 'Data',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
+    patterns: ['.md', '.txt', '.rst', '.adoc'],
+  },
+  {
+    label: 'Other',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"/></svg>,
+    patterns: [],
+  },
+];
+
+function getFileGroup(name: string): { label: string; icon: JSX.Element } {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  for (const g of FILE_TYPE_GROUPS) {
+    if (g.patterns.some(p => p === `.${ext}`)) return { label: g.label, icon: g.icon };
+  }
+  return FILE_TYPE_GROUPS[FILE_TYPE_GROUPS.length - 1];
+}
+
+function FileTypeSection({ group, children, defaultOpen = false }: { group: { label: string; icon: JSX.Element }; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  if (!children) return null;
+
+  return (
+    <div className="file-type-section">
+      <button className="file-type-section-header" onClick={() => setOpen(o => !o)}>
+        <svg width="10" height="10" viewBox="0 0 12 12" className={`file-type-chevron ${open ? 'open' : ''}`}>
+          <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+        <span className="file-type-icon">{group.icon}</span>
+        <span className="file-type-label">{group.label}</span>
+      </button>
+      {open && <div className="file-type-section-content">{children}</div>}
     </div>
   );
 }
@@ -281,6 +390,8 @@ export function FileExplorer() {
     setHoveredPath,
     setSearchQuery,
     getNodeByPath,
+    loadingPaths,
+    addLoadingPath,
   } = useFileStore();
 
   const {
@@ -304,24 +415,38 @@ export function FileExplorer() {
   const [inlineNewName, setInlineNewName] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
+  const loadingPathsSet = useMemo(() => new Set(loadingPaths), [loadingPaths]);
 
   const filteredFiles = useMemo(() => {
-    if (!searchQuery.trim()) return files;
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.trim();
+    if (!q) return null;
 
     const filterNode = (node: FileNode): FileNode | null => {
-      const nameMatch = node.name.toLowerCase().includes(q);
+      const score = fuzzyScore(q, node.name);
+      if (score <= 0 && (!node.children || node.children.length === 0)) return null;
       let children: FileNode[] | undefined;
       if (node.children) {
-        children = node.children.map(filterNode).filter((c): c is FileNode => c !== null);
+        const filtered = node.children.map(filterNode).filter((c): c is FileNode => c !== null);
+        children = filtered.length > 0 ? filtered : undefined;
       }
-      if (nameMatch || (children && children.length > 0)) {
+      if (score > 0 || children) {
         return { ...node, children: children || [], expanded: true };
       }
       return null;
     };
 
-    return files.map(filterNode).filter((n): n is FileNode => n !== null);
+    const results = files.map(filterNode).filter((n): n is FileNode => n !== null);
+    const allMatches: { node: FileNode; score: number }[] = [];
+    const collect = (nodes: FileNode[]) => {
+      for (const n of nodes) {
+        const s = fuzzyScore(q, n.name);
+        if (s > 0) allMatches.push({ node: n, score: s });
+        if (n.children) collect(n.children);
+      }
+    };
+    collect(results);
+    allMatches.sort((a, b) => b.score - a.score);
+    return allMatches.map(m => m.node);
   }, [files, searchQuery]);
 
   useEffect(() => {
@@ -366,14 +491,18 @@ export function FileExplorer() {
   const handleToggle = useCallback((path: string) => {
     const node = getNodeByPath(path);
     if (node?.isDir && node.children && node.children.length === 0) {
+      addLoadingPath(path);
       loadChildren(node).then(children => {
         useFileStore.getState().setNodeChildren(path, children);
+        useFileStore.getState().removeLoadingPath(path);
         useFileStore.getState().toggleExpanded(path);
+      }).catch(() => {
+        useFileStore.getState().removeLoadingPath(path);
       });
     } else {
       toggleExpanded(path);
     }
-  }, [getNodeByPath, loadChildren, toggleExpanded]);
+  }, [getNodeByPath, loadChildren, toggleExpanded, addLoadingPath]);
 
   const handleSelect = useCallback((path: string, multi: boolean) => {
     if (multi && selectedPaths.length > 0) {
@@ -409,16 +538,18 @@ export function FileExplorer() {
       items.push({
         id: 'new-file',
         label: 'New File',
+        category: 'Create',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z"/><path d="M14 2V8H20"/></svg>,
         onClick: () => { setInlineNewItem({ path: contextMenu.targetPath!, isDir: false }); setInlineNewName(''); },
       });
       items.push({
         id: 'new-folder',
         label: 'New Folder',
+        category: 'Create',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z"/></svg>,
         onClick: () => { setInlineNewItem({ path: contextMenu.targetPath!, isDir: true }); setInlineNewName(''); },
       });
-      items.push({ id: 'sep1', label: '', separator: true, onClick: () => {} });
+      items.push({ id: 'sep1', label: '', separator: true, category: 'Create', onClick: () => {} });
     }
 
     if (!isMulti) {
@@ -426,15 +557,14 @@ export function FileExplorer() {
         id: 'rename',
         label: 'Rename',
         shortcut: 'F2',
+        category: 'Edit',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
         onClick: () => startRenaming(contextMenu.targetPath!),
       });
-    }
-
-    if (!isMulti) {
       items.push({
         id: 'copy-path',
         label: 'Copy Path',
+        category: 'Edit',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
         onClick: () => copyPath(contextMenu.targetPath!),
       });
@@ -442,16 +572,19 @@ export function FileExplorer() {
 
     items.push({
       id: 'reveal',
-      label: isMulti ? 'Reveal in Explorer' : 'Reveal in Explorer',
+      label: 'Reveal in Explorer',
+      category: 'View',
       icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
       onClick: () => revealInExplorer(contextMenu.targetPath!),
     });
 
     if (isMulti) {
+      items.push({ id: 'sep-reveal', label: '', separator: true, category: 'View', onClick: () => {} });
       items.push({
         id: 'delete-multi',
-        label: `Delete (${selectedPaths.length} files)`,
+        label: `Delete ${selectedPaths.length} items`,
         danger: true,
+        category: 'Danger',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
         onClick: async () => {
           for (const p of selectedPaths) {
@@ -461,11 +594,12 @@ export function FileExplorer() {
         },
       });
     } else {
-      items.push({ id: 'sep2', label: '', separator: true, onClick: () => {} });
+      items.push({ id: 'sep2', label: '', separator: true, category: 'Danger', onClick: () => {} });
       items.push({
         id: 'delete',
         label: target.isDir ? 'Delete Folder' : 'Delete File',
         danger: true,
+        category: 'Danger',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
         onClick: async () => {
           await deleteItem(contextMenu.targetPath!);
@@ -534,7 +668,8 @@ export function FileExplorer() {
     return cmds;
   }, [rootPath, selectedPaths, getNodeByPath, clearSelection, refreshRoot, revealInExplorer, copyPath, startRenaming]);
 
-  const displayFiles = searchQuery.trim() ? filteredFiles : files;
+  const displayFiles = searchQuery.trim() ? (filteredFiles || []) : files;
+  const isSearching = searchQuery.trim() && filteredFiles !== null;
   const hasInlineNew = inlineNewItem !== null;
 
   if (!rootPath) {
@@ -628,23 +763,46 @@ export function FileExplorer() {
 
         <div className="file-explorer-tree">
           {displayFiles.map((node) => (
-            <TreeItem
-              key={node.path}
-              node={node}
-              level={0}
-              selectedPaths={selectedPaths}
-              renamingPath={renamingPath}
-              hoveredPath={hoveredPath}
-              onToggle={handleToggle}
-              onFileClick={openFileInEditor}
-              onContextMenu={handleContextMenu}
-              onSelect={handleSelect}
-              onRename={handleRename}
-              onHover={setHoveredPath}
-              onCancelRename={stopRenaming}
-              searchQuery={searchQuery}
-              openTabs={openTabs}
-            />
+            isSearching ? (
+              <TreeItem
+                key={node.path}
+                node={node}
+                level={0}
+                selectedPaths={selectedPaths}
+                renamingPath={renamingPath}
+                hoveredPath={hoveredPath}
+                onToggle={handleToggle}
+                onFileClick={openFileInEditor}
+                onContextMenu={handleContextMenu}
+                onSelect={handleSelect}
+                onRename={handleRename}
+                onHover={setHoveredPath}
+                onCancelRename={stopRenaming}
+                searchQuery={searchQuery}
+                openTabs={openTabs}
+                loadingPaths={loadingPathsSet}
+              />
+            ) : (
+              <FileTypeSection key={node.path} group={getFileGroup(node.name)} defaultOpen={node.expanded}>
+                <TreeItem
+                  node={node}
+                  level={0}
+                  selectedPaths={selectedPaths}
+                  renamingPath={renamingPath}
+                  hoveredPath={hoveredPath}
+                  onToggle={handleToggle}
+                  onFileClick={openFileInEditor}
+                  onContextMenu={handleContextMenu}
+                  onSelect={handleSelect}
+                  onRename={handleRename}
+                  onHover={setHoveredPath}
+                  onCancelRename={stopRenaming}
+                  searchQuery={searchQuery}
+                  openTabs={openTabs}
+                  loadingPaths={loadingPathsSet}
+                />
+              </FileTypeSection>
+            )
           ))}
 
           {hasInlineNew && (
@@ -666,7 +824,7 @@ export function FileExplorer() {
             </div>
           )}
 
-          {searchQuery.trim() && filteredFiles.length === 0 && (
+          {isSearching && filteredFiles !== null && filteredFiles.length === 0 && (
             <div className="file-explorer-empty-search">
               <p>No files match "{searchQuery}"</p>
             </div>
@@ -679,8 +837,6 @@ export function FileExplorer() {
           items={contextMenuItems}
           x={contextMenu.x}
           y={contextMenu.y}
-          targetPath={contextMenu.targetPath}
-          targetNode={contextMenu.targetNode}
           onClose={closeContextMenu}
         />
       )}

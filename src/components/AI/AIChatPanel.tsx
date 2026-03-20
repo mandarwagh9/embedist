@@ -277,7 +277,7 @@ function AIChatPanelContent() {
 
       {showActivityPanel && (
         <div className="agent-activity-wrapper">
-          <AgentActivityPanel entries={agentActivityLog} />
+          <AgentActivityPanel entries={agentActivityLog} isStreaming={isStreaming} />
         </div>
       )}
 

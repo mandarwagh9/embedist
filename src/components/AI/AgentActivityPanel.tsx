@@ -3,6 +3,7 @@ import type { ActivityLogEntry } from '../../stores/aiStore';
 
 interface AgentActivityPanelProps {
   entries: ActivityLogEntry[];
+  isStreaming?: boolean;
 }
 
 const ICON_MAP: Record<ActivityLogEntry['type'], { icon: JSX.Element; color: string }> = {
@@ -86,14 +87,18 @@ function formatTime(ts: number): string {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
 }
 
-export function AgentActivityPanel({ entries }: AgentActivityPanelProps) {
+export function AgentActivityPanel({ entries, isStreaming = false }: AgentActivityPanelProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const lastCountRef = useRef(entries.length);
 
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
+    lastCountRef.current = entries.length;
   }, [entries.length]);
+
+  const streamingEntry = isStreaming && entries.length > 0 ? entries[entries.length - 1] : null;
 
   if (entries.length === 0) {
     return (
@@ -118,7 +123,7 @@ export function AgentActivityPanel({ entries }: AgentActivityPanelProps) {
             <span className="agent-activity-time">{formatTime(entry.timestamp)}</span>
             <span className="agent-activity-icon" style={{ color }}>{icon}</span>
             <div className="agent-activity-content">
-              <span className="agent-activity-message">{entry.message}</span>
+              <span className={`agent-activity-message ${streamingEntry?.id === entry.id ? 'streaming' : ''}`}>{entry.message}{streamingEntry?.id === entry.id && <span className="agent-streaming-cursor">▊</span>}</span>
               {entry.details && (
                 <pre className="agent-activity-details">{entry.details}</pre>
               )}

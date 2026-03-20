@@ -82,3 +82,25 @@
   max-height: 120px;
   overflow-y: auto;
 }
+
+.agent-streaming-cursor {
+  display: inline-block;
+  color: var(--accent);
+  animation: cursorBlink 1s step-end infinite;
+  margin-left: 1px;
+  font-size: 10px;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.agent-activity-message.streaming {
+  animation: textReveal 0.3s ease;
+}
+
+@keyframes textReveal {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}

@@ -53,6 +53,7 @@ interface FileState {
   contextMenu: ContextMenuState;
   renamingPath: string | null;
   hoveredPath: string | null;
+  loadingPaths: string[];
 
   setRootPath: (path: string | null) => void;
   setFiles: (files: FileNode[]) => void;
@@ -95,6 +96,9 @@ interface FileState {
   stopRenaming: () => void;
 
   setHoveredPath: (path: string | null) => void;
+
+  addLoadingPath: (path: string) => void;
+  removeLoadingPath: (path: string) => void;
 
   getAllNodes: () => FileNode[];
   getNodeByPath: (path: string) => FileNode | null;
@@ -153,6 +157,7 @@ export const useFileStore = create<FileState>()(
       contextMenu: { visible: false, x: 0, y: 0, targetPath: null, targetNode: null },
       renamingPath: null,
       hoveredPath: null,
+      loadingPaths: [],
 
       setRootPath: (path) => {
         if (path) {
@@ -160,7 +165,7 @@ export const useFileStore = create<FileState>()(
           const name = parts[parts.length - 1] || parts[parts.length - 2];
           set({ rootPath: path, projectName: name, selectedPaths: [], searchQuery: '' });
         } else {
-          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null, selectedPaths: [], searchQuery: '' });
+          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null, selectedPaths: [], searchQuery: '', loadingPaths: [] });
         }
       },
 
@@ -490,6 +495,20 @@ export const useFileStore = create<FileState>()(
       stopRenaming: () => set({ renamingPath: null }),
 
       setHoveredPath: (path) => set({ hoveredPath: path }),
+
+      addLoadingPath: (path) => {
+        set(state => ({
+          loadingPaths: state.loadingPaths.includes(path)
+            ? state.loadingPaths
+            : [...state.loadingPaths, path],
+        }));
+      },
+
+      removeLoadingPath: (path) => {
+        set(state => ({
+          loadingPaths: state.loadingPaths.filter(p => p !== path),
+        }));
+      },
 
       getAllNodes: () => collectAllNodes(get().files),
 
