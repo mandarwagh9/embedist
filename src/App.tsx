@@ -77,8 +77,10 @@ function App() {
   }, [setSidebarWidth]);
 
   const activeFileTab = openTabs.find(t => t.id === activeFileTabId);
-  const activeContent = activeFileTab ? fileContents.get(activeFileTab.path) : undefined;
-  const hasOpenFile = activeContent !== undefined;
+  const activeContent = activeFileTab
+    ? fileContents.get(activeFileTab.path) ?? activeFileTab.content ?? ''
+    : undefined;
+  const hasOpenFile = activeContent !== undefined && activeContent !== '';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

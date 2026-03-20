@@ -62,6 +62,7 @@ function AIChatPanelContent() {
   const [input, setInput] = useState('');
   const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [activityPanelCollapsed, setActivityPanelCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -234,6 +235,17 @@ function AIChatPanelContent() {
         <ModeToggle mode={mode} onModeChange={switchMode} />
 
         <div className="ai-header-actions">
+          {showActivityPanel && (
+            <button
+              className="ai-action-btn"
+              onClick={() => setActivityPanelCollapsed(c => !c)}
+              title={activityPanelCollapsed ? 'Show activity log' : 'Hide activity log'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: activityPanelCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          )}
           {messages.length > 0 && !isLoading && !isStreaming && (
             <button className="ai-action-btn" onClick={handleRetry} title="Regenerate last response">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -276,8 +288,10 @@ function AIChatPanelContent() {
       )}
 
       {showActivityPanel && (
-        <div className="agent-activity-wrapper">
-          <AgentActivityPanel entries={agentActivityLog} isStreaming={isStreaming} />
+        <div className={`agent-activity-wrapper ${activityPanelCollapsed ? 'collapsed' : ''}`}>
+          {!activityPanelCollapsed && (
+            <AgentActivityPanel entries={agentActivityLog} isStreaming={isStreaming} />
+          )}
         </div>
       )}
 
@@ -367,38 +381,40 @@ function AIChatPanelContent() {
 
       {showInput && (
         <form className="ai-input-area" onSubmit={handleSubmit}>
-          <textarea
-            ref={inputRef}
-            className="ai-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              hasActiveProvider
-                ? mode === 'agent' && agentStatus === 'running'
-                  ? 'Agent is running — cancel to type...'
-                  : `Ask about your ${mode === 'plan' ? 'project' : mode === 'debug' ? 'issue' : mode === 'agent' ? 'task' : 'code'}...`
-                : 'Configure AI provider in Settings...'
-            }
-            rows={1}
-            disabled={isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
-          />
-          <button
-            type="submit"
-            className="ai-send"
-            disabled={!input.trim() || isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
-          >
-            {mode === 'agent' && input.trim() ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-              </svg>
-            )}
-          </button>
-          <span className="ai-input-hint">Shift+Enter for new line</span>
+          <div className="ai-input-row">
+            <textarea
+              ref={inputRef}
+              className="ai-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                hasActiveProvider
+                  ? mode === 'agent' && agentStatus === 'running'
+                    ? 'Agent is running — cancel to type...'
+                    : `Ask about your ${mode === 'plan' ? 'project' : mode === 'debug' ? 'issue' : mode === 'agent' ? 'task' : 'code'}...`
+                  : 'Configure AI provider in Settings...'
+              }
+              rows={1}
+              disabled={isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
+            />
+            <button
+              type="submit"
+              className="ai-send"
+              disabled={!input.trim() || isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
+            >
+              {mode === 'agent' && input.trim() ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          <span className="ai-input-hint">Enter to send, Shift+Enter for new line</span>
         </form>
       )}
     </div>

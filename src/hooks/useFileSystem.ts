@@ -191,8 +191,19 @@ export function useFileSystem() {
   const refreshRoot = useCallback(async () => {
     if (!rootPath) return;
     const entries = await listDirectory(rootPath);
-    setFiles(entries);
-  }, [rootPath, listDirectory, setFiles]);
+    const merged = entries.map(entry => {
+      const existing = files.find(f => f.path === entry.path);
+      if (existing) {
+        return {
+          ...entry,
+          expanded: existing.expanded,
+          children: existing.children,
+        };
+      }
+      return entry;
+    });
+    setFiles(merged);
+  }, [rootPath, listDirectory, setFiles, files]);
 
   const readFileContent = useCallback(async (path: string): Promise<string | null> => {
     try {

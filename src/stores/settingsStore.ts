@@ -86,7 +86,7 @@ export const useSettingsStore = create<SettingsState>()(
         defaultBoard: 'esp32dev',
         uploadSpeed: 921600,
       },
-      defaultImplementationMode: 'chat',
+      defaultImplementationMode: 'agent',
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),

@@ -284,6 +284,7 @@ export const useFileStore = create<FileState>()(
       closeTab: (id) => {
         const state = get();
         const tabIndex = state.openTabs.findIndex(t => t.id === id);
+        const tab = state.openTabs[tabIndex];
         const newTabs = state.openTabs.filter(t => t.id !== id);
 
         let newActiveId = state.activeTabId;
@@ -296,7 +297,14 @@ export const useFileStore = create<FileState>()(
           }
         }
 
-        set({ openTabs: newTabs, activeTabId: newActiveId });
+        const newFileContents = new Map(state.fileContents);
+        const newOriginalContents = new Map(state.originalContents);
+        if (tab) {
+          newFileContents.delete(tab.path);
+          newOriginalContents.delete(tab.path);
+        }
+
+        set({ openTabs: newTabs, activeTabId: newActiveId, fileContents: newFileContents, originalContents: newOriginalContents });
       },
 
       closeOtherTabs: (keepId) => {
@@ -324,16 +332,14 @@ export const useFileStore = create<FileState>()(
 
         if (fromIndex >= 0) {
           const keepTabs = state.openTabs.slice(0, fromIndex + 1);
-          const keepPaths = new Set(keepTabs.map(t => t.path));
 
-          const newContents = new Map(state.fileContents);
-          const newOriginal = new Map(state.originalContents);
-
-          for (const path of keepPaths) {
-            const content = state.fileContents.get(path);
-            const original = state.originalContents.get(path);
-            if (content !== undefined) newContents.set(path, content);
-            if (original !== undefined) newOriginal.set(path, original);
+          const newContents = new Map();
+          const newOriginal = new Map();
+          for (const tab of keepTabs) {
+            const content = state.fileContents.get(tab.path);
+            const original = state.originalContents.get(tab.path);
+            if (content !== undefined) newContents.set(tab.path, content);
+            if (original !== undefined) newOriginal.set(tab.path, original);
           }
 
           set({

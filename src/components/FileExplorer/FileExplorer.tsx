@@ -392,6 +392,7 @@ export function FileExplorer() {
     getNodeByPath,
     loadingPaths,
     addLoadingPath,
+    setFiles,
   } = useFileStore();
 
   const {
@@ -406,6 +407,7 @@ export function FileExplorer() {
     copyPath,
     revealInExplorer,
     refreshRoot,
+    listDirectory,
   } = useFileSystem();
 
   const [isDragOver, setIsDragOver] = useState(false);
@@ -448,6 +450,16 @@ export function FileExplorer() {
     allMatches.sort((a, b) => b.score - a.score);
     return allMatches.map(m => m.node);
   }, [files, searchQuery]);
+
+  useEffect(() => {
+    if (rootPath && files.length === 0) {
+      const loadRoot = async () => {
+        const entries = await listDirectory(rootPath);
+        setFiles(entries);
+      };
+      loadRoot();
+    }
+  }, [rootPath]);
 
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
