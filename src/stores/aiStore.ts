@@ -17,6 +17,7 @@ export interface AIMessage {
   content: string;
   timestamp: number;
   mode: AIMode;
+  feedback?: 'positive' | 'negative';
 }
 
 export interface CustomModel {
@@ -46,6 +47,9 @@ interface AIState {
   customModels: CustomModel[];
   messages: AIMessage[];
   isLoading: boolean;
+  isStreaming: boolean;
+  streamingContent: string;
+  lastAssistantMessageId: string | null;
 
   planPhase: PlanPhase;
   planContent: string;
@@ -67,6 +71,9 @@ interface AIState {
   clearMessages: () => void;
   clearAllMessages: () => void;
   setLoading: (loading: boolean) => void;
+  setStreaming: (streaming: boolean, content?: string) => void;
+  appendStreamingContent: (content: string) => void;
+  setMessageFeedback: (id: string, feedback: 'positive' | 'negative' | undefined) => void;
 
   setPlanPhase: (phase: PlanPhase) => void;
   setPlanContent: (content: string) => void;
@@ -122,6 +129,9 @@ export const useAIStore = create<AIState>()(
       customModels: [],
       messages: [],
       isLoading: false,
+      isStreaming: false,
+      streamingContent: '',
+      lastAssistantMessageId: null,
 
       planPhase: 'explore',
       planContent: '',
@@ -169,13 +179,17 @@ export const useAIStore = create<AIState>()(
 
       addMessage: (message) => {
         const { mode } = get();
+        const id = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const fullMessage: AIMessage = {
           ...message,
           mode,
-          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id,
           timestamp: Date.now(),
         };
-        set((state) => ({ messages: [...state.messages, fullMessage] }));
+        set((state) => ({
+          messages: [...state.messages, fullMessage],
+          lastAssistantMessageId: message.role === 'assistant' ? id : state.lastAssistantMessageId,
+        }));
       },
 
       clearMessages: () => set({ messages: [] }),
@@ -183,6 +197,21 @@ export const useAIStore = create<AIState>()(
       clearAllMessages: () => set({ messages: [] }),
 
       setLoading: (loading) => set({ isLoading: loading }),
+
+      setStreaming: (streaming, content = '') => set({
+        isStreaming: streaming,
+        streamingContent: content,
+      }),
+
+      appendStreamingContent: (content) => set((state) => ({
+        streamingContent: state.streamingContent + content,
+      })),
+
+      setMessageFeedback: (id, feedback) => set((state) => ({
+        messages: state.messages.map((m) =>
+          m.id === id ? { ...m, feedback } : m
+        ),
+      })),
 
       setPlanPhase: (phase) => set({ planPhase: phase }),
       setPlanContent: (content) => set({ planContent: content }),

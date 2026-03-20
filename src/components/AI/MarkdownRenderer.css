@@ -39,18 +39,54 @@
 .md-renderer .md-code-block {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
+  border-radius: var(--radius-md);
   margin: var(--space-sm) 0;
-  overflow-x: auto;
+  overflow: hidden;
+}
+
+.md-renderer .md-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.md-renderer .md-code-lang {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.md-renderer .md-code-copy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.md-renderer .md-code-copy:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 .md-renderer .md-code {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-primary);
   white-space: pre;
   display: block;
+  padding: var(--space-sm) var(--space-md);
+  overflow-x: auto;
+  line-height: 1.6;
 }
 
 .md-renderer .md-list-item {
@@ -158,4 +194,13 @@
 .md-renderer em {
   font-style: italic;
   color: var(--text-secondary);
+}
+
+.md-renderer .md-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.md-renderer .md-link:hover {
+  text-decoration: underline;
 }

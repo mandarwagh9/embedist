@@ -1,0 +1,200 @@
+import { useState } from 'react';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { FeedbackPanel } from './FeedbackPanel';
+import type { AIMessage } from '../../stores/aiStore';
+import type { AIMode } from '../../lib/ai-prompts';
+
+interface MessageBubbleProps {
+  message: AIMessage;
+  onFeedback: (id: string, feedback: 'positive' | 'negative' | undefined) => void;
+  onRetry?: () => void;
+}
+
+const MODE_COLORS: Record<AIMode, string> = {
+  chat: 'var(--accent)',
+  plan: 'var(--info)',
+  debug: 'var(--warning)',
+  agent: '#9b59b6',
+};
+
+const MODE_LABELS: Record<AIMode, string> = {
+  chat: 'Chat',
+  plan: 'Plan',
+  debug: 'Debug',
+  agent: 'Agent',
+};
+
+function formatTimestamp(ts: number): string {
+  const date = new Date(ts);
+  const now = new Date();
+  const diffMs = now.getTime() - ts;
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1440) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function renderContent(content: string, _mode: AIMode, role: string): JSX.Element {
+  const isMarkdown = role === 'assistant' || role === 'system' || content.includes('## ') || content.includes('```') || content.includes('- ');
+
+  if (isMarkdown) {
+    return <MarkdownRenderer content={content} />;
+  }
+
+  return (
+    <p>
+      {content.split('\n').map((line, i, arr) => (
+        <span key={i}>
+          {line}
+          {i < arr.length - 1 && <br />}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+export function MessageBubble({ message, onFeedback, onRetry }: MessageBubbleProps) {
+  const [hovered, setHovered] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = message.content;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const roleLabel = message.role === 'user' ? 'You' : 'Assistant';
+  const isSystem = message.role === 'system';
+
+  if (isSystem) {
+    return (
+      <div className="msg-bubble msg-system">
+        <div className="msg-system-content">
+          {message.content.includes('## ') || message.content.includes('```') ? (
+            <MarkdownRenderer content={message.content} />
+          ) : (
+            <p>{message.content}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`msg-bubble msg-${message.role}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="msg-avatar">
+        {message.role === 'user' ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+            <path d="M2 17L12 22L22 17" />
+            <path d="M2 12L12 17L22 12" />
+          </svg>
+        )}
+      </div>
+
+      <div className="msg-body">
+        <div className="msg-header">
+          <span className="msg-role">{roleLabel}</span>
+          <span className="msg-mode-tag" style={{ color: MODE_COLORS[message.mode] }}>
+            {MODE_LABELS[message.mode]}
+          </span>
+          <span className="msg-timestamp">{formatTimestamp(message.timestamp)}</span>
+        </div>
+
+        <div className="msg-content">
+          {renderContent(message.content, message.mode, message.role)}
+        </div>
+
+        <div className={`msg-actions ${hovered ? 'visible' : ''}`}>
+          {message.role === 'assistant' && (
+            <>
+              <button
+                className={`msg-action-btn ${copied ? 'copied' : ''}`}
+                onClick={handleCopy}
+                title="Copy message"
+              >
+                {copied ? (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                    Copy
+                  </>
+                )}
+              </button>
+              {onRetry && (
+                <button className="msg-action-btn" onClick={onRetry} title="Regenerate response">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 4v6h-6M1 20v-6h6" />
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                  </svg>
+                  Retry
+                </button>
+              )}
+              <div className="msg-feedback-inline">
+                <FeedbackPanel
+                  feedback={message.feedback}
+                  onFeedback={(fb) => onFeedback(message.id, fb)}
+                />
+              </div>
+            </>
+          )}
+          {message.role === 'user' && (
+            <button
+              className={`msg-action-btn ${copied ? 'copied' : ''}`}
+              onClick={handleCopy}
+              title="Copy message"
+            >
+              {copied ? (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Copied
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                  </svg>
+                  Copy
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

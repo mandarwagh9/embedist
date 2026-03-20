@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAI } from '../../hooks/useAI';
 import { useAgent } from '../../hooks/useAgent';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -8,20 +8,17 @@ import { ModeToggle } from './ModeToggle';
 import { PlanToolbar } from './PlanToolbar';
 import { AgentToolbar } from './AgentToolbar';
 import { AgentActivityPanel } from './AgentActivityPanel';
-import { MarkdownRenderer } from './MarkdownRenderer';
+import { MessageBubble } from './MessageBubble';
+import { PromptSuggestions } from './PromptSuggestions';
+import { StreamingIndicator } from './StreamingIndicator';
 import { SYSTEM_PROMPTS } from '../../lib/ai-prompts';
 import type { AIMode } from '../../lib/ai-prompts';
 import './AIChatPanel.css';
-import './MarkdownRenderer.css';
+import './MessageBubble.css';
+import './PromptSuggestions.css';
+import './StreamingIndicator.css';
 import './AgentToolbar.css';
 import './AgentActivityPanel.css';
-
-const MODE_COLORS: Record<AIMode, string> = {
-  chat: 'var(--accent)',
-  plan: 'var(--info)',
-  debug: 'var(--warning)',
-  agent: '#9b59b6',
-};
 
 const MODE_LABELS: Record<AIMode, string> = {
   chat: 'Chat',
@@ -52,6 +49,9 @@ function AIChatPanelContent() {
     clearActivityLog,
     setAgentTask,
     setAgentStatus,
+    isStreaming,
+    streamingContent,
+    setMessageFeedback,
   } = useAIStore();
 
   const {
@@ -61,25 +61,34 @@ function AIChatPanelContent() {
 
   const [input, setInput] = useState('');
   const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
   const defaultImplMode = useSettingsStore((state) => state.defaultImplementationMode);
   const modeConfig = SYSTEM_PROMPTS[mode];
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingContent, scrollToBottom]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setShowSuggestions(false);
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     if (messages.length === 0) {
       setPlanPhase('explore');
       setPlanContent('');
+      setShowSuggestions(true);
     }
   }, [mode, messages.length, setPlanPhase, setPlanContent]);
 
@@ -103,6 +112,7 @@ function AIChatPanelContent() {
 
     const userMessage = input.trim();
     setInput('');
+    setShowSuggestions(false);
 
     if (mode === 'agent') {
       addMessage({ role: 'user', content: userMessage });
@@ -124,11 +134,33 @@ function AIChatPanelContent() {
     }
   };
 
+  const handleStop = () => {
+    cancelAgentTask();
+  };
+
+  const handleRetry = useCallback(() => {
+    if (messages.length < 2) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    const userMsg = messages[messages.length - 2];
+    if (userMsg.role !== 'user') return;
+    const updatedMessages = messages.slice(0, -1);
+    useAIStore.setState({ messages: updatedMessages });
+    setTimeout(() => {
+      sendMessage(userMsg.content, defaultBoard);
+    }, 50);
+  }, [messages, sendMessage, defaultBoard]);
+
+  const handleFeedback = useCallback((id: string, feedback: 'positive' | 'negative' | undefined) => {
+    setMessageFeedback(id, feedback);
+  }, [setMessageFeedback]);
+
   const handleClear = () => {
     if (messages.length > 0) {
       clearMessages();
       setPlanPhase('explore');
       setPlanContent('');
+      setShowSuggestions(true);
     }
   };
 
@@ -172,21 +204,10 @@ function AIChatPanelContent() {
     setPlanContent('');
   };
 
-  const renderMessageContent = (msg: { role: string; content: string; mode: AIMode }) => {
-    const isMarkdown = msg.content.includes('## ') || msg.content.includes('```') || msg.content.includes('- ');
-    if ((msg.mode === 'plan' && msg.role === 'assistant') || (msg.role === 'system' && isMarkdown)) {
-      return <MarkdownRenderer content={msg.content} />;
-    }
-    return (
-      <p>
-        {msg.content.split('\n').map((line, i, arr) => (
-          <span key={i}>
-            {line}
-            {i < arr.length - 1 && <br />}
-          </span>
-        ))}
-      </p>
-    );
+  const handleSuggestionSelect = (prompt: string) => {
+    setInput(prompt);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
   };
 
   const showInput = mode !== 'agent' || agentStatus === 'idle' || agentStatus === 'done';
@@ -199,9 +220,9 @@ function AIChatPanelContent() {
         <div className="ai-provider">
           <span className="ai-provider-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
-              <path d="M2 17L12 22L22 17"/>
-              <path d="M2 12L12 17L22 12"/>
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+              <path d="M2 17L12 22L22 17" />
+              <path d="M2 12L12 17L22 12" />
             </svg>
           </span>
           <span className="ai-provider-name">{modeConfig.name}</span>
@@ -212,11 +233,21 @@ function AIChatPanelContent() {
 
         <ModeToggle mode={mode} onModeChange={switchMode} />
 
-        <button className="ai-clear" onClick={handleClear} title="Clear chat" disabled={messages.length === 0}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
-          </svg>
-        </button>
+        <div className="ai-header-actions">
+          {messages.length > 0 && !isLoading && !isStreaming && (
+            <button className="ai-action-btn" onClick={handleRetry} title="Regenerate last response">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M23 4v6h-6M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+            </button>
+          )}
+          <button className="ai-clear" onClick={handleClear} title="Clear chat" disabled={messages.length === 0}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {mode === 'plan' && hasActiveProvider && (
@@ -238,7 +269,7 @@ function AIChatPanelContent() {
       {transitionMsg && (
         <div className="plan-transition-toast">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="20 6 9 17 4 12"/>
+            <polyline points="20 6 9 17 4 12" />
           </svg>
           <span>{transitionMsg}</span>
         </div>
@@ -250,102 +281,76 @@ function AIChatPanelContent() {
         </div>
       )}
 
-      <div className="ai-messages">
+      <div className="ai-messages" ref={messagesContainerRef}>
         {!hasActiveProvider ? (
           <div className="ai-empty">
             <div className="ai-empty-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
-                <path d="M2 17L12 22L22 17"/>
-                <path d="M2 12L12 17L22 12"/>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                <path d="M2 17L12 22L22 17" />
+                <path d="M2 12L12 17L22 12" />
               </svg>
             </div>
             <p className="ai-empty-title">No AI Provider</p>
             <p className="ai-empty-text">
-              Please configure an AI provider in Settings.<br/>
+              Configure an AI provider in Settings.<br />
               Press Ctrl+, to open Settings.
             </p>
           </div>
-        ) : messages.length === 0 ? (
-          <div className="ai-empty" data-mode={mode}>
-            <div className="ai-empty-icon" data-mode={mode}>
-              {mode === 'chat' && (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-              )}
-              {mode === 'plan' && (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-                  <rect x="9" y="3" width="6" height="4" rx="1"/>
-                  <path d="M9 12h6M9 16h6"/>
-                </svg>
-              )}
-              {mode === 'debug' && (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                  <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-                </svg>
-              )}
-              {mode === 'agent' && (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                  <rect x="3" y="11" width="18" height="10" rx="2"/>
-                  <circle cx="12" cy="5" r="3"/>
-                  <path d="M12 8v3"/>
-                  <circle cx="8" cy="16" r="1" fill="currentColor"/>
-                  <circle cx="16" cy="16" r="1" fill="currentColor"/>
-                </svg>
-              )}
+        ) : messages.length === 0 && showSuggestions ? (
+          <>
+            <div className="ai-suggestions-header">
+              <h3>{modeConfig.name}</h3>
+              <p>{modeConfig.emptyState.description}</p>
             </div>
-            <p className="ai-empty-title">{modeConfig.emptyState.title}</p>
-            <p className="ai-empty-text">{modeConfig.emptyState.description}</p>
-          </div>
+            <PromptSuggestions mode={mode} onSelect={handleSuggestionSelect} />
+          </>
         ) : (
           <>
             {messages.map((msg) => (
-              <div key={msg.id} className={`ai-message ${msg.role} ${msg.role === 'system' ? 'system' : ''}`}>
-                <div className="ai-message-avatar">
-                  {msg.role === 'user' ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                  ) : msg.role === 'system' ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 16v-4M12 8h.01"/>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
-                      <path d="M2 17L12 22L22 17"/>
-                      <path d="M2 12L12 17L22 12"/>
-                    </svg>
-                  )}
-                </div>
-                <div className={`ai-message-body ${msg.mode === 'plan' && msg.role === 'assistant' ? 'md-content' : ''}`}>
-                  <div className={`ai-message-content ${msg.role === 'system' && msg.content.includes('##') ? 'md-content' : ''}`}>
-                    {renderMessageContent(msg)}
-                  </div>
-                  {msg.role !== 'system' && (
-                    <span
-                      className="ai-message-mode-tag"
-                      style={{ color: MODE_COLORS[msg.mode] }}
-                    >
-                      {MODE_LABELS[msg.mode]}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onFeedback={handleFeedback}
+                onRetry={msg.role === 'assistant' && msg === messages[messages.length - 1] ? handleRetry : undefined}
+              />
             ))}
-            {isLoading && (
-              <div className="ai-message assistant">
-                <div className="ai-message-avatar">
+            {isStreaming && streamingContent && (
+              <div className="msg-bubble msg-assistant">
+                <div className="msg-avatar">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                    <path d="M2 17L12 22L22 17" />
+                    <path d="M2 12L12 17L22 12" />
                   </svg>
                 </div>
-                <div className="ai-message-body">
-                  <div className="ai-message-content">
+                <div className="msg-body">
+                  <div className="msg-header">
+                    <span className="msg-role">Assistant</span>
+                    <span className="msg-mode-tag" style={{ color: 'var(--accent)' }}>{MODE_LABELS[mode]}</span>
+                  </div>
+                  <div className="msg-content streaming-msg-content">
+                    <StreamingIndicator
+                      content={streamingContent}
+                      isStreaming={isStreaming}
+                      onStop={handleStop}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            {isLoading && !isStreaming && (
+              <div className="msg-bubble msg-assistant">
+                <div className="msg-avatar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                  </svg>
+                </div>
+                <div className="msg-body">
+                  <div className="msg-header">
+                    <span className="msg-role">Assistant</span>
+                  </div>
+                  <div className="msg-content">
                     <div className="ai-loading">
                       <span></span>
                       <span></span>
@@ -385,14 +390,15 @@ function AIChatPanelContent() {
           >
             {mode === 'agent' && input.trim() ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="5 3 19 12 5 21 5 3"/>
+                <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
             ) : (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
               </svg>
             )}
           </button>
+          <span className="ai-input-hint">Shift+Enter for new line</span>
         </form>
       )}
     </div>
@@ -406,14 +412,14 @@ function AIFallback() {
         <div className="ai-empty">
           <div className="ai-empty-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
-              <path d="M2 17L12 22L22 17"/>
-              <path d="M2 12L12 17L22 12"/>
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+              <path d="M2 17L12 22L22 17" />
+              <path d="M2 12L12 17L22 12" />
             </svg>
           </div>
           <p className="ai-empty-title">AI Unavailable</p>
           <p className="ai-empty-text">
-            AI features failed to load.<br/>
+            AI features failed to load.<br />
             Try restarting the application.
           </p>
         </div>

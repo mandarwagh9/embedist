@@ -15,11 +15,22 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
   );
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function parseMarkdown(text: string): string {
   let html = escapeHtml(text);
 
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
-    return `<pre class="md-code-block"><code class="md-code" data-lang="${lang}">${code.trim()}</code></pre>`;
+    const langAttr = lang ? ` data-lang="${lang}"` : '';
+    const langLabel = lang ? `<span class="md-code-lang">${lang}</span>` : '';
+    return `<pre class="md-code-block"${langAttr}><div class="md-code-header">${langLabel}<button class="md-code-copy" onclick="(function(btn){var pre=btn.closest('.md-code-block');var code=pre.querySelector('.md-code');navigator.clipboard.writeText(code.textContent||'');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy'},2000)})(this)">Copy</button></div><code class="md-code" data-lang="${lang}">${code.trim()}</code></pre>`;
   });
 
   html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
@@ -36,12 +47,13 @@ function parseMarkdown(text: string): string {
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
+
   html = html.replace(/^\| (.+) \|$/gm, (_m, row) => {
     const cells = row.split('|').map((c: string) => c.trim());
     const isHeader = cells.some((c: string) => c.match(/^-+$/));
     if (isHeader) return '';
-    const tag = 'td';
-    return `<tr>${cells.map((c: string) => `<${tag} class="md-table-cell">${c}</${tag}>`).join('')}</tr>`;
+    return `<tr>${cells.map((c: string) => `<td class="md-table-cell">${c}</td>`).join('')}</tr>`;
   });
 
   const lines = html.split('\n');
@@ -74,17 +86,7 @@ function parseMarkdown(text: string): string {
   }
 
   html = processedLines.join('\n');
-
   html = html.replace(/\n{3,}/g, '\n\n');
 
   return html;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
