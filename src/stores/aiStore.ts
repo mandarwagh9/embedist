@@ -138,6 +138,8 @@ export const useAIStore = create<AIState>()(
         isEditingPlan: false,
         planToApprove: null,
         agentStatus: mode === 'agent' ? 'idle' : get().agentStatus,
+        agentTask: mode === 'agent' ? null : get().agentTask,
+        agentActivityLog: mode === 'agent' ? [] : get().agentActivityLog,
       }),
 
       setActiveProvider: (id) => set({ activeProvider: id }),

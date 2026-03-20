@@ -54,6 +54,10 @@ pub struct ToolCallResult {
 pub struct AIMessage {
     pub role: String,
     pub content: String,
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -166,7 +170,7 @@ pub async fn chat_completion(
         if url.contains("openai") {
             chat_openai(&api_key, &model_name, &messages, tools.as_ref()).await
         } else {
-            chat_custom(&url, &api_key, &model_name, &messages).await
+            chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref()).await
         }
     } else {
         match active.as_str() {
@@ -180,7 +184,7 @@ pub async fn chat_completion(
             "google" => chat_google(&api_key, &model_name, &messages).await,
             _ if active.starts_with("custom-") => {
                 let url = base_url.ok_or("Custom endpoint requires a base URL")?;
-                chat_custom(&url, &api_key, &model_name, &messages).await
+                chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref()).await
             }
             _ => Err(format!("Unknown provider '{}'. Please add it in Settings.", active)),
         }
@@ -259,23 +263,48 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
         .collect::<Vec<_>>()
         .join("\n");
     
-    let user_messages: Vec<&AIMessage> = messages.iter()
-        .filter(|m| m.role != "system")
-        .collect();
-    
-    let formatted_messages: Vec<serde_json::Value> = user_messages.iter().map(|m| {
-        serde_json::json!({
-            "role": if m.role == "assistant" { "assistant" } else { "user" },
-            "content": m.content
-        })
-    }).collect();
+    let mut formatted_messages: Vec<serde_json::Value> = Vec::new();
+    for m in messages.iter() {
+        if m.role == "system" {
+            continue;
+        }
+        if m.role == "tool" {
+            let tool_use_id = m.id.as_ref()
+                .and_then(|id| id.strip_prefix("tool-"))
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| m.id.clone().unwrap_or_default());
+            let content_blocks = serde_json::json!([{
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": m.content
+            }]);
+            formatted_messages.push(serde_json::json!({
+                "role": "user",
+                "content": content_blocks
+            }));
+        } else {
+            let role = if m.role == "assistant" { "assistant" } else { "user" };
+            let content_blocks: Vec<serde_json::Value> = if m.content.is_empty() {
+                Vec::new()
+            } else {
+                vec![serde_json::json!({"type": "text", "text": m.content})]
+            };
+            formatted_messages.push(serde_json::json!({
+                "role": role,
+                "content": content_blocks
+            }));
+        }
+    }
     
     let mut body = serde_json::json!({
         "model": model,
         "messages": formatted_messages,
         "max_tokens": 4096,
-        "system": system,
     });
+    
+    if !system.is_empty() {
+        body["system"] = serde_json::json!(system);
+    }
     
     if let Some(t) = tools {
         body["tools"] = serde_json::json!(t);
@@ -299,27 +328,36 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
     
     let data: serde_json::Value = response.json().await.map_err(|e| format!("Parse error: {}", e))?;
     
-    let content = data["content"]
-        .as_array()
-        .and_then(|arr| arr.iter().find(|c| c["type"] == "text"))
-        .and_then(|c| c["text"].as_str())
-        .unwrap_or("")
-        .to_string();
+    let mut content = String::new();
+    let mut tool_calls: Vec<ToolCall> = Vec::new();
     
-    let tool_calls: Vec<ToolCall> = data["content"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter(|c| c["type"] == "tool_use")
-                .filter_map(|tc| {
-                    let id = tc["id"].as_str()?.to_string();
-                    let name = tc["name"].as_str()?.to_string();
-                    let input = serde_json::to_string(&tc["input"]).unwrap_or_else(|_| "{}".to_string());
-                    Some(ToolCall { id, name, arguments: input })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    if let Some(arr) = data["content"].as_array() {
+        for block in arr {
+            let block_type = block["type"].as_str().unwrap_or("");
+            if block_type == "text" {
+                if let Some(text) = block["text"].as_str() {
+                    if !text.is_empty() {
+                        if !content.is_empty() {
+                            content.push('\n');
+                        }
+                        content.push_str(text);
+                    }
+                }
+            } else if block_type == "tool_use" {
+                if let (Some(id), Some(name)) = (
+                    block["id"].as_str(),
+                    block["name"].as_str()
+                ) {
+                    let input = serde_json::to_string(&block["input"]).unwrap_or_else(|_| "{}".to_string());
+                    tool_calls.push(ToolCall {
+                        id: id.to_string(),
+                        name: name.to_string(),
+                        arguments: input,
+                    });
+                }
+            }
+        }
+    }
     
     Ok(AIResponse {
         content,
@@ -481,21 +519,18 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
     })
 }
 
-async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
     
-    let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
-        serde_json::json!({
-            "role": m.role,
-            "content": m.content
-        })
-    }).collect();
-    
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
-        "messages": formatted_messages,
+        "messages": messages,
         "stream": false,
     });
+    
+    if let Some(t) = tools {
+        body["tools"] = serde_json::json!(t);
+    }
     
     let response = client
         .post(format!("{}/chat/completions", base_url.trim_end_matches('/')))
@@ -519,6 +554,20 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
         .unwrap_or("")
         .to_string();
     
+    let tool_calls: Vec<ToolCall> = data["choices"][0]["message"]["tool_calls"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|tc| {
+                    let id = tc["id"].as_str()?.to_string();
+                    let name = tc["function"]["name"].as_str()?.to_string();
+                    let args = tc["function"]["arguments"].as_str().unwrap_or("{}").to_string();
+                    Some(ToolCall { id, name, arguments: args })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    
     let usage = data["usage"].as_object().map(|u| TokenUsage {
         prompt_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         completion_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
@@ -529,6 +578,6 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
         content,
         model: model.to_string(),
         usage,
-        tool_calls: vec![],
+        tool_calls,
     })
 }

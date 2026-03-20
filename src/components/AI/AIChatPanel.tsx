@@ -48,6 +48,10 @@ function AIChatPanelContent() {
     agentStatus,
     agentTask,
     agentActivityLog,
+    addMessage,
+    clearActivityLog,
+    setAgentTask,
+    setAgentStatus,
   } = useAIStore();
 
   const {
@@ -101,6 +105,7 @@ function AIChatPanelContent() {
     setInput('');
 
     if (mode === 'agent') {
+      addMessage({ role: 'user', content: userMessage });
       startAgentTask(userMessage);
       return;
     }
@@ -134,6 +139,13 @@ function AIChatPanelContent() {
     const targetMode = defaultImplMode;
     setPlanPhase('explore');
     setPlanContent('');
+
+    if (targetMode === 'agent') {
+      clearActivityLog();
+      setAgentTask(null);
+      setAgentStatus('idle');
+    }
+
     switchMode(targetMode);
     setTransitionMsg(`Switched to ${MODE_LABELS[targetMode]} Mode — plan approved`);
     setTimeout(() => setTransitionMsg(null), 2500);
@@ -143,10 +155,6 @@ function AIChatPanelContent() {
         content: `## Plan to Implement\n\n${planText}\n\n---\n*Please implement the plan above.*`,
       });
       if (targetMode === 'agent') {
-        useAIStore.getState().addMessage({
-          role: 'user',
-          content: 'Please implement the plan above.',
-        });
         startAgentTask('Please implement the plan above.');
       } else {
         useAIStore.getState().addMessage({

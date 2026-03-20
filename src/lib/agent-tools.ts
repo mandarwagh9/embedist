@@ -25,6 +25,7 @@ export interface ToolCall {
 
 export interface ToolResult {
   callId: string;
+  toolCallId: string;
   success: boolean;
   output: string;
 }
@@ -271,14 +272,14 @@ export function getAllToolDefinitions(): ToolDefinition[] {
 export async function executeTool(callId: string, name: string, args: Record<string, unknown>): Promise<ToolResult> {
   const tool = toolRegistry[name];
   if (!tool) {
-    return { callId, success: false, output: `Unknown tool: ${name}` };
+    return { callId, toolCallId: callId, success: false, output: `Unknown tool: ${name}` };
   }
   try {
     const output = await tool.execute(args);
-    return { callId, success: true, output: typeof output === 'string' ? output : JSON.stringify(output) };
+    return { callId, toolCallId: callId, success: true, output: typeof output === 'string' ? output : JSON.stringify(output) };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { callId, success: false, output: `Error: ${msg}` };
+    return { callId, toolCallId: callId, success: false, output: `Error: ${msg}` };
   }
 }
 

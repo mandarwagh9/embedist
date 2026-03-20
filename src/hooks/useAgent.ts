@@ -46,7 +46,6 @@ function isPathSafe(projectRoot: string, path: string): boolean {
 export function useAgent() {
   const {
     activeProvider,
-    messages,
     addMessage,
     setLoading,
     setAgentStatus,
@@ -136,7 +135,7 @@ ALL files you read or write MUST be inside this directory. Never reference files
     return prompt;
   }, []);
 
-  const extractApprovedPlan = (msgs: typeof messages): string | null => {
+  const extractApprovedPlan = (msgs: Array<{ role: string; content: string }>): string | null => {
     for (let i = 0; i < msgs.length; i++) {
       const m = msgs[i];
       if (m.role === 'system' && m.content.startsWith('## Plan to Implement')) {
@@ -188,6 +187,7 @@ ALL files you read or write MUST be inside this directory. Never reference files
       if (pathArg && !isPathSafe(projectRoot, pathArg)) {
         return {
           callId: toolId,
+          toolCallId: toolId,
           success: false,
           output: `PATH SAFETY ERROR: "${pathArg}" is outside the project root "${projectRoot}". All file paths must be inside the project root.`,
         };
@@ -216,11 +216,12 @@ ALL files you read or write MUST be inside this directory. Never reference files
       const systemPrompt = await buildSystemPrompt();
       const projectRoot = useFileStore.getState().rootPath || '';
 
-      const conversationMessages: Array<{ id: string; role: string; content: string }> = [
+      const conversationMessages: Array<{ id: string; role: string; content: string; tool_call_id?: string }> = [
         { id: 'system', role: 'system', content: systemPrompt },
       ];
 
-      for (const msg of messages) {
+      const currentMessages = useAIStore.getState().messages;
+      for (const msg of currentMessages) {
         if (msg.role === 'user' || msg.role === 'assistant') {
           conversationMessages.push({
             id: msg.id,
@@ -300,6 +301,7 @@ ALL files you read or write MUST be inside this directory. Never reference files
             conversationMessages.push({
               id: `tool-${tc.id}`,
               role: 'tool',
+              tool_call_id: tc.id,
               content: result.success
                 ? `Tool "${tc.name}" succeeded:\n${result.output}`
                 : `Tool "${tc.name}" failed:\n${result.output}`,
@@ -327,7 +329,7 @@ ALL files you read or write MUST be inside this directory. Never reference files
       setLoading(false);
       setAgentStatus('done');
     }
-  }, [hasActiveProvider, buildSystemPrompt, callAI, addMessage, setLoading, setAgentStatus, clearActivityLog, logActivity, setAgentTask, messages]);
+  }, [hasActiveProvider, buildSystemPrompt, callAI, addMessage, setLoading, setAgentStatus, clearActivityLog, logActivity, setAgentTask]);
 
   const cancelAgentTask = useCallback(() => {
     cancelRef.current = true;

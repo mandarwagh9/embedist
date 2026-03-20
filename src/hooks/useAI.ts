@@ -54,11 +54,11 @@ export function useAI() {
   }, [customEndpoints]);
 
   const hasActiveProvider = useCallback(() => {
-    const customEndpoint = getActiveEndpoint();
-    if (customEndpoint) return true;
-    if (activeProvider && providers[activeProvider as keyof typeof providers]?.apiKey) return true;
+    const ep = customEndpoints.find(e => e.baseUrl && e.apiKey);
+    if (ep) return true;
+    if (providers[activeProvider as keyof typeof providers]?.apiKey) return true;
     return false;
-  }, [activeProvider, providers, getActiveEndpoint]);
+  }, [activeProvider, providers, customEndpoints]);
 
   const getContextForQuery = useCallback((query: string, boardType?: string): string => {
     try {
