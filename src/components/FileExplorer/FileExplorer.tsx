@@ -319,56 +319,6 @@ function fuzzyScore(query: string, target: string): number {
   return qi === q.length ? score : 0;
 }
 
-const FILE_TYPE_GROUPS = [
-  {
-    label: 'Source',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
-    patterns: ['.ino', '.cpp', '.c', '.h', '.hpp', '.cc', '.cxx', '.m', '.mm'],
-  },
-  {
-    label: 'Config',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
-    patterns: ['.json', '.ini', '.toml', '.yaml', '.yml', '.xml', '.properties'],
-  },
-  {
-    label: 'Data',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
-    patterns: ['.md', '.txt', '.rst', '.adoc'],
-  },
-  {
-    label: 'Other',
-    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"/></svg>,
-    patterns: [],
-  },
-];
-
-function getFileGroup(name: string): { label: string; icon: JSX.Element } {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
-  for (const g of FILE_TYPE_GROUPS) {
-    if (g.patterns.some(p => p === `.${ext}`)) return { label: g.label, icon: g.icon };
-  }
-  return FILE_TYPE_GROUPS[FILE_TYPE_GROUPS.length - 1];
-}
-
-function FileTypeSection({ group, children, defaultOpen = false }: { group: { label: string; icon: JSX.Element }; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  if (!children) return null;
-
-  return (
-    <div className="file-type-section">
-      <button className="file-type-section-header" onClick={() => setOpen(o => !o)}>
-        <svg width="10" height="10" viewBox="0 0 12 12" className={`file-type-chevron ${open ? 'open' : ''}`}>
-          <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        </svg>
-        <span className="file-type-icon">{group.icon}</span>
-        <span className="file-type-label">{group.label}</span>
-      </button>
-      {open && <div className="file-type-section-content">{children}</div>}
-    </div>
-  );
-}
-
 export function FileExplorer() {
   const {
     rootPath,
@@ -775,46 +725,24 @@ export function FileExplorer() {
 
         <div className="file-explorer-tree">
           {displayFiles.map((node) => (
-            isSearching ? (
-              <TreeItem
-                key={node.path}
-                node={node}
-                level={0}
-                selectedPaths={selectedPaths}
-                renamingPath={renamingPath}
-                hoveredPath={hoveredPath}
-                onToggle={handleToggle}
-                onFileClick={openFileInEditor}
-                onContextMenu={handleContextMenu}
-                onSelect={handleSelect}
-                onRename={handleRename}
-                onHover={setHoveredPath}
-                onCancelRename={stopRenaming}
-                searchQuery={searchQuery}
-                openTabs={openTabs}
-                loadingPaths={loadingPathsSet}
-              />
-            ) : (
-              <FileTypeSection key={node.path} group={getFileGroup(node.name)} defaultOpen={node.expanded}>
-                <TreeItem
-                  node={node}
-                  level={0}
-                  selectedPaths={selectedPaths}
-                  renamingPath={renamingPath}
-                  hoveredPath={hoveredPath}
-                  onToggle={handleToggle}
-                  onFileClick={openFileInEditor}
-                  onContextMenu={handleContextMenu}
-                  onSelect={handleSelect}
-                  onRename={handleRename}
-                  onHover={setHoveredPath}
-                  onCancelRename={stopRenaming}
-                  searchQuery={searchQuery}
-                  openTabs={openTabs}
-                  loadingPaths={loadingPathsSet}
-                />
-              </FileTypeSection>
-            )
+            <TreeItem
+              key={node.path}
+              node={node}
+              level={0}
+              selectedPaths={selectedPaths}
+              renamingPath={renamingPath}
+              hoveredPath={hoveredPath}
+              onToggle={handleToggle}
+              onFileClick={openFileInEditor}
+              onContextMenu={handleContextMenu}
+              onSelect={handleSelect}
+              onRename={handleRename}
+              onHover={setHoveredPath}
+              onCancelRename={stopRenaming}
+              searchQuery={searchQuery}
+              openTabs={openTabs}
+              loadingPaths={loadingPathsSet}
+            />
           ))}
 
           {hasInlineNew && (
