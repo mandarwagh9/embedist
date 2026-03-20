@@ -27,6 +27,21 @@ interface ActivityEntry {
 }
 
 const MAX_ITERATIONS = 50;
+const PATH_SENSITIVE_TOOLS = ['write_file', 'create_file', 'create_folder'];
+
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+/g, '/').toLowerCase().replace(/^\/([a-z]):/, '$1:');
+}
+
+function isPathSafe(projectRoot: string, path: string): boolean {
+  if (!projectRoot) return false;
+  const root = normalizePath(projectRoot);
+  const target = normalizePath(path);
+  if (root.endsWith('/')) {
+    return target.startsWith(root) || target === root.slice(0, -1);
+  }
+  return target.startsWith(root + '/') || target === root;
+}
 
 export function useAgent() {
   const {
@@ -101,9 +116,15 @@ export function useAgent() {
     const { rootPath } = useFileStore.getState();
     if (rootPath) {
       const context = await buildPlanContext('');
-      if (context) {
-        prompt += `\n\n## Current Project Context\n${context}`;
-      }
+      prompt = prompt.replace('**PROJECT ROOT: The project root directory is provided in the ## Current Project Context section below. ALL files you read or write MUST be inside it. Never touch files outside this directory.**', `**PROJECT ROOT: ${rootPath}**
+
+ALL files you read or write MUST be inside this directory. Never reference files outside it.`);
+      prompt += `\n\n## Current Project Context\n${context}`;
+    } else {
+      prompt = prompt.replace(
+        '**PROJECT ROOT: The project root directory is provided in the ## Current Project Context section below. ALL files you read or write MUST be inside it. Never touch files outside this directory.**',
+        '**WARNING: No project is open. Do NOT write files unless the user specifies a directory path.**'
+      );
     }
 
     const currentMessages = useAIStore.getState().messages;
@@ -156,6 +177,25 @@ export function useAgent() {
     }
   };
 
+  const safeExecuteTool = async (
+    projectRoot: string,
+    toolName: string,
+    toolId: string,
+    args: Record<string, unknown>
+  ) => {
+    if (PATH_SENSITIVE_TOOLS.includes(toolName)) {
+      const pathArg = args.path as string | undefined;
+      if (pathArg && !isPathSafe(projectRoot, pathArg)) {
+        return {
+          callId: toolId,
+          success: false,
+          output: `PATH SAFETY ERROR: "${pathArg}" is outside the project root "${projectRoot}". All file paths must be inside the project root.`,
+        };
+      }
+    }
+    return executeTool(toolId, toolName, args);
+  };
+
   const startAgentTask = useCallback(async (task: string) => {
     if (!hasActiveProvider()) {
       logActivity('error', 'No AI provider configured', 'Please add an AI provider in Settings.');
@@ -174,6 +214,7 @@ export function useAgent() {
 
     try {
       const systemPrompt = await buildSystemPrompt();
+      const projectRoot = useFileStore.getState().rootPath || '';
 
       const conversationMessages: Array<{ id: string; role: string; content: string }> = [
         { id: 'system', role: 'system', content: systemPrompt },
@@ -242,7 +283,7 @@ export function useAgent() {
             if (cancelRef.current) break;
 
             const toolIcon = getIconForTool(tc.name);
-            logActivity(toolIcon, `Calling ${tc.name}...`, tc.arguments);
+            logActivity(toolIcon, `${tc.name}...`, tc.arguments);
 
             let args: Record<string, unknown> = {};
             try {
@@ -251,39 +292,31 @@ export function useAgent() {
               args = {};
             }
 
-            const result = await executeTool(tc.id, tc.name, args);
+            const result = await safeExecuteTool(projectRoot, tc.name, tc.id, args);
 
-            const resultMsg: ActivityEntry['type'] = result.success ? toolIcon : 'error';
-            logActivity(resultMsg, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 500));
-
-            const toolResultContent = result.success
-              ? `Tool "${tc.name}" result:\n${result.output}`
-              : `Tool "${tc.name}" failed:\n${result.output}`;
+            const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
+            logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
 
             conversationMessages.push({
               id: `tool-${tc.id}`,
               role: 'tool',
-              content: toolResultContent,
+              content: result.success
+                ? `Tool "${tc.name}" succeeded:\n${result.output}`
+                : `Tool "${tc.name}" failed:\n${result.output}`,
             });
-
-            addMessage({ role: 'assistant', content: `[Tool: ${tc.name}]\n${result.output}` });
-          }
-
-          if (response.content && response.content.trim()) {
-            logActivity('info', 'AI response', response.content.substring(0, 200));
           }
         } else {
           if (response.content && response.content.trim()) {
-            logActivity('done', 'Agent task complete', response.content.substring(0, 300));
+            logActivity('done', 'Agent complete', response.content.substring(0, 200));
           } else {
-            logActivity('done', 'Agent task complete', 'No more actions needed.');
+            logActivity('done', 'Agent complete', 'No more actions needed.');
           }
           break;
         }
       }
 
       if (iteration >= MAX_ITERATIONS) {
-        logActivity('error', 'Max iterations reached', 'The agent ran for too long. Consider breaking the task into smaller steps.');
+        logActivity('error', 'Max iterations reached', 'The agent ran for too long. Break the task into smaller steps.');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
