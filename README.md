@@ -192,52 +192,20 @@ embedist/
 
 ---
 
-## Windows SmartScreen & Code Signing
+## Running Embedist on Windows
 
-When downloading and running unsigned executables, Windows SmartScreen may display a warning screen:
+When you first download and run Embedist, Windows SmartScreen may show a blue warning screen. **This is not a virus warning.** It's how Windows handles any unsigned application.
 
-```
-Windows Defender SmartScreen prevented an unrecognized app from starting.
-This could put your PC at risk.
-More info → Run anyway
-```
+### How to Run Anyway
 
-This is **not a virus or malware warning**. It is a standard Windows security feature that flags any executable that:
-
-1. Is **not signed** with a code signing certificate from a trusted Certificate Authority (CA)
-2. Has **low download reputation** (new or low-traffic applications)
-
-### Why Embedist Shows This Warning
-
-Embedist is currently distributed as an **unsigned** executable. As an independent open-source project, it has not yet obtained a commercial code signing certificate. Windows SmartScreen treats all unsigned applications the same way — regardless of whether they are benign or malicious.
-
-### How to Run Embedist Anyway
-
-1. Click **"More info"** on the SmartScreen warning
+1. Click **"More info"**
 2. Click **"Run anyway"**
-3. The app will launch normally
 
-This is a one-time action per downloaded file. Windows remembers your choice for that specific file.
+The app will launch normally. Windows remembers your choice for that file.
 
-### The Fix: Code Signing
+### Why This Happens
 
-The permanent solution is to **sign the executable** with a code signing certificate from a trusted CA. This causes SmartScreen to show the publisher's verified identity instead of an "unrecognized app" warning.
-
-| Certificate Type | Cost | Result |
-|---|---|---|
-| **EV (Extended Validation)** | ~$288–599/yr | **Instant** SmartScreen trust — no warning |
-| **OV (Organization Validation)** | ~$179–349/yr | Gradual reputation build — weeks to months |
-| **Azure Artifact Signing** | Free (limited availability) | Instant trust if eligible (US/CA/EU/UK) |
-
-**EV certificates** (e.g., [Sectigo](https://sectigostore.com), [SSL.com](https://www.ssl.com), [DigiCert](https://www.digicert.com)) are the industry standard for desktop applications. They provide **instant** SmartScreen reputation because Microsoft trusts the rigorous identity vetting process behind them.
-
-**OV certificates** are cheaper but do not provide instant trust — the signed app still needs time to build reputation through downloads and executions.
-
-**Azure Artifact Signing** is Microsoft's own free signing service ($0/month), but availability is restricted to organizations and developers in the USA, Canada, EU, and UK.
-
-### For Contributors
-
-If you are building Embedist from source, the resulting executable will also be unsigned. The same SmartScreen warning may appear for locally-built binaries. This is expected behavior for unsigned software and does not indicate a problem with the source code or build process.
+Embedist is distributed as an unsigned executable. As an independent open-source project, it has not yet obtained a commercial code signing certificate. Every unsigned app triggers the same SmartScreen warning — even completely benign software. The warning is based solely on the absence of a paid certificate, not on whether the app is safe.
 
 ---
 
