@@ -5,6 +5,36 @@ import { useAIStore, PlanPhase } from '../../stores/aiStore';
 import { useFileStore } from '../../stores/fileStore';
 import './PlanToolbar.css';
 
+function useFocusTrap(ref: React.RefObject<HTMLElement | null>, isActive: boolean) {
+  useEffect(() => {
+    if (!isActive || !ref.current) return;
+    const modal = ref.current;
+    const focusable = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    modal.addEventListener('keydown', handleKeyDown);
+    return () => modal.removeEventListener('keydown', handleKeyDown);
+  }, [isActive, ref]);
+}
+
 interface PlanToolbarProps {
   messages: { content: string }[];
   onApprove: () => void;
@@ -25,6 +55,9 @@ export function PlanToolbar({ messages, onApprove, onDiscard }: PlanToolbarProps
   const [editText, setEditText] = useState('');
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editModalRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(editModalRef, isEditingPlan);
 
   const lastAssistantMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
   const hasPlan = !!(planContent || lastAssistantMessage?.content);
@@ -154,7 +187,7 @@ export function PlanToolbar({ messages, onApprove, onDiscard }: PlanToolbarProps
 
       {isEditingPlan && (
         <div className="plan-edit-backdrop" onClick={handleBackdropClick}>
-          <div className="plan-edit-modal">
+          <div ref={editModalRef} className="plan-edit-modal" role="dialog" aria-modal="true" aria-label="Edit Plan">
             <div className="plan-edit-header">
               <span className="plan-edit-title">Edit Plan</span>
               <button className="plan-edit-close" onClick={handleCancelEdit} title="Close (Esc)">

@@ -7,9 +7,35 @@ import { SerialSettings } from './sections/SerialSettings';
 import { BuildSettings } from './sections/BuildSettings';
 import './SettingsModal.css';
 
+function useFocusTrap(ref: React.RefObject<HTMLElement | null>, isActive: boolean) {
+  useEffect(() => {
+    if (!isActive || !ref.current) return;
+    const modal = ref.current;
+    const focusable = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    modal.addEventListener('keydown', handleKeyDown);
+    return () => modal.removeEventListener('keydown', handleKeyDown);
+  }, [isActive, ref]);
+}
+
 export function SettingsModal() {
   const { isOpen, close, activeSection } = useSettingsStore();
   const modalRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(modalRef, isOpen);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,9 +77,12 @@ export function SettingsModal() {
 
   return (
     <div className="settings-overlay" onClick={close}>
-      <div 
+      <div
         ref={modalRef}
-        className="settings-modal" 
+        className="settings-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="settings-header">
