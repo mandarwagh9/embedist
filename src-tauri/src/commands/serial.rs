@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -78,9 +78,9 @@ pub fn list_serial_ports() -> Result<Vec<SerialPortInfo>, String> {
 
 #[tauri::command]
 pub fn get_serial_state(state: State<'_, SerialState>) -> serde_json::Value {
-    let connected = *state.connected.lock().unwrap();
-    let port_path = state.port_path.lock().unwrap().clone();
-    let baud_rate = *state.baud_rate.lock().unwrap();
+    let connected = *state.connected.lock();
+    let port_path = state.port_path.lock().clone();
+    let baud_rate = *state.baud_rate.lock();
     
     serde_json::json!({
         "connected": connected,

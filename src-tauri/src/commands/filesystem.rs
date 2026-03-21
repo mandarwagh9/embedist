@@ -226,11 +226,14 @@ pub fn grep_search(
             Some(pat) => {
                 let pat = pat.to_lowercase();
                 if pat.starts_with('*') && pat.ends_with('*') {
-                    name.to_lowercase().contains(&pat[1..pat.len()-1])
+                    let inner = pat.strip_prefix('*').and_then(|s| s.strip_suffix('*')).unwrap_or(&pat);
+                    name.to_lowercase().contains(inner)
                 } else if pat.starts_with('*') {
-                    name.to_lowercase().ends_with(&pat[1..])
+                    let stripped = pat.strip_prefix('*').unwrap_or(&pat);
+                    name.to_lowercase().ends_with(stripped)
                 } else if pat.ends_with('*') {
-                    name.to_lowercase().starts_with(&pat[..pat.len()-1])
+                    let stripped = pat.strip_suffix('*').unwrap_or(&pat);
+                    name.to_lowercase().starts_with(stripped)
                 } else {
                     name.to_lowercase() == pat
                 }
@@ -260,20 +263,17 @@ pub fn grep_search(
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
                 if !matches_file(&name, file_pat) { continue; }
-                match fs::read_to_string(&path) {
-                    Ok(content) => {
-                        for (line_num, line) in content.lines().enumerate() {
-                            if line.to_lowercase().contains(pat) {
-                                results.push(SearchResult {
-                                    path: path.to_string_lossy().to_string(),
-                                    line_number: line_num + 1,
-                                    content: line.trim_end().to_string(),
-                                });
-                                if results.len() >= max { break; }
-                            }
+                if let Ok(content) = fs::read_to_string(&path) {
+                    for (line_num, line) in content.lines().enumerate() {
+                        if line.to_lowercase().contains(pat) {
+                            results.push(SearchResult {
+                                path: path.to_string_lossy().to_string(),
+                                line_number: line_num + 1,
+                                content: line.trim_end().to_string(),
+                            });
+                            if results.len() >= max { break; }
                         }
                     }
-                    Err(_) => {}
                 }
             }
         }
@@ -305,7 +305,9 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
         std::process::Command::new("explorer")
             .args(["/select,", target])
             .spawn()
-            .map_err(|e| format!("Failed to open explorer: {}", e))?;
+            .map_err(|e| format!("Failed to open explorer: {}", e))?
+            .wait()
+            .map_err(|e| format!("Failed to wait on explorer: {}", e))?;
     }
 
     #[cfg(target_os = "macos")]
@@ -313,7 +315,9 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
         std::process::Command::new("open")
             .args(["-R", target])
             .spawn()
-            .map_err(|e| format!("Failed to open finder: {}", e))?;
+            .map_err(|e| format!("Failed to open finder: {}", e))?
+            .wait()
+            .map_err(|e| format!("Failed to wait on finder: {}", e))?;
     }
 
     #[cfg(target_os = "linux")]
@@ -322,7 +326,9 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
         std::process::Command::new("xdg-open")
             .arg(dir)
             .spawn()
-            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+            .map_err(|e| format!("Failed to open file manager: {}", e))?
+            .wait()
+            .map_err(|e| format!("Failed to wait on file manager: {}", e))?;
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
@@ -336,17 +342,15 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
 
 #[command]
 pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResult, String> {
-    let (cmd, _args) = if cfg!(target_os = "windows") {
-        ("cmd".to_string(), vec!["/C".to_string(), command.clone()])
-    } else {
-        ("sh".to_string(), vec!["-c".to_string(), command.clone()])
-    };
+    if command.contains('&') || command.contains('|') || command.contains(';') || command.contains('\n') || command.contains('\r') {
+        return Err("Shell metacharacters are not allowed.".to_string());
+    }
 
-    let mut builder = AsyncCommand::new(&cmd);
+    let mut builder = AsyncCommand::new(if cfg!(target_os = "windows") { "cmd" } else { "sh" });
     if cfg!(target_os = "windows") {
-        builder.args(&["/C", &command]);
+        builder.args(["/C", &command]);
     } else {
-        builder.args(&["sh", "-c", &command]);
+        builder.args(["sh", "-c", &command]);
     }
 
     if let Some(dir) = &cwd {

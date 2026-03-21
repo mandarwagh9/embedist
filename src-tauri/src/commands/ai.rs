@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use tauri::{command, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -93,27 +93,27 @@ pub struct AIState {
 
 #[command]
 pub fn get_ai_providers(state: State<'_, AIState>) -> Vec<AIProviderConfig> {
-    let providers = state.providers.lock().unwrap();
+    let providers = state.providers.lock();
     providers.values().cloned().collect()
 }
 
 #[command]
 pub fn add_ai_provider(state: State<'_, AIState>, config: AIProviderConfig) -> Result<(), String> {
-    let mut providers = state.providers.lock().unwrap();
+    let mut providers = state.providers.lock();
     providers.insert(config.id.clone(), config);
     Ok(())
 }
 
 #[command]
 pub fn remove_ai_provider(state: State<'_, AIState>, provider_id: String) -> Result<(), String> {
-    let mut providers = state.providers.lock().unwrap();
+    let mut providers = state.providers.lock();
     providers.remove(&provider_id);
     Ok(())
 }
 
 #[command]
 pub fn set_active_provider(state: State<'_, AIState>, provider_id: String) -> Result<(), String> {
-    let mut active = state.active_provider.lock().unwrap();
+    let mut active = state.active_provider.lock();
     *active = provider_id;
     Ok(())
 }
@@ -129,12 +129,12 @@ pub async fn chat_completion(
     tools: Option<Vec<ToolDefinition>>,
 ) -> Result<AIResponse, String> {
     let (active, config, use_direct_config) = {
-        let active = state.active_provider.lock().unwrap().clone();
-        let providers = state.providers.lock().unwrap();
+        let active = state.active_provider.lock().clone();
+        let providers = state.providers.lock();
         
         if api_key.is_some() || base_url.is_some() {
-            let model_name = model.clone().unwrap_or_else(|| "".to_string());
-            let api_key_val = api_key.clone().unwrap_or_else(|| "".to_string());
+            let model_name = model.clone().unwrap_or_default();
+            let api_key_val = api_key.clone().unwrap_or_default();
             let base_url_val = base_url.clone();
             (
                 active,

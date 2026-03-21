@@ -126,13 +126,19 @@ pub async fn stop_build(state: tauri::State<'_, BuildState>) -> Result<bool, Str
         {
             let _ = SyncCommand::new("taskkill")
                 .args(["/F", "/PID", &pid.to_string()])
-                .spawn();
+                .spawn()
+                .map_err(|e| format!("Failed to spawn taskkill: {}", e))?
+                .wait()
+                .map_err(|e| format!("Failed to wait on taskkill: {}", e))?;
         }
         #[cfg(not(windows))]
         {
             let _ = SyncCommand::new("kill")
                 .args(["-9", &pid.to_string()])
-                .spawn();
+                .spawn()
+                .map_err(|e| format!("Failed to spawn kill: {}", e))?
+                .wait()
+                .map_err(|e| format!("Failed to wait on kill: {}", e))?;
         }
         Ok(true)
     } else {
