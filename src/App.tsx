@@ -43,7 +43,6 @@ function App() {
     setFileContent,
     saveFile,
     saveAllFiles,
-    loadingFilePath,
   } = useFileStore();
   const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
@@ -82,9 +81,8 @@ function App() {
 
   const activeFileTab = openTabs.find(t => t.id === activeFileTabId);
   const activeContent = activeFileTab
-    ? (fileContents.get(activeFileTab.path) ?? activeFileTab.content ?? '')
+    ? fileContents.get(activeFileTab.path) ?? activeFileTab.content ?? ''
     : undefined;
-  const hasOpenFile = activeFileTab !== undefined;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -244,26 +242,12 @@ void loop() {
           <TabBar />
 
           <div className="app-content">
-            {(() => {
-              if (loadingFilePath && activeFileTab && loadingFilePath === activeFileTab.path) {
-                console.debug('[App] showing loading spinner for', activeFileTab.path, 'loadingFilePath:', loadingFilePath);
-                return (
-                  <div className="editor-loading">
-                    <div className="editor-loading-spinner" />
-                    <span>Loading...</span>
-                  </div>
-                );
-              }
-              console.debug('[App] showing editor', activeFileTab?.path, 'content length:', activeContent?.length);
-              return (
-                <CodeEditor
-                  value={activeContent !== undefined ? activeContent : getDefaultCode()}
-                  language="cpp"
-                  onChange={handleEditorChange}
-                  readOnly={!hasOpenFile}
-                />
-              );
-            })()}
+            <CodeEditor
+              value={activeContent !== undefined ? activeContent : getDefaultCode()}
+              language="cpp"
+              onChange={handleEditorChange}
+              readOnly={!activeFileTab}
+            />
           </div>
 
           <BottomPanel />
