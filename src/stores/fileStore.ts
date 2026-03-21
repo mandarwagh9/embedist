@@ -54,7 +54,7 @@ interface FileState {
   renamingPath: string | null;
   hoveredPath: string | null;
   loadingPaths: string[];
-  hasContentHydrated: boolean;
+  loadingFilePath: string | null;
 
   setRootPath: (path: string | null) => void;
   setFiles: (files: FileNode[]) => void;
@@ -100,6 +100,7 @@ interface FileState {
 
   addLoadingPath: (path: string) => void;
   removeLoadingPath: (path: string) => void;
+  setLoadingFilePath: (path: string | null) => void;
 
   getAllNodes: () => FileNode[];
   getNodeByPath: (path: string) => FileNode | null;
@@ -159,7 +160,7 @@ export const useFileStore = create<FileState>()(
       renamingPath: null,
       hoveredPath: null,
       loadingPaths: [],
-      hasContentHydrated: false,
+      loadingFilePath: null,
 
       setRootPath: (path) => {
         if (path) {
@@ -524,6 +525,8 @@ export const useFileStore = create<FileState>()(
         }));
       },
 
+      setLoadingFilePath: (path) => set({ loadingFilePath: path }),
+
       getAllNodes: () => collectAllNodes(get().files),
 
       getNodeByPath: (path) => findNode(get().files, path),
@@ -554,7 +557,6 @@ export const useFileStore = create<FileState>()(
               }
             }
           }
-          state.hasContentHydrated = true;
         }
       },
       partialize: (state) => ({

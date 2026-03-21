@@ -43,7 +43,7 @@ function App() {
     setFileContent,
     saveFile,
     saveAllFiles,
-    hasContentHydrated,
+    loadingFilePath,
   } = useFileStore();
   const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
@@ -244,7 +244,7 @@ void loop() {
           <TabBar />
 
           <div className="app-content">
-            {!hasContentHydrated && openTabs.length > 0 ? (
+            {loadingFilePath && activeFileTab && loadingFilePath === activeFileTab.path ? (
               <div className="editor-loading">
                 <div className="editor-loading-spinner" />
                 <span>Loading...</span>

@@ -25,6 +25,7 @@ export function useFileSystem() {
     saveAllFiles,
     setIsPlatformIOProject,
     setDetectedBoard,
+    setLoadingFilePath,
   } = useFileStore();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -100,13 +101,16 @@ export function useFileSystem() {
 
   const openFileInEditor = useCallback(async (path: string) => {
     try {
+      setLoadingFilePath(path);
       const content = await invoke<string>('read_file', { path });
       openFile(path, content);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
+    } finally {
+      setLoadingFilePath(null);
     }
-  }, [openFile]);
+  }, [openFile, setLoadingFilePath]);
 
   const createNewFile = useCallback(async (parentPath: string, name: string) => {
     try {
