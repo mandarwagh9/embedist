@@ -100,15 +100,35 @@ export function useFileSystem() {
   }, [listDirectory, setFiles, setRootPath, setIsPlatformIOProject, setDetectedBoard]);
 
   const openFileInEditor = useCallback(async (path: string) => {
+    const loadingKey = `loading:${path}:${Date.now()}`;
+    setLoadingFilePath(loadingKey);
+    console.debug('[openFileInEditor] start', path, 'key:', loadingKey);
+
+    const clearLoading = () => {
+      const current = useFileStore.getState().loadingFilePath;
+      console.debug('[openFileInEditor] clearLoading', current === loadingKey ? 'cleared' : 'not ours', 'key:', loadingKey);
+      if (current === loadingKey) {
+        setLoadingFilePath(null);
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      console.warn('[openFileInEditor] TIMEOUT fallback', path);
+      clearLoading();
+    }, 5000);
+
     try {
-      setLoadingFilePath(path);
       const content = await invoke<string>('read_file', { path });
+      clearTimeout(timeout);
+      console.debug('[openFileInEditor] read complete', path, 'content length:', content.length);
       openFile(path, content);
+      clearLoading();
     } catch (err) {
+      clearTimeout(timeout);
       const message = err instanceof Error ? err.message : String(err);
+      console.error('[openFileInEditor] error', path, message);
       setError(message);
-    } finally {
-      setLoadingFilePath(null);
+      clearLoading();
     }
   }, [openFile, setLoadingFilePath]);
 
