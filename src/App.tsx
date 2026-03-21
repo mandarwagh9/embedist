@@ -43,6 +43,7 @@ function App() {
     setFileContent,
     saveFile,
     saveAllFiles,
+    hasContentHydrated,
   } = useFileStore();
   const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
@@ -243,12 +244,19 @@ void loop() {
           <TabBar />
 
           <div className="app-content">
-            <CodeEditor
-              value={activeContent !== undefined ? activeContent : getDefaultCode()}
-              language="cpp"
-              onChange={handleEditorChange}
-              readOnly={!hasOpenFile}
-            />
+            {!hasContentHydrated && openTabs.length > 0 ? (
+              <div className="editor-loading">
+                <div className="editor-loading-spinner" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <CodeEditor
+                value={activeContent !== undefined ? activeContent : getDefaultCode()}
+                language="cpp"
+                onChange={handleEditorChange}
+                readOnly={!hasOpenFile}
+              />
+            )}
           </div>
 
           <BottomPanel />

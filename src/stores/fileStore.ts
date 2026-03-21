@@ -54,6 +54,7 @@ interface FileState {
   renamingPath: string | null;
   hoveredPath: string | null;
   loadingPaths: string[];
+  hasContentHydrated: boolean;
 
   setRootPath: (path: string | null) => void;
   setFiles: (files: FileNode[]) => void;
@@ -158,6 +159,7 @@ export const useFileStore = create<FileState>()(
       renamingPath: null,
       hoveredPath: null,
       loadingPaths: [],
+      hasContentHydrated: false,
 
       setRootPath: (path) => {
         if (path) {
@@ -243,7 +245,13 @@ export const useFileStore = create<FileState>()(
         const existing = state.openTabs.find(t => t.path === path);
 
         if (existing) {
-          set({ activeTabId: existing.id });
+          const fileContent = state.fileContents.get(path) ?? content;
+          set(state => ({
+            activeTabId: existing.id,
+            openTabs: state.openTabs.map(t =>
+              t.id === existing.id ? { ...t, content: fileContent } : t
+            ),
+          }));
           const parts = path.replace(/\\/g, '/').split('/');
           const name = parts[parts.length - 1];
           get().addRecentFile(path, name);
@@ -546,6 +554,7 @@ export const useFileStore = create<FileState>()(
               }
             }
           }
+          state.hasContentHydrated = true;
         }
       },
       partialize: (state) => ({
