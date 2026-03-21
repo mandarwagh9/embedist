@@ -316,6 +316,7 @@
   background: var(--bg-surface);
   padding: 0 2px;
   border-radius: var(--radius-sm);
+  position: relative;
 }
 
 @keyframes fadeIn {
@@ -348,10 +349,6 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-}
-
-.tree-row-actions {
-  position: relative;
 }
 
 .tree-action-btn:hover {

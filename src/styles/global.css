@@ -52,11 +52,8 @@
   --titlebar-height: 32px;
   --menubar-height: 28px;
   --sidebar-width: 48px;
-  --sidebar-expanded: 240px;
   --tabbar-height: 36px;
   --statusbar-height: 24px;
-  --panel-min-height: 100px;
-  --panel-default-height: 280px;
   
   /* Effects */
   --transition-fast: 100ms ease;

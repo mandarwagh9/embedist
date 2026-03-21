@@ -1,7 +1,12 @@
 node_modules/
 dist/
-target/
+src-tauri/target/
 .DS_Store
 *.log
 .env
 .env.local
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.lib
