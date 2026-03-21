@@ -243,13 +243,18 @@ export const useFileStore = create<FileState>()(
         const existing = state.openTabs.find(t => t.path === path);
 
         if (existing) {
-          const fileContent = state.fileContents.get(path) ?? content;
-          set(state => ({
+          const fileContent = state.fileContents.get(path) ?? content ?? '';
+          const updates: Record<string, unknown> = {
             activeTabId: existing.id,
             openTabs: state.openTabs.map(t =>
               t.id === existing.id ? { ...t, content: fileContent } : t
             ),
-          }));
+          };
+          if (content !== undefined) {
+            updates.fileContents = new Map(state.fileContents).set(path, content);
+            updates.originalContents = new Map(state.originalContents).set(path, content);
+          }
+          set(updates);
           const parts = path.replace(/\\/g, '/').split('/');
           const name = parts[parts.length - 1];
           get().addRecentFile(path, name);

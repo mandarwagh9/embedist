@@ -1,28 +1,42 @@
-import { useRef, useEffect } from 'react';
-import Editor, { OnMount, OnChange } from '@monaco-editor/react';
-import type { editor } from 'monaco-editor';
+import { useRef, useEffect, useCallback } from 'react';
+import type { editor as EditorType } from 'monaco-editor';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useMonacoEditor } from './useMonacoEditor';
 import './CodeEditor.css';
 
 interface CodeEditorProps {
-  value?: string;
-  language?: string;
-  onChange?: (value: string | undefined) => void;
-  readOnly?: boolean;
+  value: string;
+  language: string;
+  onChange: (value: string) => void;
+  readOnly: boolean;
 }
 
-export function CodeEditor({ 
-  value = '', 
-  language = 'cpp', 
-  onChange,
-  readOnly = false 
-}: CodeEditorProps) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<EditorType.IStandaloneCodeEditor | null>(null);
+  const isUpdatingRef = useRef(false);
   const { editor: editorSettings } = useSettingsStore();
   const { setCursorPosition } = useUIStore();
+  const { monaco, isReady, error } = useMonacoEditor();
 
-  const handleEditorBeforeMount = (monaco: typeof import('monaco-editor')) => {
+  const handleEditorMount = useCallback((ed: EditorType.IStandaloneCodeEditor, _m: typeof import('monaco-editor')) => {
+    editorRef.current = ed;
+
+    ed.onDidChangeCursorPosition((e) => {
+      setCursorPosition(e.position.lineNumber, e.position.column);
+    });
+
+    ed.onDidChangeModelContent(() => {
+      if (!isUpdatingRef.current) {
+        onChange(ed.getValue());
+      }
+    });
+  }, [onChange, setCursorPosition]);
+
+  useEffect(() => {
+    if (!monaco || !containerRef.current) return;
+
     monaco.editor.defineTheme('embedist-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -60,65 +74,92 @@ export function CodeEditor({
         'scrollbarSlider.activeBackground': '#666666',
       },
     });
-  };
 
-  const handleEditorDidMount: OnMount = (editor, _monaco) => {
-    editorRef.current = editor;
-    editor.onDidChangeCursorPosition((e) => {
-      setCursorPosition(e.position.lineNumber, e.position.column);
+    const ed = monaco.editor.create(containerRef.current, {
+      value,
+      language,
+      theme: 'embedist-dark',
+      readOnly,
+      fontSize: editorSettings.fontSize,
+      fontFamily: editorSettings.fontFamily,
+      fontLigatures: true,
+      tabSize: editorSettings.tabSize,
+      wordWrap: editorSettings.wordWrap ? 'on' : 'off',
+      minimap: { enabled: editorSettings.minimap },
+      scrollBeyondLastLine: false,
+      lineNumbers: 'on',
+      renderLineHighlight: 'line',
+      cursorBlinking: 'smooth',
+      cursorSmoothCaretAnimation: 'on',
+      smoothScrolling: true,
+      padding: { top: 8 },
+      automaticLayout: true,
+      bracketPairColorization: { enabled: false },
+      guides: {
+        bracketPairs: false,
+        indentation: true,
+      },
     });
-  };
 
-  const handleChange: OnChange = (newValue) => {
-    onChange?.(newValue);
-  };
+    handleEditorMount(ed, monaco);
+
+    return () => {
+      ed.dispose();
+      editorRef.current = null;
+    };
+  }, [monaco, handleEditorMount]);
 
   useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.updateOptions({
-        fontSize: editorSettings.fontSize,
-        fontFamily: editorSettings.fontFamily,
-        tabSize: editorSettings.tabSize,
-        wordWrap: editorSettings.wordWrap ? 'on' : 'off',
-        minimap: { enabled: editorSettings.minimap },
-      });
+    const ed = editorRef.current;
+    if (!ed) return;
+    const current = ed.getValue();
+    if (current !== value) {
+      isUpdatingRef.current = true;
+      ed.setValue(value);
+      isUpdatingRef.current = false;
     }
+  }, [value]);
+
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed || !monaco) return;
+    const model = ed.getModel();
+    if (model) {
+      monaco.editor.setModelLanguage(model, language);
+    }
+  }, [language, monaco]);
+
+  useEffect(() => {
+    editorRef.current?.updateOptions({ readOnly });
+  }, [readOnly]);
+
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    ed.updateOptions({
+      fontSize: editorSettings.fontSize,
+      fontFamily: editorSettings.fontFamily,
+      tabSize: editorSettings.tabSize,
+      wordWrap: editorSettings.wordWrap ? 'on' : 'off',
+      minimap: { enabled: editorSettings.minimap },
+    });
   }, [editorSettings]);
 
-  return (
-    <div className="code-editor">
-      <Editor
-        height="100%"
-        defaultLanguage={language}
-        language={language}
-        value={value}
-        onChange={handleChange}
-        theme="embedist-dark"
-        beforeMount={handleEditorBeforeMount}
-        onMount={handleEditorDidMount}
-        options={{
-          readOnly,
-          fontSize: editorSettings.fontSize,
-          fontFamily: editorSettings.fontFamily,
-          fontLigatures: true,
-          tabSize: editorSettings.tabSize,
-          wordWrap: editorSettings.wordWrap ? 'on' : 'off',
-          minimap: { enabled: editorSettings.minimap },
-          scrollBeyondLastLine: false,
-          lineNumbers: 'on',
-          renderLineHighlight: 'line',
-          cursorBlinking: 'smooth',
-          cursorSmoothCaretAnimation: 'on',
-          smoothScrolling: true,
-          padding: { top: 8 },
-          automaticLayout: true,
-          bracketPairColorization: { enabled: false },
-          guides: {
-            bracketPairs: false,
-            indentation: true,
-          },
-        }}
-      />
-    </div>
-  );
+  if (error) {
+    return (
+      <div className="editor-error">
+        <span>Editor failed to load</span>
+      </div>
+    );
+  }
+
+  if (!isReady) {
+    return (
+      <div className="editor-loading">
+        <div className="editor-spinner" />
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} className="code-editor" />;
 }

@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'blob'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data: https:; connect-src 'self' https://api.openai.com https://api.anthropic.com https://api.deepseek.com https://generativelanguage.googleapis.com https://*.ollama.ai http://localhost:* https://localhost:*; font-src 'self' data:"
+      "csp": "default-src 'self'; script-src 'self' 'blob'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data: https:; connect-src 'self' http://ipc.localhost https://api.openai.com https://api.anthropic.com https://api.deepseek.com https://generativelanguage.googleapis.com https://*.ollama.ai http://localhost:* https://localhost:*; font-src 'self' data:"
     }
   },
   "bundle": {
