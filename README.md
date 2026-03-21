@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Version](https://img.shields.io/badge/version-v0.8.5-blue)](https://github.com/mandarwagh9/embedist/releases)
+[![Version](https://img.shields.io/badge/version-v0.9.0-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
 </div>
@@ -33,9 +33,9 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 ## Downloads
 
-### Latest Release: v0.8.5
+### Latest Release: v0.9.0
 
-[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.8.5/embedist.exe)
+[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.9.0/embedist.exe)
 
 Download the executable and run it directly — no installation required.
 
@@ -195,6 +195,14 @@ embedist/
 ---
 
 ## Changelog
+
+### [v0.9.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.9.0) — 2026-03-21
+- **Security**: Removed unrestricted fs/shell permissions; added CSP; fixed command injection; replaced inline onclick with React event delegation
+- **Data**: fileContents/originalContents Maps persist; tab content restored on restart
+- **Rust**: parking_lot::Mutex, child process cleanup, 6 clippy fixes, removed unused deps (chrono, uuid)
+- **TypeScript**: SerialMonitor cleanup on unmount, empty catch blocks fixed, Map serialization
+- **Accessibility**: aria-label on 15+ buttons, focus traps on all modals
+- **Code Quality**: inline styles extracted, empty state added, CSS deduplication, .gitignore fixed
 
 ### [v0.8.5](https://github.com/mandarwagh9/embedist/releases/tag/v0.8.5) — 2026-03-20
 - **Fix**: TitleBar now shows actual project name from store instead of hardcoded "No Project Open"
