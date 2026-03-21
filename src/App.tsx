@@ -16,6 +16,7 @@ import { AIChatPanel } from './components/AI/AIChatPanel';
 import { SerialMonitor } from './components/Serial/SerialMonitor';
 import { BuildPanel } from './components/Build/BuildPanel';
 import { SettingsModal } from './components/Settings/SettingsModal';
+import { ErrorBoundary } from './components/Common/ErrorBoundary';
 import './styles/global.css';
 
 const SIDEBAR_MIN = 300;
@@ -242,12 +243,14 @@ void loop() {
           <TabBar />
 
           <div className="app-content">
-            <CodeEditor
-              value={activeContent !== undefined ? activeContent : getDefaultCode()}
-              language="cpp"
-              onChange={handleEditorChange}
-              readOnly={!activeFileTab}
-            />
+            <ErrorBoundary fallback={<div style={{ padding: 20, color: '#E94560', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Editor failed to load</div>}>
+              <CodeEditor
+                value={activeContent !== undefined ? activeContent : getDefaultCode()}
+                language="cpp"
+                onChange={handleEditorChange}
+                readOnly={!activeFileTab}
+              />
+            </ErrorBoundary>
           </div>
 
           <BottomPanel />
