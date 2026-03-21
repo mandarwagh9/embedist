@@ -528,6 +528,26 @@ export const useFileStore = create<FileState>()(
     }),
     {
       name: 'embedist-file-store',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          const savedFileContents = (state as unknown as { fileContents?: Record<string, string> }).fileContents;
+          const savedOriginalContents = (state as unknown as { originalContents?: Record<string, string> }).originalContents;
+          if (savedFileContents) {
+            state.fileContents = new Map(Object.entries(savedFileContents));
+          }
+          if (savedOriginalContents) {
+            state.originalContents = new Map(Object.entries(savedOriginalContents));
+          }
+          if (state.openTabs.length > 0) {
+            for (const tab of state.openTabs) {
+              const content = state.fileContents.get(tab.path);
+              if (content !== undefined) {
+                (tab as { content?: string }).content = content;
+              }
+            }
+          }
+        }
+      },
       partialize: (state) => ({
         rootPath: state.rootPath,
         projectName: state.projectName,
@@ -535,6 +555,10 @@ export const useFileStore = create<FileState>()(
         activeTabId: state.activeTabId,
         recentFiles: state.recentFiles,
         files: state.files,
+        isPlatformIOProject: state.isPlatformIOProject,
+        detectedBoard: state.detectedBoard,
+        fileContents: Object.fromEntries(state.fileContents),
+        originalContents: Object.fromEntries(state.originalContents),
       }),
     }
   )

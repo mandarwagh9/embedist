@@ -170,14 +170,18 @@ export function MenuBar() {
   const handleCut = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.getSelection()?.toString() || '');
-    } catch {}
+    } catch (err) {
+      console.error('Cut failed:', err);
+    }
     closeMenu();
   }, [closeMenu]);
 
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.getSelection()?.toString() || '');
-    } catch {}
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
     closeMenu();
   }, [closeMenu]);
 
@@ -191,7 +195,9 @@ export function MenuBar() {
         active.value = active.value.slice(0, start) + text + active.value.slice(end);
         active.selectionStart = active.selectionEnd = start + text.length;
       }
-    } catch {}
+    } catch (err) {
+      console.error('Paste failed:', err);
+    }
     closeMenu();
   }, [closeMenu]);
 

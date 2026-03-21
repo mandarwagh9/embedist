@@ -11,6 +11,8 @@ export function SerialMonitor() {
   const [isConnecting, setIsConnecting] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const portRef = useRef<unknown>(null);
   
   const addLog = (text: string, type: 'info' | 'error' | 'input') => {
     setLogs(prev => [...prev, { id: Date.now(), text, type, timestamp: Date.now() }]);
@@ -24,6 +26,19 @@ export function SerialMonitor() {
     scrollToBottom();
   }, [logs]);
 
+  useEffect(() => {
+    return () => {
+      if (readerRef.current) {
+        readerRef.current.cancel().catch(() => {});
+        readerRef.current = null;
+      }
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+    };
+  }, []);
+
   const connect = async () => {
     if (!navigator.serial) {
       addLog('Web Serial API not supported in this browser', 'error');
@@ -36,7 +51,9 @@ export function SerialMonitor() {
         readable: ReadableStream<ArrayBuffer>;
         open(opts: { baudRate: number }): Promise<void>;
         getInfo(): { path: string };
+        close(): Promise<void>;
       };
+      portRef.current = port;
       await port.open({ baudRate: serialBaudRate });
       
       setSerialPort(port.getInfo?.()?.path || 'Connected');
@@ -44,6 +61,7 @@ export function SerialMonitor() {
       
       addLog(`Connected at ${serialBaudRate} baud`, 'info');
 
+      abortRef.current = new AbortController();
       const reader = port.readable!.getReader();
       readerRef.current = reader;
 
@@ -73,8 +91,13 @@ export function SerialMonitor() {
 
   const disconnect = async () => {
     if (readerRef.current) {
-      await readerRef.current.cancel();
+      await readerRef.current.cancel().catch(() => {});
       readerRef.current = null;
+    }
+    if (portRef.current) {
+      const p = portRef.current as { close(): Promise<void> };
+      await p.close().catch(() => {});
+      portRef.current = null;
     }
     setSerialConnected(false);
     setSerialPort(null);
