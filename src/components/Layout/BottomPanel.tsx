@@ -36,7 +36,7 @@ export function BottomPanel() {
             </button>
           ))}
         </div>
-        <button className="bottom-panel-toggle" onClick={toggleBottomPanel}>
+        <button className="bottom-panel-toggle" onClick={toggleBottomPanel} aria-label="Toggle bottom panel">
           <svg width="12" height="12" viewBox="0 0 12 12">
             <path d="M2 8L6 4L10 8" stroke="currentColor" strokeWidth="1.5" fill="none"/>
           </svg>

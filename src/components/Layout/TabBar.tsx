@@ -82,6 +82,7 @@ export function TabBar() {
               {!tab.pinned && (
                 <button
                   className="tabbar-tab-close"
+                  aria-label="Close tab"
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab.id);

@@ -31,6 +31,7 @@ export function TitleBar() {
           className="titlebar-button" 
           onClick={handleMinimize}
           title="Minimize"
+          aria-label="Minimize"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <path d="M0 5h10" stroke="currentColor" strokeWidth="1"/>
@@ -40,6 +41,7 @@ export function TitleBar() {
           className="titlebar-button" 
           onClick={handleMaximize}
           title="Maximize"
+          aria-label="Maximize"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <rect x="0.5" y="0.5" width="9" height="9" stroke="currentColor" fill="none"/>
@@ -49,6 +51,7 @@ export function TitleBar() {
           className="titlebar-button titlebar-close" 
           onClick={handleClose}
           title="Close"
+          aria-label="Close"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.2"/>

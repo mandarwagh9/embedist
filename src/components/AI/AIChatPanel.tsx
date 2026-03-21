@@ -3,6 +3,8 @@ import { useAI } from '../../hooks/useAI';
 import { useAgent } from '../../hooks/useAgent';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAIStore } from '../../stores/aiStore';
+
+const MODE_TAG_STYLE = { color: 'var(--accent)' } as const;
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
 import { PlanToolbar } from './PlanToolbar';
@@ -254,7 +256,7 @@ function AIChatPanelContent() {
               </svg>
             </button>
           )}
-          <button className="ai-clear" onClick={handleClear} title="Clear chat" disabled={messages.length === 0}>
+          <button className="ai-clear" onClick={handleClear} title="Clear chat" aria-label="Clear chat" disabled={messages.length === 0}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
             </svg>
@@ -341,7 +343,7 @@ function AIChatPanelContent() {
                 <div className="msg-body">
                   <div className="msg-header">
                     <span className="msg-role">Assistant</span>
-                    <span className="msg-mode-tag" style={{ color: 'var(--accent)' }}>{MODE_LABELS[mode]}</span>
+                    <span className="msg-mode-tag" style={MODE_TAG_STYLE}>{MODE_LABELS[mode]}</span>
                   </div>
                   <div className="msg-content streaming-msg-content">
                     <StreamingIndicator

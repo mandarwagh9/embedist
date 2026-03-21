@@ -64,6 +64,7 @@ export function Sidebar() {
             className={`sidebar-icon-btn ${sidebarSection === item.id ? 'active' : ''}`}
             onClick={() => handleClick(item.id)}
             title={item.label}
+            aria-label={item.label}
           >
             {icons[item.icon]}
           </button>

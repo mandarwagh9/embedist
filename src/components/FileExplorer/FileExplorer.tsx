@@ -214,6 +214,7 @@ function TreeItem({
             <button
               className="tree-action-btn"
               title="Rename (F2)"
+              aria-label={`Rename ${node.name}`}
               onClick={(e) => { e.stopPropagation(); onSelect(node.path, false); onRename(node.path, node.name); }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -223,6 +224,7 @@ function TreeItem({
             <button
               className="tree-action-btn danger"
               title="Delete"
+              aria-label={`Delete ${node.name}`}
               onClick={(e) => { e.stopPropagation(); onSelect(node.path, false); onContextMenu(e, node.path, node); }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -655,30 +657,30 @@ export function FileExplorer() {
       <div className="file-explorer-header">
         <span className="file-explorer-title">Explorer</span>
         <div className="file-explorer-header-actions">
-          <button className="file-explorer-action" onClick={() => { setShowSearch(s => !s); if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 10); }} title="Search (Ctrl+F)">
+          <button className="file-explorer-action" onClick={() => { setShowSearch(s => !s); if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 10); }} title="Search (Ctrl+F)" aria-label="Search files">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <path d="M21 21l-4.35-4.35" />
             </svg>
           </button>
-          <button className="file-explorer-action" onClick={() => useFileStore.getState().collapseAll()} title="Collapse All">
+          <button className="file-explorer-action" onClick={() => useFileStore.getState().collapseAll()} title="Collapse All" aria-label="Collapse all folders">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <button className="file-explorer-action" onClick={refreshRoot} title="Refresh">
+          <button className="file-explorer-action" onClick={refreshRoot} title="Refresh" aria-label="Refresh file explorer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M23 4v6h-6M1 20v-6h6" />
               <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
             </svg>
           </button>
-          <button className="file-explorer-action" onClick={() => setShowCommandPalette(true)} title="Command Palette (Ctrl+Shift+E)">
+          <button className="file-explorer-action" onClick={() => setShowCommandPalette(true)} title="Command Palette" aria-label="Open command palette">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="4 17 10 11 4 5" />
               <line x1="12" y1="19" x2="20" y2="19" />
             </svg>
           </button>
-          <button className="file-explorer-action" onClick={openFolder} title="Open Folder">
+          <button className="file-explorer-action" onClick={openFolder} title="Open Folder" aria-label="Open folder">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z" />
             </svg>
@@ -767,6 +769,12 @@ export function FileExplorer() {
           {isSearching && filteredFiles !== null && filteredFiles.length === 0 && (
             <div className="file-explorer-empty-search">
               <p>No files match "{searchQuery}"</p>
+            </div>
+          )}
+
+          {!isSearching && displayFiles.length === 0 && (
+            <div className="file-explorer-empty-search">
+              <p>This folder is empty</p>
             </div>
           )}
         </div>

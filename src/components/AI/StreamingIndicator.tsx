@@ -24,7 +24,7 @@ export function StreamingIndicator({ content, isStreaming, onStop }: StreamingIn
         {isStreaming && <span className="streaming-cursor" />}
       </div>
       {isStreaming && onStop && (
-        <button className="streaming-stop" onClick={onStop} title="Stop generating">
+        <button className="streaming-stop" onClick={onStop} title="Stop generating" aria-label="Stop generating">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <rect x="6" y="6" width="12" height="12" rx="1" />
           </svg>
