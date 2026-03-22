@@ -85,16 +85,22 @@ function App() {
   );
 
   const handleEditorChange = useCallback((value: string | undefined) => {
-    if (activeFileTab && value !== undefined) {
-      setFileContent(activeFileTab.path, value);
+    if (value === undefined) return;
+    const tabId = useFileStore.getState().activeTabId;
+    if (!tabId) return;
+    const tab = useFileStore.getState().openTabs.find(t => t.id === tabId);
+    if (tab) {
+      setFileContent(tab.path, value);
     }
-  }, [activeFileTab, setFileContent]);
+  }, [setFileContent]);
 
   const activeContent = useMemo(() => {
-    if (!activeFileTab) return undefined;
+    if (!activeFileTabId) return undefined;
+    const tab = openTabs.find(t => t.id === activeFileTabId);
+    if (!tab) return undefined;
     const { fileContents: fc } = useFileStore.getState();
-    return fc.get(activeFileTab.path) ?? activeFileTab.content ?? '';
-  }, [activeFileTab]);
+    return fc.get(tab.path) ?? tab.content ?? '';
+  }, [activeFileTabId, openTabs]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -147,8 +153,10 @@ function App() {
 
       if (ctrl && e.key === 's') {
         e.preventDefault();
-        if (activeFileTab) {
-          saveFile(activeFileTab.path);
+        const tabId = useFileStore.getState().activeTabId;
+        if (tabId) {
+          const tab = useFileStore.getState().openTabs.find(t => t.id === tabId);
+          if (tab) saveFile(tab.path);
         }
         return;
       }
@@ -180,7 +188,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, activeFileTab, saveFile, saveAllFiles, setMode]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, saveFile, saveAllFiles, setMode]);
 
   const getDefaultCode = () => {
     if (rootPath) {
@@ -224,7 +232,7 @@ void loop() {
   };
 
   return (
-    <div className="app">
+    <div className="app" onContextMenu={(e) => e.preventDefault()}>
       <TitleBar />
       <MenuBar />
 
