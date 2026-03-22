@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useUIStore } from './stores/uiStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useFileStore } from './stores/fileStore';
@@ -40,7 +40,6 @@ function App() {
     rootPath,
     openTabs,
     activeTabId: activeFileTabId,
-    fileContents,
     setFileContent,
     saveFile,
     saveAllFiles,
@@ -80,10 +79,22 @@ function App() {
     };
   }, [setSidebarWidth]);
 
-  const activeFileTab = openTabs.find(t => t.id === activeFileTabId);
-  const activeContent = activeFileTab
-    ? fileContents.get(activeFileTab.path) ?? activeFileTab.content ?? ''
-    : undefined;
+  const activeFileTab = useMemo(
+    () => openTabs.find(t => t.id === activeFileTabId),
+    [openTabs, activeFileTabId]
+  );
+
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    if (activeFileTab && value !== undefined) {
+      setFileContent(activeFileTab.path, value);
+    }
+  }, [activeFileTab, setFileContent]);
+
+  const activeContent = useMemo(() => {
+    if (!activeFileTab) return undefined;
+    const { fileContents: fc } = useFileStore.getState();
+    return fc.get(activeFileTab.path) ?? activeFileTab.content ?? '';
+  }, [activeFileTab]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -195,12 +206,6 @@ void loop() {
   digitalWrite(LED_BUILTIN, LOW);
   delay(1000);
 }`;
-  };
-
-  const handleEditorChange = (value: string | undefined) => {
-    if (activeFileTab && value !== undefined) {
-      setFileContent(activeFileTab.path, value);
-    }
   };
 
   const renderSidebarContent = () => {
