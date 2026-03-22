@@ -45,6 +45,7 @@ function AIChatPanelContent() {
     isEditingPlan,
     setPlanPhase,
     setPlanContent,
+    setIsEditingPlan,
     agentStatus,
     agentTask,
     agentActivityLog,
@@ -268,9 +269,9 @@ function AIChatPanelContent() {
       {mode === 'plan' && hasActiveProvider && (
         <>
           <PlanToolbar
-            messages={messages}
             onApprove={handleApprovePlan}
             onDiscard={handleDiscardPlan}
+            onEdit={() => setIsEditingPlan(true)}
           />
           {isEditingPlan && <PlanEditPanel />}
         </>
