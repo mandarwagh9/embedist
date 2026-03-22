@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useFileStore, FileNode } from '../../stores/fileStore';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
@@ -74,7 +74,7 @@ const getFileIcon = (name: string, isDir: boolean, isExpanded?: boolean): JSX.El
   return extIcons[ext] || fileIcons.default;
 };
 
-function TreeItem({
+const TreeItem = React.memo(function TreeItem({
   node,
   level,
   selectedPaths,
@@ -105,11 +105,11 @@ function TreeItem({
   onCancelRename: () => void;
   searchQuery: string;
   openTabs: { path: string; modified: boolean }[];
-  loadingPaths: Set<string>;
+  loadingPaths: string[];
 }) {
   const [renameValue, setRenameValue] = useState(node.name);
   const renameRef = useRef<HTMLInputElement>(null);
-  const isLoading = loadingPaths.has(node.path);
+  const isLoading = loadingPaths.includes(node.path);
   const isSelected = selectedPaths.includes(node.path);
   const isHovered = hoveredPath === node.path;
   const isRenaming = renamingPath === node.path;
@@ -300,7 +300,7 @@ function TreeItem({
       )}
     </div>
   );
-}
+});
 
 function fuzzyScore(query: string, target: string): number {
   if (!query) return 1;
@@ -333,9 +333,7 @@ export function FileExplorer() {
     contextMenu,
     openContextMenu,
     closeContextMenu,
-    selectPath,
     clearSelection,
-    selectRange,
     startRenaming,
     stopRenaming,
     hoveredPath,
@@ -369,7 +367,6 @@ export function FileExplorer() {
   const [inlineNewName, setInlineNewName] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
-  const loadingPathsSet = useMemo(() => new Set(loadingPaths), [loadingPaths]);
 
   const filteredFiles = useMemo(() => {
     const q = searchQuery.trim();
@@ -469,12 +466,13 @@ export function FileExplorer() {
   }, [getNodeByPath, loadChildren, toggleExpanded, addLoadingPath]);
 
   const handleSelect = useCallback((path: string, multi: boolean) => {
-    if (multi && selectedPaths.length > 0) {
-      selectRange(path);
+    const { selectedPaths: sp, selectRange: sr, selectPath: sp2 } = useFileStore.getState();
+    if (multi && sp.length > 0) {
+      sr(path);
     } else {
-      selectPath(path, multi);
+      sp2(path, multi);
     }
-  }, [selectedPaths, selectPath, selectRange]);
+  }, []);
 
   const handleRename = useCallback(async (path: string, newName: string) => {
     await renameItem(path, newName);
@@ -484,11 +482,12 @@ export function FileExplorer() {
   const handleContextMenu = useCallback((e: React.MouseEvent, path: string, node: FileNode) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!selectedPaths.includes(path)) {
-      selectPath(path, false);
+    const { selectedPaths: sp, selectPath: sp2 } = useFileStore.getState();
+    if (!sp.includes(path)) {
+      sp2(path, false);
     }
     openContextMenu(e.clientX, e.clientY, path, node);
-  }, [selectedPaths, selectPath, openContextMenu]);
+  }, [openContextMenu]);
 
   const contextMenuItems = useMemo((): ContextMenuItem[] => {
     if (!contextMenu.targetNode) return [];
@@ -743,7 +742,7 @@ export function FileExplorer() {
               onCancelRename={stopRenaming}
               searchQuery={searchQuery}
               openTabs={openTabs}
-              loadingPaths={loadingPathsSet}
+              loadingPaths={loadingPaths}
             />
           ))}
 
