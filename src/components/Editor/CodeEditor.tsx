@@ -15,21 +15,25 @@ interface CodeEditorProps {
 export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorType.IStandaloneCodeEditor | null>(null);
-  const isUpdatingRef = useRef(false);
+  const isSettingValueRef = useRef(false);
+  const lastKnownValueRef = useRef<string | undefined>(undefined);
   const { editor: editorSettings } = useSettingsStore();
   const { setCursorPosition } = useUIStore();
   const { monaco, isReady, error } = useMonacoEditor();
 
   const handleEditorMount = useCallback((ed: EditorType.IStandaloneCodeEditor, _m: typeof import('monaco-editor')) => {
     editorRef.current = ed;
+    lastKnownValueRef.current = ed.getValue();
 
     ed.onDidChangeCursorPosition((e) => {
       setCursorPosition(e.position.lineNumber, e.position.column);
     });
 
     ed.onDidChangeModelContent(() => {
-      if (!isUpdatingRef.current) {
-        onChange(ed.getValue());
+      if (!isSettingValueRef.current) {
+        const newValue = ed.getValue();
+        lastKnownValueRef.current = newValue;
+        onChange(newValue);
       }
     });
   }, [onChange, setCursorPosition]);
@@ -112,11 +116,13 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
   useEffect(() => {
     const ed = editorRef.current;
     if (!ed) return;
-    const current = ed.getValue();
+    if (isSettingValueRef.current) return;
+    const current = lastKnownValueRef.current;
     if (current !== value) {
-      isUpdatingRef.current = true;
+      isSettingValueRef.current = true;
       ed.setValue(value);
-      isUpdatingRef.current = false;
+      lastKnownValueRef.current = value;
+      isSettingValueRef.current = false;
     }
   }, [value]);
 
