@@ -7,7 +7,7 @@ import { useAIStore } from '../../stores/aiStore';
 const MODE_TAG_STYLE = { color: 'var(--accent)' } as const;
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
-import { PlanToolbar } from './PlanToolbar';
+import { PlanToolbar, PlanPhaseIndicator, PlanEditPanel } from './PlanPanel';
 import { AgentToolbar } from './AgentToolbar';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { MessageBubble } from './MessageBubble';
@@ -41,7 +41,9 @@ function AIChatPanelContent() {
   } = useAI();
 
   const {
+    planPhase,
     planContent,
+    isEditingPlan,
     setPlanPhase,
     setPlanContent,
     agentStatus,
@@ -265,11 +267,15 @@ function AIChatPanelContent() {
       </div>
 
       {mode === 'plan' && hasActiveProvider && (
-        <PlanToolbar
-          messages={messages}
-          onApprove={handleApprovePlan}
-          onDiscard={handleDiscardPlan}
-        />
+        <>
+          <PlanPhaseIndicator currentPhase={planPhase} />
+          <PlanToolbar
+            messages={messages}
+            onApprove={handleApprovePlan}
+            onDiscard={handleDiscardPlan}
+          />
+          {isEditingPlan && <PlanEditPanel />}
+        </>
       )}
 
       {showAgentToolbar && (

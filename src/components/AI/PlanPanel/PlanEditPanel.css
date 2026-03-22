@@ -1,0 +1,120 @@
+.plan-edit-panel {
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  animation: expandIn 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 400px;
+  }
+}
+
+.plan-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.plan-edit-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.plan-edit-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.plan-edit-hint kbd {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.plan-edit-textarea {
+  width: 100%;
+  min-height: 200px;
+  max-height: 300px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.plan-edit-textarea:focus {
+  outline: none;
+}
+
+.plan-edit-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.plan-edit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.plan-edit-cancel {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.plan-edit-cancel:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+.plan-edit-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--success);
+  border: 1px solid var(--success);
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.plan-edit-save:hover {
+  opacity: 0.9;
+}

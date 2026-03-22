@@ -19,7 +19,7 @@ import { SettingsModal } from './components/Settings/SettingsModal';
 import { ErrorBoundary } from './components/Common/ErrorBoundary';
 import './styles/global.css';
 
-const SIDEBAR_MIN = 300;
+const SIDEBAR_MIN = 350;
 const SIDEBAR_MAX = 700;
 
 function App() {
