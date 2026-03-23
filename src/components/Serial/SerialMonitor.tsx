@@ -30,7 +30,10 @@ export function SerialMonitor() {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    const { serial } = useSettingsStore.getState();
+    if (serial.autoScroll) {
+      scrollToBottom();
+    }
   }, [logs]);
 
   useEffect(() => {
