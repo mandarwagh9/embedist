@@ -146,7 +146,6 @@ export function useBuild() {
       
       const result = await invoke<BuildResult>('upload_firmware', {
         projectPath,
-        boardId: selectedBoard,
       });
 
       result.output.split('\n').forEach((line) => {

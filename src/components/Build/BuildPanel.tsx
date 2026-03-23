@@ -139,8 +139,8 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
           <button
             className="build-action-btn upload"
             onClick={handleUpload}
-            disabled={isRunning || !rootPath || !isPlatformIOProject || !selectedBoard}
-            title={!selectedBoard ? 'Select a board first' : !rootPath ? 'Open a project folder' : 'Upload'}
+            disabled={isRunning || !rootPath || !isPlatformIOProject}
+            title={!rootPath ? 'Open a project folder' : 'Upload'}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15"/>
