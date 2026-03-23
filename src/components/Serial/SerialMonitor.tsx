@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '../../stores/uiStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import './SerialMonitor.css';
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
@@ -12,7 +13,13 @@ export function SerialMonitor() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const portRef = useRef<unknown>(null);
+  const portRef = useRef<{
+    readable: ReadableStream<Uint8Array>;
+    writable: WritableStream<Uint8Array>;
+    open(opts: { baudRate: number }): Promise<void>;
+    getInfo(): { path: string };
+    close(): Promise<void>;
+  } | null>(null);
   
   const addLog = (text: string, type: 'info' | 'error' | 'input') => {
     setLogs(prev => [...prev, { id: Date.now(), text, type, timestamp: Date.now() }]);
@@ -47,8 +54,9 @@ export function SerialMonitor() {
 
     setIsConnecting(true);
     try {
-      const port = await navigator.serial!.requestPort() as unknown as {
-        readable: ReadableStream<ArrayBuffer>;
+      const port = await navigator.serial!.requestPort() as {
+        readable: ReadableStream<Uint8Array>;
+        writable: WritableStream<Uint8Array>;
         open(opts: { baudRate: number }): Promise<void>;
         getInfo(): { path: string };
         close(): Promise<void>;
@@ -62,7 +70,7 @@ export function SerialMonitor() {
       addLog(`Connected at ${serialBaudRate} baud`, 'info');
 
       abortRef.current = new AbortController();
-      const reader = port.readable!.getReader();
+      const reader = port.readable.getReader();
       readerRef.current = reader;
 
       const readLoop = async () => {
@@ -95,8 +103,7 @@ export function SerialMonitor() {
       readerRef.current = null;
     }
     if (portRef.current) {
-      const p = portRef.current as { close(): Promise<void> };
-      await p.close().catch(() => {});
+      await portRef.current.close().catch(() => {});
       portRef.current = null;
     }
     setSerialConnected(false);
@@ -105,7 +112,17 @@ export function SerialMonitor() {
   };
 
   const sendCommand = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !portRef.current) return;
+    const { lineEnding } = useSettingsStore.getState().serial;
+    const ending = lineEnding === 'CR' ? '\r' : lineEnding === 'LF' ? '\n' : '\r\n';
+    const data = input + ending;
+    try {
+      const writer = portRef.current.writable.getWriter();
+      await writer.write(new TextEncoder().encode(data));
+      writer.releaseLock();
+    } catch {
+      addLog('Send failed', 'error');
+    }
     addLog(`> ${input}`, 'input');
     setInput('');
   };
