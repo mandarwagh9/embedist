@@ -25,9 +25,15 @@ export function TabBar() {
   const handleMiddleClick = useCallback((e: React.MouseEvent, tabId: string) => {
     if (e.button === 1) {
       e.preventDefault();
+      const tab = openTabs.find(t => t.id === tabId);
+      if (tab?.modified) {
+        if (!window.confirm(`"${tab.title}" has unsaved changes. Close anyway?`)) {
+          return;
+        }
+      }
       closeTab(tabId);
     }
-  }, [closeTab]);
+  }, [openTabs, closeTab]);
 
   if (openTabs.length === 0) {
     return null;
@@ -37,7 +43,15 @@ export function TabBar() {
     {
       label: 'Close',
       shortcut: 'Ctrl+W',
-      onClick: () => closeTab(contextMenu.tabId),
+      onClick: () => {
+        const tab = openTabs.find(t => t.id === contextMenu.tabId);
+        if (tab?.modified) {
+          if (!window.confirm(`"${tab.title}" has unsaved changes. Close anyway?`)) {
+            return;
+          }
+        }
+        closeTab(contextMenu.tabId);
+      },
     },
     {
       label: 'Close Others',
@@ -85,6 +99,11 @@ export function TabBar() {
                   aria-label="Close tab"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (tab.modified) {
+                      if (!window.confirm(`"${tab.title}" has unsaved changes. Close anyway?`)) {
+                        return;
+                      }
+                    }
                     closeTab(tab.id);
                   }}
                 >

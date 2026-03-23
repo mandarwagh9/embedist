@@ -295,6 +295,12 @@ export function MenuBar() {
       if (ctrl && e.key === 'w') {
         e.preventDefault();
         if (activeTabId) {
+          const tab = openTabs.find(t => t.id === activeTabId);
+          if (tab?.modified) {
+            if (!window.confirm(`"${tab.title}" has unsaved changes. Close anyway?`)) {
+              return;
+            }
+          }
           closeTab(activeTabId);
         }
       }
