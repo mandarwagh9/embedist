@@ -1,0 +1,55 @@
+.plan-phase-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 6px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.plan-phase-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+  flex: 1;
+  max-width: 80px;
+}
+
+.plan-phase-step:hover {
+  background: var(--bg-surface);
+}
+
+.plan-phase-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.plan-phase-step.done .plan-phase-dot {
+  background: var(--border-active);
+  border-color: var(--border-active);
+  opacity: 0.5;
+}
+
+.plan-phase-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.plan-phase-step.current .plan-phase-label {
+  font-weight: 600;
+}

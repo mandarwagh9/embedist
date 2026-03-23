@@ -7,7 +7,7 @@ import { useAIStore } from '../../stores/aiStore';
 const MODE_TAG_STYLE = { color: 'var(--accent)' } as const;
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
-import { PlanToolbar, PlanEditPanel } from './PlanPanel';
+import { PlanToolbar, PlanEditPanel, PlanPhaseIndicator } from './PlanPanel';
 import { AgentToolbar } from './AgentToolbar';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { MessageBubble } from './MessageBubble';
@@ -21,6 +21,7 @@ import './PromptSuggestions.css';
 import './StreamingIndicator.css';
 import './AgentToolbar.css';
 import './AgentActivityPanel.css';
+import './PlanPanel/PlanPhaseIndicator.css';
 
 const MODE_LABELS: Record<AIMode, string> = {
   chat: 'Chat',
@@ -280,6 +281,7 @@ function AIChatPanelContent() {
 
       {mode === 'plan' && hasActiveProvider && (
         <>
+          <PlanPhaseIndicator />
           <PlanToolbar
             onApprove={handleApprovePlan}
             onDiscard={handleDiscardPlan}
