@@ -56,12 +56,24 @@ function AIChatPanelContent() {
     isStreaming,
     streamingContent,
     setMessageFeedback,
+    activeProvider,
   } = useAIStore();
 
   const {
     startAgentTask,
     cancelAgentTask,
   } = useAgent();
+
+  const NON_TOOL_PROVIDERS = ['deepseek', 'ollama', 'google'];
+  const showToolWarning = mode === 'agent' && hasActiveProvider && NON_TOOL_PROVIDERS.includes(activeProvider);
+
+  const PROVIDER_NAMES: Record<string, string> = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    google: 'Google Gemini',
+    deepseek: 'DeepSeek',
+    ollama: 'Ollama',
+  };
 
   const [input, setInput] = useState('');
   const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
@@ -283,6 +295,22 @@ function AIChatPanelContent() {
           task={agentTask}
           onStop={cancelAgentTask}
         />
+      )}
+
+      {showToolWarning && (
+        <div className="agent-warning">
+          <span className="agent-warning-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </span>
+          <span className="agent-warning-text">
+            <strong>{PROVIDER_NAMES[activeProvider] || activeProvider}</strong> does not support tool calling.
+            Agent mode requires OpenAI, Anthropic, or a compatible custom endpoint to execute code actions.
+          </span>
+        </div>
       )}
 
       {transitionMsg && (

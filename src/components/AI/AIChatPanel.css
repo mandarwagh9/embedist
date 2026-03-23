@@ -323,3 +323,29 @@
   max-height: 0;
   border-bottom: none;
 }
+
+.agent-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(251, 191, 36, 0.08);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  font-size: 12px;
+  color: var(--warning);
+  flex-shrink: 0;
+}
+
+.agent-warning-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.agent-warning-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.agent-warning-text strong {
+  font-weight: 600;
+}
