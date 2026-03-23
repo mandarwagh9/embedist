@@ -716,8 +716,27 @@ export function FileExplorer() {
         <Breadcrumbs
           path={rootPath}
           rootName={projectName || 'Root'}
-          onNavigate={() => {}}
-          onNodeClick={() => {}}
+          onNavigate={() => {
+            useFileStore.getState().collapseAll();
+          }}
+          onNodeClick={(nodePath) => {
+            const node = getNodeByPath(nodePath);
+            if (!node) return;
+            if (node.isDir && node.children && node.children.length === 0) {
+              addLoadingPath(nodePath);
+              loadChildren(node).then(children => {
+                useFileStore.getState().setNodeChildren(nodePath, children);
+                useFileStore.getState().removeLoadingPath(nodePath);
+                useFileStore.getState().toggleExpanded(nodePath);
+              }).catch(() => {
+                useFileStore.getState().removeLoadingPath(nodePath);
+              });
+            } else {
+              if (!node.expanded) {
+                useFileStore.getState().toggleExpanded(nodePath);
+              }
+            }
+          }}
         />
       </div>
 
