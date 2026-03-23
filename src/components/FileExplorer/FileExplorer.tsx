@@ -425,7 +425,7 @@ export function FileExplorer() {
       }
       if (e.key === 'Delete' && selectedPaths.length > 0) {
         const node = getNodeByPath(selectedPaths[0]);
-        if (node && !node.isDir) {
+        if (node) {
           e.preventDefault();
           deleteItem(selectedPaths[0]);
         }
