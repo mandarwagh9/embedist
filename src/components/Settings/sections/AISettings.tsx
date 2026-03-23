@@ -4,7 +4,7 @@ import { useSettingsStore } from '../../../stores/settingsStore';
 import { useAIStore } from '../../../stores/aiStore';
 
 export function AISettings() {
-  const { providers, updateProvider, addCustomEndpoint, removeCustomEndpoint, customEndpoints } = useSettingsStore();
+  const { providers, updateProvider, addCustomEndpoint, removeCustomEndpoint, customEndpoints, defaultImplementationMode, setDefaultImplementationMode } = useSettingsStore();
   const { activeProvider, setActiveProvider } = useAIStore();
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [customForm, setCustomForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '' });
@@ -209,6 +209,25 @@ export function AISettings() {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Plan Mode</h3>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>After Plan Approval</span>
+            <small>Which mode to switch to when a plan is approved</small>
+          </div>
+          <select
+            className="settings-select"
+            value={defaultImplementationMode}
+            onChange={(e) => setDefaultImplementationMode(e.target.value as 'chat' | 'agent')}
+          >
+            <option value="chat">Chat Mode</option>
+            <option value="agent">Agent Mode</option>
+          </select>
+        </div>
       </div>
     </div>
   );
