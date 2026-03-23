@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useUIStore } from './stores/uiStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useFileStore } from './stores/fileStore';
@@ -17,6 +17,7 @@ import { SerialMonitor } from './components/Serial/SerialMonitor';
 import { BuildPanel } from './components/Build/BuildPanel';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { ErrorBoundary } from './components/Common/ErrorBoundary';
+import { ToastContainer, setToastDispatcher, type ToastType } from './components/Common/Toast';
 import './styles/global.css';
 
 const SIDEBAR_MIN = 350;
@@ -77,7 +78,17 @@ function getLanguageFromPath(path: string): string {
 }
 
 function App() {
-  const {
+  const [toasts, setToasts] = useState<Array<{ id: string; type: ToastType; message: string }>>([]);
+
+  useEffect(() => {
+    setToastDispatcher((type, message) => {
+      setToasts(prev => [...prev, { id: `toast-${Date.now()}`, type, message }]);
+    });
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
     sidebarSection,
     sidebarWidth,
     setSidebarWidth,
@@ -326,6 +337,7 @@ void loop() {
 
       <StatusBar />
       <SettingsModal />
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
