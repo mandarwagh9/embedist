@@ -22,6 +22,60 @@ import './styles/global.css';
 const SIDEBAR_MIN = 350;
 const SIDEBAR_MAX = 700;
 
+const EXT_TO_LANGUAGE: Record<string, string> = {
+  js: 'javascript',
+  jsx: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  py: 'python',
+  rs: 'rust',
+  go: 'go',
+  rb: 'ruby',
+  java: 'java',
+  kt: 'kotlin',
+  swift: 'swift',
+  c: 'c',
+  h: 'c',
+  cpp: 'cpp',
+  cc: 'cpp',
+  cxx: 'cpp',
+  ino: 'cpp',
+  hpp: 'cpp',
+  cs: 'csharp',
+  php: 'php',
+  html: 'html',
+  htm: 'html',
+  css: 'css',
+  scss: 'scss',
+  sass: 'scss',
+  less: 'less',
+  json: 'json',
+  jsonc: 'json',
+  yaml: 'yaml',
+  yml: 'yaml',
+  xml: 'xml',
+  md: 'markdown',
+  mdx: 'markdown',
+  sh: 'shell',
+  bash: 'shell',
+  zsh: 'shell',
+  ps1: 'powershell',
+  sql: 'sql',
+  toml: 'ini',
+  ini: 'ini',
+  cfg: 'ini',
+  conf: 'ini',
+  lua: 'lua',
+  r: 'r',
+  dart: 'dart',
+  zig: 'zig',
+};
+
+function getLanguageFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() || '';
+  return EXT_TO_LANGUAGE[ext] || 'plaintext';
+}
+
 function App() {
   const {
     sidebarSection,
@@ -259,7 +313,7 @@ void loop() {
             <ErrorBoundary fallback={<div style={{ padding: 20, color: '#E94560', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Editor failed to load</div>}>
               <CodeEditor
                 value={activeContent !== undefined ? activeContent : getDefaultCode()}
-                language="cpp"
+                language={activeFileTab ? getLanguageFromPath(activeFileTab.path) : 'cpp'}
                 onChange={handleEditorChange}
                 readOnly={!activeFileTab}
               />
