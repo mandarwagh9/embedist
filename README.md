@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Version](https://img.shields.io/badge/version-v0.9.0-blue)](https://github.com/mandarwagh9/embedist/releases)
+[![Version](https://img.shields.io/badge/version-v0.11.5-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
 </div>
@@ -18,6 +18,30 @@
 Embedist is a Windows desktop application that combines AI assistance with embedded firmware development. Built with Tauri 2, React, and TypeScript, it brings board-aware AI debugging, real-time serial monitoring, and PlatformIO build integration into a single cohesive environment.
 
 Open any project folder — ESP32, Arduino, or any embedded codebase — and get context-aware AI assistance that understands your hardware. Build, upload, monitor serial output, and iterate faster with AI that knows your board.
+
+## Screenshots
+
+### AI Modes — Chat, Plan, Agent, and Debug
+
+![AI Modes](screenshot/AI-CHAT-MODES.png)
+
+### Chat Mode — Ask questions, get hardware-aware answers
+
+![AI Chat](screenshot/AI-CHAT.png)
+
+### Plan Mode — Collaborate on project plans before coding
+
+![AI Plan](screenshot/AI-PLAN.png)
+
+### Agent Mode — Autonomous code implementation with live activity log
+
+![AI Agent](screenshot/AI-AGENT.png)
+
+### Default Interface — File Explorer, Serial Monitor, and Monaco Editor
+
+![Default Interface](screenshot/DEFAULT-INTERFACE.png)
+
+---
 
 ## Features
 
@@ -33,9 +57,9 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 ## Downloads
 
-### Latest Release: v0.9.0
+### Latest Release: v0.11.5
 
-[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.9.0/embedist.exe)
+[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.11.5/embedist.exe)
 
 Download the executable and run it directly — no installation required.
 
@@ -191,10 +215,40 @@ embedist/
 - Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only responses and do not execute tools
 - Drag-and-drop files in the File Explorer is not yet implemented
 - Settings toggle for "default implementation mode" is not exposed in the Settings UI
+- Editor settings (font size, word wrap, minimap) are saved but not yet wired to the Monaco editor instance
 
 ---
 
 ## Changelog
+
+### [v0.11.5](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.5) — 2026-03-23
+- **Fix**: Serial monitor TX — `sendCommand()` only logged to UI but never wrote to the port; now transmits with Web Serial API WritableStream + TextEncoder, respects line ending from settings (CR/LF/CRLF)
+
+### [v0.11.4](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.4) — 2026-03-23
+- **Fix**: Browser native context menu — replaced fragile JS `onContextMenu` handler with `tauri-plugin-prevent-default` v4 (Rust/WebView-level interception, no JS race condition)
+- **Fix**: Removed `user-select: none` from body CSS (was breaking text selection in Monaco editor)
+
+### [v0.11.3](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.3) — 2026-03-23
+- **Fix**: Editor keyboard input broken (Backspace/Ctrl+Z not working) — root cause was unstable `activeFileTab` dependency causing Monaco re-mount on every keystroke, plus value-sync `useEffect` overwriting user input
+- **Fix**: Stabilized `handleEditorChange` via `useFileStore.getState()` (zero React deps), `activeContent` useMemo now depends on stable IDs, two-ref system (`isSettingValueRef` + `lastKnownValueRef`) prevents programmatic `setValue` from fighting user keystrokes
+- **Refactor**: PlanPhaseIndicator stripped to null-returning stub (phase label already in PlanToolbar)
+
+### [v0.11.2](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.2) — 2026-03-23
+- **Refactor**: Plan toolbar stripped to minimal single-row layout — dot + "Plan / Phase" label left, Edit + Discard + Approve & Build buttons right
+
+### [v0.11.1](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.1) — 2026-03-23
+- **Fix**: Editor recreation on file tree hover — `TreeItem` memoized with stable callback refs via `useCallback` + `getState()`
+- **Fix**: Editor recreation on empty folder expand — guard against creating editor before content is loaded
+
+### [v0.11.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.0) — 2026-03-23
+- **New**: Plan mode redesign with compact toolbar, phase stepper, and inline edit panel
+- **New**: PlanEditPanel with Save/Cancel and Esc/Ctrl+Enter keyboard shortcuts
+- **Refactor**: Monaco editor rewritten with direct API (not `@monaco-editor/react`) — singleton loader, 5 separate useEffect hooks for theme/create/value-sync/language/options
+- **Fix**: CSP now allows Monaco web workers; CodeEditor wrapped in ErrorBoundary
+
+### [v0.9.1](https://github.com/mandarwagh9/embedist/releases/tag/v0.9.1) — 2026-03-22
+- **Fix**: Per-tab loading state — each tab tracks its own `loadingFilePath` instead of a global loading spinner, preventing flicker and incorrect states
+- **Fix**: Editor hydration — no more blank editor flash on persist rehydration; tab content synced on tab switch
 
 ### [v0.9.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.9.0) — 2026-03-21
 - **Security**: Removed unrestricted fs/shell permissions; added CSP; fixed command injection; replaced inline onclick with React event delegation
