@@ -1,8 +1,12 @@
+import { useRef, useCallback } from 'react';
 import { useUIStore } from '../../stores/uiStore';
 import { SerialMonitor } from '../Serial/SerialMonitor';
 import { AIChatPanel } from '../AI/AIChatPanel';
 import { BuildPanel } from '../Build/BuildPanel';
 import './BottomPanel.css';
+
+const MIN_BOTTOM_PANEL_HEIGHT = 100;
+const MAX_BOTTOM_PANEL_HEIGHT = 600;
 
 export function BottomPanel() {
   const { 
@@ -10,8 +14,40 @@ export function BottomPanel() {
     bottomPanelHeight, 
     bottomPanelTab,
     toggleBottomPanel,
-    setBottomPanelTab 
+    setBottomPanelTab,
+    setBottomPanelHeight,
   } = useUIStore();
+
+  const isResizingRef = useRef(false);
+  const startYRef = useRef(0);
+  const startHeightRef = useRef(0);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    startYRef.current = e.clientY;
+    startHeightRef.current = bottomPanelHeight;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const delta = startYRef.current - moveEvent.clientY;
+      const newHeight = Math.min(MAX_BOTTOM_PANEL_HEIGHT, Math.max(MIN_BOTTOM_PANEL_HEIGHT, startHeightRef.current + delta));
+      setBottomPanelHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [bottomPanelHeight, setBottomPanelHeight]);
 
   const tabs = [
     { id: 'terminal', label: 'Terminal' },
@@ -24,6 +60,11 @@ export function BottomPanel() {
       className={`bottom-panel ${bottomPanelVisible ? 'visible' : ''}`}
       style={{ height: bottomPanelVisible ? bottomPanelHeight : 0 }}
     >
+      <div
+        className="bottom-panel-resize-handle"
+        onMouseDown={handleMouseDown}
+        title="Drag to resize"
+      />
       <div className="bottom-panel-header">
         <div className="bottom-panel-tabs">
           {tabs.map((tab) => (

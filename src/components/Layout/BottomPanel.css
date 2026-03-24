@@ -7,6 +7,17 @@
   overflow: hidden;
 }
 
+.bottom-panel-resize-handle {
+  height: 4px;
+  cursor: row-resize;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.bottom-panel-resize-handle:hover {
+  background: var(--accent);
+}
+
 .bottom-panel-header {
   height: 36px;
   min-height: 36px;
