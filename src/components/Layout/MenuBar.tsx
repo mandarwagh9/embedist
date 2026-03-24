@@ -477,19 +477,30 @@ export function MenuBar() {
                 <div className="shortcut-row"><kbd>Ctrl+W</kbd><span>Close Tab</span></div>
               </div>
               <div className="shortcuts-section">
+                <h4>Tabs</h4>
+                <div className="shortcut-row"><kbd>Ctrl+Tab</kbd><span>Next Tab</span></div>
+                <div className="shortcut-row"><kbd>Ctrl+Shift+Tab</kbd><span>Previous Tab</span></div>
+              </div>
+              <div className="shortcuts-section">
                 <h4>AI Modes</h4>
                 <div className="shortcut-row"><kbd>Ctrl+1</kbd><span>Chat Mode</span></div>
                 <div className="shortcut-row"><kbd>Ctrl+2</kbd><span>Plan Mode</span></div>
-                <div className="shortcut-row"><kbd>Ctrl+3</kbd><span>Debug Mode</span></div>
+                <div className="shortcut-row"><kbd>Ctrl+3</kbd><span>Agent Mode</span></div>
               </div>
               <div className="shortcuts-section">
                 <h4>View</h4>
                 <div className="shortcut-row"><kbd>Ctrl+B</kbd><span>Toggle Sidebar</span></div>
                 <div className="shortcut-row"><kbd>Ctrl+J</kbd><span>Toggle Bottom Panel</span></div>
+                <div className="shortcut-row"><kbd>Ctrl+Shift+P</kbd><span>Command Palette</span></div>
                 <div className="shortcut-row"><kbd>Ctrl++</kbd><span>Zoom In</span></div>
                 <div className="shortcut-row"><kbd>Ctrl+-</kbd><span>Zoom Out</span></div>
                 <div className="shortcut-row"><kbd>Ctrl+0</kbd><span>Reset Zoom</span></div>
                 <div className="shortcut-row"><kbd>F11</kbd><span>Full Screen</span></div>
+              </div>
+              <div className="shortcuts-section">
+                <h4>Build</h4>
+                <div className="shortcut-row"><kbd>F5</kbd><span>Build Project</span></div>
+                <div className="shortcut-row"><kbd>F6</kbd><span>Upload Firmware</span></div>
               </div>
             </div>
           </div>

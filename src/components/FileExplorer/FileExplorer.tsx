@@ -46,6 +46,13 @@ const extIcons: Record<string, JSX.Element> = {
       <path d="M8 13H16M8 17H12" />
     </svg>
   ),
+  c: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 13H16M8 17H12" />
+    </svg>
+  ),
   h: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
@@ -56,6 +63,7 @@ const extIcons: Record<string, JSX.Element> = {
   json: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
       <path d="M8 12C8 10.8954 8.89543 10 10 10H11C12.1046 10 13 10.8954 13 12V13C13 14.1046 12.1046 15 11 15H10C8.89543 15 8 14.1046 8 13V12Z" />
       <path d="M16 12C16 10.8954 15.1046 10 14 10H13C11.8954 10 11 10.8954 11 12V13C11 14.1046 11.8954 15 13 15H14C15.1046 15 16 14.1046 16 13V12Z" />
     </svg>
@@ -65,6 +73,71 @@ const extIcons: Record<string, JSX.Element> = {
       <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
       <path d="M14 2V8H20" />
       <path d="M9 12L11 14L9 16M15 16H13M13 12H15" />
+    </svg>
+  ),
+  py: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3572A5" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M9 8H10C11.1046 8 12 8.89543 12 10V11C12 12.1046 11.1046 13 10 13H9" />
+      <path d="M15 8H16C17.1046 8 18 8.89543 18 10V11C18 12.1046 17.1046 13 16 13H15" />
+      <path d="M9 16H15" />
+    </svg>
+  ),
+  ts: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3178C6" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M9 16L12 19L15 16M9 10L15 10" />
+    </svg>
+  ),
+  js: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F7DF1E" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M9 16L12 19L15 16M9 10L15 10" />
+    </svg>
+  ),
+  html: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E34F26" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M7 11L4 15H16L13 11L10 15H7" />
+    </svg>
+  ),
+  css: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1572B6" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M7 11L10 15L7 19H11L14 15L11 11H7" />
+    </svg>
+  ),
+  toml: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9C4221" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 10H16M8 14H16M8 18H12" />
+    </svg>
+  ),
+  yaml: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CB171E" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 10H16M8 14H16M8 18H16" />
+    </svg>
+  ),
+  rs: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DEA584" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 16L12 12L16 16M8 12L12 8" />
+    </svg>
+  ),
+  txt: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+      <path d="M14 2V8H20" />
+      <path d="M8 12H16M8 16H16M8 20H13" />
     </svg>
   ),
 };

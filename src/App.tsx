@@ -111,6 +111,7 @@ function App() {
     setFileContent,
     saveFile,
     saveAllFiles,
+    cycleTab,
   } = useFileStore();
   const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
@@ -281,11 +282,17 @@ function App() {
         toggleCommandPalette();
         return;
       }
+
+      if (ctrl && e.key === 'Tab') {
+        e.preventDefault();
+        cycleTab(!e.shiftKey);
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, saveFile, saveAllFiles, setMode]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, saveFile, saveAllFiles, setMode, cycleTab, toggleCommandPalette]);
 
   const getDefaultCode = () => {
     if (rootPath) {

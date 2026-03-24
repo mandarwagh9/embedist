@@ -98,10 +98,28 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       smoothScrolling: true,
       padding: { top: 8 },
       automaticLayout: true,
-      bracketPairColorization: { enabled: false },
+      bracketPairColorization: { enabled: true },
       guides: {
-        bracketPairs: false,
+        bracketPairs: true,
         indentation: true,
+      },
+    });
+
+    ed.addAction({
+      id: 'find',
+      label: 'Find',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF],
+      run: () => {
+        ed.getAction('actions.find')?.run();
+      },
+    });
+
+    ed.addAction({
+      id: 'replace',
+      label: 'Replace',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH],
+      run: () => {
+        ed.getAction('editor.action.startFindReplaceAction')?.run();
       },
     });
 

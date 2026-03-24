@@ -10,11 +10,11 @@ export function AISettings() {
   const [customForm, setCustomForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '' });
 
   const providerList = [
-    { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'] },
-    { id: 'anthropic', name: 'Anthropic', models: ['claude-3-5-sonnet-20241014', 'claude-3-opus-20240229'] },
-    { id: 'google', name: 'Google Gemini', models: ['gemini-2.0-flash', 'gemini-1.5-pro'] },
-    { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-coder'] },
-    { id: 'ollama', name: 'Ollama (Local)', models: ['llama3.2', 'mistral', 'qwen', 'phi'] },
+    { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'] },
+    { id: 'anthropic', name: 'Anthropic', models: ['claude-3-5-sonnet-20241014', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229'] },
+    { id: 'google', name: 'Google Gemini', models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'] },
+    { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-coder', 'deepseek-coder-v2'] },
+    { id: 'ollama', name: 'Ollama (Local)', models: ['llama3.2', 'llama3.1', 'llama3', 'mistral', 'qwen', 'phi3', 'phi', 'codellama', 'mixtral'] },
   ];
 
   const handleAddCustom = async () => {

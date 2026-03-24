@@ -70,6 +70,7 @@ interface FileState {
   closeAllTabs: () => void;
   pinTab: (id: string) => void;
   setActiveTab: (id: string) => void;
+  cycleTab: (forward: boolean) => void;
 
   setFileContent: (path: string, content: string) => void;
   saveFile: (path: string) => Promise<void>;
@@ -379,6 +380,22 @@ export const useFileStore = create<FileState>()(
       },
 
       setActiveTab: (id) => set({ activeTabId: id }),
+
+      cycleTab: (forward) => {
+        const state = get();
+        if (state.openTabs.length <= 1) return;
+        
+        const currentIndex = state.openTabs.findIndex(t => t.id === state.activeTabId);
+        let newIndex: number;
+        
+        if (forward) {
+          newIndex = (currentIndex + 1) % state.openTabs.length;
+        } else {
+          newIndex = (currentIndex - 1 + state.openTabs.length) % state.openTabs.length;
+        }
+        
+        set({ activeTabId: state.openTabs[newIndex].id });
+      },
 
       setFileContent: (path, content) => {
         const state = get();
