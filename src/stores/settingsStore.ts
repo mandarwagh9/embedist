@@ -34,6 +34,8 @@ interface SettingsState {
     theme: 'embedist-dark' | 'vs-dark' | 'light';
     autoSave: boolean;
     autoSaveDelay: number;
+    cursorSmoothCaretAnimation: boolean;
+    smoothScrolling: boolean;
   };
   serial: {
     baudRate: number;
@@ -87,6 +89,8 @@ export const useSettingsStore = create<SettingsState>()(
         theme: 'embedist-dark',
         autoSave: false,
         autoSaveDelay: 2000,
+        cursorSmoothCaretAnimation: true,
+        smoothScrolling: true,
       },
       serial: {
         baudRate: 115200,

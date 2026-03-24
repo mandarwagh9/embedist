@@ -107,6 +107,28 @@ export function EditorSettings() {
             onClick={() => updateEditor({ minimap: !editor.minimap })}
           />
         </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Smooth Caret Animation</span>
+            <small>Animate cursor movement</small>
+          </div>
+          <button
+            className={`settings-toggle ${editor.cursorSmoothCaretAnimation ? 'active' : ''}`}
+            onClick={() => updateEditor({ cursorSmoothCaretAnimation: !editor.cursorSmoothCaretAnimation })}
+          />
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Smooth Scrolling</span>
+            <small>Animate scroll transitions</small>
+          </div>
+          <button
+            className={`settings-toggle ${editor.smoothScrolling ? 'active' : ''}`}
+            onClick={() => updateEditor({ smoothScrolling: !editor.smoothScrolling })}
+          />
+        </div>
       </div>
 
       <div className="settings-section">

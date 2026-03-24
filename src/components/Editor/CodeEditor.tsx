@@ -94,8 +94,8 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       lineNumbers: 'on',
       renderLineHighlight: 'line',
       cursorBlinking: 'smooth',
-      cursorSmoothCaretAnimation: 'on',
-      smoothScrolling: true,
+      cursorSmoothCaretAnimation: editorSettings.cursorSmoothCaretAnimation ? 'on' : 'off',
+      smoothScrolling: editorSettings.smoothScrolling,
       padding: { top: 8 },
       automaticLayout: true,
       bracketPairColorization: { enabled: true },
@@ -166,6 +166,8 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       tabSize: editorSettings.tabSize,
       wordWrap: editorSettings.wordWrap ? 'on' : 'off',
       minimap: { enabled: editorSettings.minimap },
+      cursorSmoothCaretAnimation: editorSettings.cursorSmoothCaretAnimation ? 'on' : 'off',
+      smoothScrolling: editorSettings.smoothScrolling,
     });
   }, [editorSettings]);
 
