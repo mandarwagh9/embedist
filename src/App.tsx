@@ -288,6 +288,18 @@ function App() {
         cycleTab(!e.shiftKey);
         return;
       }
+
+      if (e.key === 'F5') {
+        e.preventDefault();
+        navigateToBuild();
+        return;
+      }
+
+      if (e.key === 'F6') {
+        e.preventDefault();
+        navigateToBuild();
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
