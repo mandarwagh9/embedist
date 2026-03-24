@@ -499,10 +499,14 @@ export function FileExplorer() {
         }
       }
       if (e.key === 'Delete' && selectedPaths.length > 0) {
-        const node = getNodeByPath(selectedPaths[0]);
-        if (node) {
-          e.preventDefault();
+        e.preventDefault();
+        if (selectedPaths.length === 1) {
           deleteItem(selectedPaths[0]);
+        } else {
+          for (const path of selectedPaths) {
+            deleteItem(path);
+          }
+          clearSelection();
         }
       }
       if (e.key === 'Escape') {
