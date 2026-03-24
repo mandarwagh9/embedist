@@ -111,6 +111,7 @@ pub fn set_active_provider(state: State<'_, AIState>, provider_id: String) -> Re
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[command]
 pub async fn chat_completion(
     state: State<'_, AIState>,
@@ -564,6 +565,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
