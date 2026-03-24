@@ -1,6 +1,6 @@
 # Embedist — TODO Fix List
 
-Generated from comprehensive codebase analysis. Last updated: v0.11.5.
+Generated from comprehensive codebase analysis. Last updated: v0.12.2.
 
 ## Legend
 - **BROKEN**: Feature doesn't work at all
@@ -460,3 +460,18 @@ Effort: Trivial (1 line) | Low (<1hr) | Medium (1-4hr) | High (4+hr)
 | v0.11.4 | Browser context menu - JS `onContextMenu` race condition | `lib.rs`, `Cargo.toml`, `App.tsx`, `global.css` |
 | v0.11.5 | Serial TX - `sendCommand` never wrote to serial port | `SerialMonitor.tsx` |
 | v0.11.6 | README stale + screenshots | `README.md`, `screenshot/`, `Cargo.lock` |
+| v0.11.9 | File explorer drag & drop | `FileExplorer.tsx` |
+| v0.11.9 | Filename validation | `FileExplorer.tsx` |
+| v0.11.9 | AI API timeout (60s) | `ai.rs` |
+| v0.11.9 | Editor context menu | `CodeEditor.tsx` |
+| v0.11.9 | Unsaved changes in title bar | `TitleBar.tsx` |
+| v0.11.9 | CSP tightening | `tauri.conf.json` |
+| v0.12.0 | BuildPanel ANSI colors | `BuildPanel.tsx` |
+| v0.12.0 | DevTools enabled | `tauri.conf.json` |
+| v0.12.0 | DTR/RTS controls | `SerialSettings.tsx` |
+| v0.12.0 | Clear on Connect | `SerialSettings.tsx`, `SerialMonitor.tsx` |
+| v0.12.0 | Save Serial Output | `SerialMonitor.tsx` |
+| v0.12.1 | Wire clearOnConnect toggle | `SerialMonitor.tsx` |
+| v0.12.1 | Clippy warnings suppressed | `ai.rs` |
+| v0.12.1 | Monaco shortcuts (Ctrl+G, Alt+Shift+F, Ctrl+D, Ctrl+Shift+L) | `CodeEditor.tsx` |
+| v0.12.2 | FileNode type consolidation | `types/index.ts`, `fileStore.ts` |
