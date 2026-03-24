@@ -124,6 +124,42 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       },
     });
 
+    ed.addAction({
+      id: 'goto-line',
+      label: 'Go to Line',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG],
+      run: () => {
+        ed.getAction('editor.action.gotoLine')?.run();
+      },
+    });
+
+    ed.addAction({
+      id: 'format-document',
+      label: 'Format Document',
+      keybindings: [monaco.KeyMod.Alt | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
+      run: () => {
+        ed.getAction('editor.action.formatDocument')?.run();
+      },
+    });
+
+    ed.addAction({
+      id: 'select-word',
+      label: 'Select Word',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD],
+      run: () => {
+        ed.getAction('editor.action.addSelectionToNextFindMatch')?.run();
+      },
+    });
+
+    ed.addAction({
+      id: 'select-all-occurrences',
+      label: 'Select All Occurrences',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL],
+      run: () => {
+        ed.getAction('editor.action.selectHighlights')?.run();
+      },
+    });
+
     handleEditorMount(ed, monaco);
 
     return () => {
