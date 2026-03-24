@@ -27,8 +27,12 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
     availableBoards,
     selectedBoard,
     setSelectedBoard,
+    availablePorts,
+    selectedPort,
+    setSelectedPort,
     getPlatformInfo,
     listBoards,
+    listPorts,
     build,
     upload,
     stopBuild,
@@ -43,7 +47,8 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
   useEffect(() => {
     getPlatformInfo();
     listBoards();
-  }, [getPlatformInfo, listBoards]);
+    listPorts();
+  }, [getPlatformInfo, listBoards, listPorts]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -141,6 +146,19 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
             {availableBoards.map((board) => (
               <option key={board.id} value={board.id}>
                 {board.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="board-select"
+            value={selectedPort || ''}
+            onChange={(e) => setSelectedPort(e.target.value || null)}
+            disabled={isRunning}
+          >
+            <option value="">Auto Detect Port</option>
+            {availablePorts.map((port) => (
+              <option key={port.path} value={port.path}>
+                {port.friendlyName || port.path}
               </option>
             ))}
           </select>

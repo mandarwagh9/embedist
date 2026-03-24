@@ -32,6 +32,11 @@ interface Board {
   type: string;
 }
 
+interface SerialPortInfo {
+  path: string;
+  friendlyName?: string;
+}
+
 export function useBuild() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -40,6 +45,8 @@ export function useBuild() {
   const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null);
   const [availableBoards, setAvailableBoards] = useState<Board[]>([]);
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
+  const [availablePorts, setAvailablePorts] = useState<SerialPortInfo[]>([]);
+  const [selectedPort, setSelectedPort] = useState<string | null>(null);
 
   const appendOutput = useCallback((line: string) => {
     setBuildOutput((prev) => [...prev, line]);
@@ -86,6 +93,21 @@ export function useBuild() {
       return [];
     }
   }, []);
+
+  const listPorts = useCallback(async () => {
+    try {
+      const ports = await invoke<SerialPortInfo[]>('list_serial_ports');
+      setAvailablePorts(ports);
+      if (ports.length > 0 && !selectedPort) {
+        setSelectedPort(ports[0].path);
+      }
+      return ports;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+      return [];
+    }
+  }, [selectedPort]);
 
   const build = useCallback(async (projectPath?: string) => {
     setIsBuilding(true);
@@ -146,6 +168,7 @@ export function useBuild() {
       
       const result = await invoke<BuildResult>('upload_firmware', {
         projectPath,
+        port: selectedPort || null,
       });
 
       result.output.split('\n').forEach((line) => {
@@ -188,9 +211,13 @@ export function useBuild() {
     availableBoards,
     selectedBoard,
     setSelectedBoard,
+    availablePorts,
+    selectedPort,
+    setSelectedPort,
     getPlatformInfo,
     checkPlatformIO,
     listBoards,
+    listPorts,
     build,
     upload,
     stopBuild,
