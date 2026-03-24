@@ -20,7 +20,24 @@ interface SearchResult {
   score: number;
 }
 
+import type { FileNode } from '../types';
+
+const INDEXED_EXTENSIONS = new Set([
+  '.c', '.cpp', '.h', '.hpp', '.ino', '.py', '.rs', '.asm', '.s',
+  '.js', '.ts', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg',
+  '.txt', '.md', '.xml', '.html', '.css', '.lua', '.go', '.java',
+]);
+
+const EXCLUDED_DIRS = new Set([
+  'node_modules', '.pio', '.pioenvs', '.piolibdeps', '.git',
+  'build', 'dist', '.vscode', '.idea', '__pycache', 'venv',
+  '.env', '.venv', 'target', 'bin', 'obj',
+]);
+
+const MAX_FILE_SIZE = 512 * 1024;
+
 let documents: KnowledgeDocument[] | null = null;
+let projectDocuments: KnowledgeDocument[] | null = null;
 let isInitialized = false;
 let initError: Error | null = null;
 
@@ -210,9 +227,107 @@ function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): numbe
 class RAGEngine {
   private documentTokens: Map<string, string[]> = new Map();
   private documentTFIDF: Map<string, Map<string, number>> = new Map();
+  private projectTokens: Map<string, string[]> = new Map();
+  private projectTFIDF: Map<string, Map<string, number>> = new Map();
   private idf: Map<string, number> = new Map();
+  private projectIdf: Map<string, number> = new Map();
   
   constructor() {
+  }
+  
+  private isIndexableFile(node: FileNode): boolean {
+    if (node.isDir) return false;
+    if (node.size > MAX_FILE_SIZE) return false;
+    const ext = node.name.includes('.') ? node.name.substring(node.name.lastIndexOf('.')).toLowerCase() : '';
+    return INDEXED_EXTENSIONS.has(ext);
+  }
+  
+  private isExcludedDir(name: string): boolean {
+    return EXCLUDED_DIRS.has(name.toLowerCase());
+  }
+  
+  private collectFiles(nodes: FileNode[]): FileNode[] {
+    const result: FileNode[] = [];
+    for (const node of nodes) {
+      if (node.isDir) {
+        if (!this.isExcludedDir(node.name) && node.children) {
+          result.push(...this.collectFiles(node.children));
+        }
+      } else if (this.isIndexableFile(node)) {
+        result.push(node);
+      }
+    }
+    return result;
+  }
+  
+  indexProject(files: FileNode[], projectName: string = 'project'): number {
+    const indexableFiles = this.collectFiles(files);
+    
+    projectDocuments = indexableFiles.map((file) => ({
+      id: `project-${file.path}`,
+      category: 'project',
+      title: file.name,
+      content: '',
+      metadata: {
+        type: 'project-file',
+        path: file.path,
+        name: file.name,
+        project: projectName,
+      },
+    }));
+    
+    this.reindexProject();
+    
+    console.log(`[RAGEngine] Indexed ${projectDocuments.length} project files`);
+    return projectDocuments.length;
+  }
+  
+  addProjectFileContent(path: string, content: string): void {
+    if (!projectDocuments) return;
+    
+    const doc = projectDocuments.find((d) => d.metadata.path === path);
+    if (doc) {
+      doc.content = content;
+      this.reindexProject();
+    }
+  }
+  
+  clearProjectIndex(): void {
+    projectDocuments = null;
+    this.projectTokens.clear();
+    this.projectTFIDF.clear();
+    this.projectIdf.clear();
+    console.log('[RAGEngine] Cleared project index');
+  }
+  
+  private reindexProject(): void {
+    if (!projectDocuments || projectDocuments.length === 0) return;
+    
+    this.projectTokens.clear();
+    this.projectTFIDF.clear();
+    
+    const allTokens: string[][] = [];
+    
+    for (const doc of projectDocuments) {
+      const tokens = tokenize(doc.content);
+      if (tokens.length > 0) {
+        this.projectTokens.set(doc.id, tokens);
+        allTokens.push(tokens);
+      }
+    }
+    
+    if (allTokens.length > 0) {
+      this.projectIdf = computeIDF(allTokens);
+      
+      for (const [id, tokens] of this.projectTokens) {
+        const tf = computeTF(tokens);
+        this.projectTFIDF.set(id, computeTFIDF(tf, this.projectIdf));
+      }
+    }
+  }
+  
+  getIndexedFileCount(): number {
+    return projectDocuments?.length ?? 0;
   }
   
   private ensureInitialized(): void {
@@ -278,18 +393,51 @@ class RAGEngine {
       }
     }
     
+    if (this.projectTokens.size > 0) {
+      const projectQueryTFIDF = computeTFIDF(queryTF, this.projectIdf);
+      
+      for (const doc of projectDocuments || []) {
+        const docTFIDF = this.projectTFIDF.get(doc.id);
+        if (!docTFIDF) continue;
+        
+        const score = cosineSimilarity(projectQueryTFIDF, docTFIDF);
+        if (score > 0) {
+          results.push({ document: doc, score: score * 1.5 });
+        }
+      }
+    }
+    
     return results
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
   }
   
   getRelevantContext(query: string, maxResults: number = 3): string {
-    const results = this.search(query, maxResults);
+    const results = this.search(query, maxResults + 2);
     if (results.length === 0) return '';
     
-    return results
-      .map((r) => `[${r.document.category}] ${r.document.title}\n${r.document.content}`)
-      .join('\n\n');
+    const projectResults = results.filter((r) => r.document.category === 'project');
+    const staticResults = results.filter((r) => r.document.category !== 'project');
+    
+    const parts: string[] = [];
+    
+    if (projectResults.length > 0) {
+      parts.push('## Project Files\n');
+      for (const r of projectResults.slice(0, Math.min(2, maxResults))) {
+        const path = r.document.metadata.path as string;
+        parts.push(`[${path}]\n${r.document.content.slice(0, 1000)}`);
+      }
+    }
+    
+    if (staticResults.length > 0) {
+      if (parts.length > 0) parts.push('');
+      parts.push('## Hardware Knowledge\n');
+      for (const r of staticResults.slice(0, Math.min(2, maxResults))) {
+        parts.push(`[${r.document.category}] ${r.document.title}\n${r.document.content}`);
+      }
+    }
+    
+    return parts.join('\n\n');
   }
   
   getBoardContext(boardType: string, query: string): string {

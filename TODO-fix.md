@@ -475,3 +475,4 @@ Effort: Trivial (1 line) | Low (<1hr) | Medium (1-4hr) | High (4+hr)
 | v0.12.1 | Clippy warnings suppressed | `ai.rs` |
 | v0.12.1 | Monaco shortcuts (Ctrl+G, Alt+Shift+F, Ctrl+D, Ctrl+Shift+L) | `CodeEditor.tsx` |
 | v0.12.2 | FileNode type consolidation | `types/index.ts`, `fileStore.ts` |
+| v0.12.3 | RAG engine project indexing | `rag.ts`, `useFileSystem.ts` |

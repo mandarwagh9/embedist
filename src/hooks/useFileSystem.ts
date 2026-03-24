@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useFileStore, FileNode } from '../stores/fileStore';
+import { ragEngine } from '../lib/rag';
 
 interface FileEntry {
   name: string;
@@ -89,6 +90,9 @@ export function useFileSystem() {
 
         const entries = await listDirectory(selected);
         setFiles(entries);
+        
+        const name = selected.replace(/\\/g, '/').split('/').pop() || 'project';
+        ragEngine.indexProject(entries, name);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -102,6 +106,7 @@ export function useFileSystem() {
     try {
       const content = await invoke<string>('read_file', { path });
       openFile(path, content);
+      ragEngine.addProjectFileContent(path, content);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -203,6 +208,8 @@ export function useFileSystem() {
       return entry;
     });
     setFiles(merged);
+    const name = rootPath.replace(/\\/g, '/').split('/').pop() || 'project';
+    ragEngine.indexProject(merged, name);
   }, [rootPath, listDirectory, setFiles, files]);
 
   const readFileContent = useCallback(async (path: string): Promise<string | null> => {
