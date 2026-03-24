@@ -55,6 +55,11 @@ export function SerialMonitor() {
       return;
     }
 
+    const { serial } = useSettingsStore.getState();
+    if (serial.clearOnConnect) {
+      setLogs([]);
+    }
+
     setIsConnecting(true);
     try {
       const port = await navigator.serial!.requestPort() as {
