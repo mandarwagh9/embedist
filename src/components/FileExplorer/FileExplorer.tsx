@@ -243,6 +243,42 @@ const TreeItem = React.memo(function TreeItem({
     if (isRenaming) return;
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    if (isRenaming) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData('text/plain', node.path);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleItemDragOver = (e: React.DragEvent) => {
+    if (node.isDir) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleItemDrop = (e: React.DragEvent) => {
+    if (node.isDir) {
+      e.preventDefault();
+      e.stopPropagation();
+      const draggedPath = e.dataTransfer.getData('text/plain');
+      if (draggedPath && draggedPath !== node.path) {
+        const fileName = draggedPath.split(/[/\\]/).pop() || '';
+        const destPath = `${node.path}/${fileName}`.replace(/\\/g, '/');
+        (async () => {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('move_path', { oldPath: draggedPath, newPath: destPath });
+          } catch (err) {
+            console.error('Move failed:', err);
+          }
+        })();
+      }
+    }
+  };
+
   return (
     <div className="tree-item">
       <div
@@ -253,6 +289,10 @@ const TreeItem = React.memo(function TreeItem({
         onDoubleClick={handleDoubleClick}
         onMouseEnter={() => onHover(node.path)}
         onMouseLeave={() => onHover(null)}
+        draggable={!isRenaming}
+        onDragStart={handleDragStart}
+        onDragOver={handleItemDragOver}
+        onDrop={handleItemDrop}
       >
         {node.isDir && (
           <span className={`tree-chevron ${node.expanded ? 'expanded' : ''}`}>
@@ -440,6 +480,7 @@ export function FileExplorer() {
   const [showSearch, setShowSearch] = useState(false);
   const [inlineNewItem, setInlineNewItem] = useState<{ path: string; isDir: boolean } | null>(null);
   const [inlineNewName, setInlineNewName] = useState('');
+  const [inlineNewError, setInlineNewError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
 
@@ -653,10 +694,29 @@ export function FileExplorer() {
     return items;
   }, [contextMenu, selectedPaths, startRenaming, copyPath, revealInExplorer, deleteItem, clearSelection]);
 
+  const validateFileName = (name: string): string | null => {
+    if (!name.trim()) return 'Name cannot be empty';
+    const invalidChars = /[\\\/:*?"<>|]/;
+    if (invalidChars.test(name)) return 'Name cannot contain \\ / : * ? " < > |';
+    if (name === '.' || name === '..') return 'Invalid name';
+    return null;
+  };
+
+  const handleInlineNewChange = (value: string) => {
+    setInlineNewName(value);
+    setInlineNewError(validateFileName(value));
+  };
+
   const handleInlineNewSubmit = async () => {
     if (!inlineNewItem || !inlineNewName.trim()) {
       setInlineNewItem(null);
       setInlineNewName('');
+      setInlineNewError(null);
+      return;
+    }
+    const error = validateFileName(inlineNewName);
+    if (error) {
+      setInlineNewError(error);
       return;
     }
     if (inlineNewItem.isDir) {
@@ -666,6 +726,7 @@ export function FileExplorer() {
     }
     setInlineNewItem(null);
     setInlineNewName('');
+    setInlineNewError(null);
   };
 
   const handleInlineNewKey = (e: React.KeyboardEvent) => {
@@ -675,6 +736,7 @@ export function FileExplorer() {
     } else if (e.key === 'Escape') {
       setInlineNewItem(null);
       setInlineNewName('');
+      setInlineNewError(null);
     }
   };
 
@@ -685,9 +747,51 @@ export function FileExplorer() {
 
   const handleDragLeave = () => setIsDragOver(false);
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent, targetPath?: string) => {
     e.preventDefault();
     setIsDragOver(false);
+
+    const draggedPaths = selectedPaths.length > 0 ? selectedPaths : [];
+    
+    if (draggedPaths.length > 0 && targetPath) {
+      const targetNode = getNodeByPath(targetPath);
+      if (targetNode?.isDir) {
+        for (const srcPath of draggedPaths) {
+          const srcNode = getNodeByPath(srcPath);
+          if (!srcNode) continue;
+          const fileName = srcPath.split(/[/\\]/).pop() || '';
+          const destPath = `${targetPath}/${fileName}`.replace(/\\/g, '/');
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('move_path', { oldPath: srcPath, newPath: destPath });
+          } catch (err) {
+            console.error('Move failed:', err);
+          }
+        }
+        refreshRoot();
+      }
+    }
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0 && rootPath) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const destPath = `${rootPath}/${file.name}`.replace(/\\/g, '/');
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const reader = new FileReader();
+          reader.onload = async () => {
+            if (reader.result) {
+              await invoke('write_file', { path: destPath, content: reader.result as string });
+              refreshRoot();
+            }
+          };
+          reader.readAsText(file);
+        } catch (err) {
+          console.error('Import failed:', err);
+        }
+      }
+    }
   };
 
   const paletteCommands = useMemo((): PaletteCommand[] => {
@@ -851,14 +955,15 @@ export function FileExplorer() {
                   {inlineNewItem?.isDir ? fileIcons.folder : fileIcons.default}
                 </span>
                 <input
-                  className="tree-rename-input"
+                  className={`tree-rename-input ${inlineNewError ? 'error' : ''}`}
                   value={inlineNewName}
-                  onChange={e => setInlineNewName(e.target.value)}
+                  onChange={e => handleInlineNewChange(e.target.value)}
                   onBlur={handleInlineNewSubmit}
                   onKeyDown={handleInlineNewKey}
                   placeholder={inlineNewItem?.isDir ? 'Folder name...' : 'File name...'}
                   autoFocus
                 />
+                {inlineNewError && <span className="tree-item-error">{inlineNewError}</span>}
               </div>
             </div>
           )}

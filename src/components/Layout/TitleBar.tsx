@@ -5,7 +5,8 @@ import './TitleBar.css';
 const appWindow = getCurrentWindow();
 
 export function TitleBar() {
-  const { projectName } = useFileStore();
+  const { projectName, openTabs } = useFileStore();
+  const hasUnsavedChanges = openTabs.some(tab => tab.modified);
   const handleMinimize = () => appWindow.minimize();
   const handleMaximize = () => appWindow.toggleMaximize();
   const handleClose = () => appWindow.close();
@@ -19,7 +20,7 @@ export function TitleBar() {
             <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <span className="titlebar-title">Embedist</span>
+        <span className="titlebar-title">Embedist{hasUnsavedChanges ? ' •' : ''}</span>
       </div>
       
       <div className="titlebar-center">

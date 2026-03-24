@@ -45,6 +45,7 @@ pub fn run() {
             commands::create_folder,
             commands::delete_path,
             commands::rename_path,
+            commands::move_path,
             commands::list_directory,
             commands::get_directory_tree,
             commands::file_exists,

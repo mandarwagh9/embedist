@@ -188,7 +188,10 @@ pub async fn chat_completion(
 }
 
 async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
     
     let mut body = serde_json::json!({
         "model": model,
@@ -263,7 +266,10 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: 
 }
 
 async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, _top_p: Option<f64>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
     
     let system = messages.iter()
         .filter(|m| m.role == "system")
@@ -380,7 +386,10 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
 }
 
 async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
     
     let mut body = serde_json::json!({
         "model": model,
@@ -437,7 +446,10 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools
 }
 
 async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
     
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         serde_json::json!({
@@ -484,7 +496,10 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Res
 }
 
 async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
     
     let contents: Vec<serde_json::Value> = messages.iter()
         .filter(|m| m.role != "system")
@@ -550,7 +565,10 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
 }
 
 async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
 
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         let mut msg = serde_json::Map::new();

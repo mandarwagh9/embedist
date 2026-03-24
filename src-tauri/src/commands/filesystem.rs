@@ -66,6 +66,14 @@ pub fn rename_path(old_path: String, new_name: String) -> Result<String, String>
 }
 
 #[command]
+pub fn move_path(old_path: String, new_path: String) -> Result<String, String> {
+    let old = PathBuf::from(&old_path);
+    let new = PathBuf::from(&new_path);
+    fs::rename(&old, &new).map_err(|e| format!("Failed to move: {}", e))?;
+    Ok(new.to_string_lossy().to_string())
+}
+
+#[command]
 pub fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
     let entries = fs::read_dir(&path).map_err(|e| format!("Failed to read directory: {}", e))?;
     

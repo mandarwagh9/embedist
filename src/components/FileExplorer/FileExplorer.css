@@ -374,6 +374,19 @@
   min-width: 0;
 }
 
+.tree-rename-input.error {
+  border-color: #ef4444;
+}
+
+.tree-item-error {
+  position: absolute;
+  bottom: -18px;
+  left: 0;
+  font-size: 11px;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
 .tree-children {
   margin-left: 0;
 }

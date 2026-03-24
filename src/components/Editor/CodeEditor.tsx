@@ -103,6 +103,7 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
         bracketPairs: true,
         indentation: true,
       },
+      contextmenu: true,
     });
 
     ed.addAction({

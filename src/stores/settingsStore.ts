@@ -41,6 +41,9 @@ interface SettingsState {
     baudRate: number;
     lineEnding: 'CR' | 'LF' | 'CRLF';
     autoScroll: boolean;
+    dtr: boolean;
+    rts: boolean;
+    clearOnConnect: boolean;
   };
   build: {
     platformioPath: string;
@@ -96,6 +99,9 @@ export const useSettingsStore = create<SettingsState>()(
         baudRate: 115200,
         lineEnding: 'CRLF',
         autoScroll: true,
+        dtr: false,
+        rts: false,
+        clearOnConnect: false,
       },
       build: {
         platformioPath: 'pio',
