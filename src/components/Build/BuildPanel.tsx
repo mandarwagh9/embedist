@@ -102,12 +102,29 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
   };
 
   const parseAnsiColor = (text: string): JSX.Element[] => {
+    const ansiColors: Record<string, string> = {
+      '30': '#666666', '31': '#E94560', '32': '#4ADE80', '33': '#FBBF24', '34': '#60A5FA', '35': '#A78BFA', '36': '#22D3EE', '37': '#FFFFFF',
+      '90': '#666666', '91': '#F87171', '92': '#4ADE80', '93': '#FBBF24', '94': '#60A5FA', '95': '#A78BFA', '96': '#22D3EE', '97': '#FFFFFF',
+    };
     const parts = text.split(/(\x1b\[[0-9;]*m)/g);
+    let currentColor = '';
     return parts.map((part, i) => {
-      if (part.match(/^\x1b\[[0-9;]*m$/)) {
+      const match = part.match(/^\x1b\[([0-9;]*)m$/);
+      if (match) {
+        const codes = match[1].split(';');
+        if (codes.includes('0')) {
+          currentColor = '';
+        } else {
+          for (const code of codes) {
+            if (ansiColors[code]) {
+              currentColor = ansiColors[code];
+            }
+          }
+        }
         return null;
       }
-      return <span key={i}>{part}</span>;
+      if (!part) return null;
+      return <span key={i} style={currentColor ? { color: currentColor } : undefined}>{part}</span>;
     }).filter(Boolean) as JSX.Element[];
   };
 

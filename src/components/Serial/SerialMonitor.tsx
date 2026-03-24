@@ -132,6 +132,24 @@ export function SerialMonitor() {
 
   const clearLogs = () => setLogs([]);
 
+  const saveLogs = async () => {
+    if (logs.length === 0) return;
+    const content = logs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.text}`).join('\n');
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const filePath = await save({
+        defaultPath: `serial-output-${Date.now()}.txt`,
+        filters: [{ name: 'Text Files', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }]
+      });
+      if (filePath) {
+        await invoke('write_file', { path: filePath, content });
+      }
+    } catch (err) {
+      console.error('Failed to save logs:', err);
+    }
+  };
+
   return (
     <div className="serial-monitor">
       <div className="serial-toolbar">
@@ -159,6 +177,11 @@ export function SerialMonitor() {
         <button className="serial-btn clear" onClick={clearLogs} title="Clear">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </button>
+        <button className="serial-btn save" onClick={saveLogs} title="Save Output" disabled={logs.length === 0}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
         </button>
       </div>

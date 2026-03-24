@@ -56,6 +56,43 @@ export function SerialSettings() {
             onClick={() => updateSerial({ autoScroll: !serial.autoScroll })}
           />
         </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Clear on Connect</span>
+            <small>Clear output when connecting to a port</small>
+          </div>
+          <button
+            className={`settings-toggle ${serial.clearOnConnect ? 'active' : ''}`}
+            onClick={() => updateSerial({ clearOnConnect: !serial.clearOnConnect })}
+          />
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Flow Control</h3>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>DTR (Data Terminal Ready)</span>
+            <small>Enable DTR signal</small>
+          </div>
+          <button
+            className={`settings-toggle ${serial.dtr ? 'active' : ''}`}
+            onClick={() => updateSerial({ dtr: !serial.dtr })}
+          />
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>RTS (Request to Send)</span>
+            <small>Enable RTS signal</small>
+          </div>
+          <button
+            className={`settings-toggle ${serial.rts ? 'active' : ''}`}
+            onClick={() => updateSerial({ rts: !serial.rts })}
+          />
+        </div>
       </div>
     </div>
   );
