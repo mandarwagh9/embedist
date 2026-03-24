@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface SerialPort {
   path: string;
@@ -49,43 +50,56 @@ interface UIState {
   navigateToBuild: () => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  sidebarExpanded: false,
-  sidebarSection: 'files',
-  sidebarWidth: 360,
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      sidebarExpanded: false,
+      sidebarSection: 'files',
+      sidebarWidth: 360,
 
-  bottomPanelHeight: 280,
-  bottomPanelVisible: false,
-  bottomPanelTab: 'terminal',
+      bottomPanelHeight: 280,
+      bottomPanelVisible: false,
+      bottomPanelTab: 'terminal',
 
-  commandPaletteVisible: false,
+      commandPaletteVisible: false,
 
-  serialConnected: false,
-  serialPort: null,
-  serialBaudRate: 115200,
+      serialConnected: false,
+      serialPort: null,
+      serialBaudRate: 115200,
 
-  buildRunning: false,
+      buildRunning: false,
 
-  cursorLine: 1,
-  cursorColumn: 1,
+      cursorLine: 1,
+      cursorColumn: 1,
 
-  setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
-  toggleSidebar: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
-  setSidebarSection: (section) => set({ sidebarSection: section }),
-  setSidebarWidth: (width) => set({ sidebarWidth: width }),
-  setBottomPanelHeight: (height) => set({ bottomPanelHeight: height }),
-  toggleBottomPanel: () => set((state) => ({ bottomPanelVisible: !state.bottomPanelVisible })),
-  setBottomPanelTab: (tab) => set({ bottomPanelTab: tab, bottomPanelVisible: true }),
-  toggleCommandPalette: () => set((state) => ({ commandPaletteVisible: !state.commandPaletteVisible })),
-  setCommandPaletteVisible: (visible) => set({ commandPaletteVisible: visible }),
-  setSerialConnected: (connected) => set({ serialConnected: connected }),
-  setSerialPort: (port) => set({ serialPort: port }),
-  setSerialBaudRate: (rate) => set({ serialBaudRate: rate }),
-  setBuildRunning: (running) => set({ buildRunning: running }),
-  setCursorPosition: (line, column) => set({ cursorLine: line, cursorColumn: column }),
+      setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
+      toggleSidebar: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
+      setSidebarSection: (section) => set({ sidebarSection: section }),
+      setSidebarWidth: (width) => set({ sidebarWidth: width }),
+      setBottomPanelHeight: (height) => set({ bottomPanelHeight: height }),
+      toggleBottomPanel: () => set((state) => ({ bottomPanelVisible: !state.bottomPanelVisible })),
+      setBottomPanelTab: (tab) => set({ bottomPanelTab: tab, bottomPanelVisible: true }),
+      toggleCommandPalette: () => set((state) => ({ commandPaletteVisible: !state.commandPaletteVisible })),
+      setCommandPaletteVisible: (visible) => set({ commandPaletteVisible: visible }),
+      setSerialConnected: (connected) => set({ serialConnected: connected }),
+      setSerialPort: (port) => set({ serialPort: port }),
+      setSerialBaudRate: (rate) => set({ serialBaudRate: rate }),
+      setBuildRunning: (running) => set({ buildRunning: running }),
+      setCursorPosition: (line, column) => set({ cursorLine: line, cursorColumn: column }),
 
-  navigateToFiles: () => set({ sidebarSection: 'files' }),
-  navigateToAI: () => set({ sidebarSection: 'ai', bottomPanelVisible: false }),
-  navigateToSerial: () => set({ sidebarSection: 'serial', bottomPanelVisible: false }),
-  navigateToBuild: () => set({ sidebarSection: 'build', bottomPanelVisible: true, bottomPanelTab: 'build' }),
-}));
+      navigateToFiles: () => set({ sidebarSection: 'files' }),
+      navigateToAI: () => set({ sidebarSection: 'ai', bottomPanelVisible: false }),
+      navigateToSerial: () => set({ sidebarSection: 'serial', bottomPanelVisible: false }),
+      navigateToBuild: () => set({ sidebarSection: 'build', bottomPanelVisible: true, bottomPanelTab: 'build' }),
+    }),
+    {
+      name: 'embedist-ui-store',
+      partialize: (state) => ({
+        sidebarWidth: state.sidebarWidth,
+        sidebarExpanded: state.sidebarExpanded,
+        bottomPanelHeight: state.bottomPanelHeight,
+        serialBaudRate: state.serialBaudRate,
+      }),
+    }
+  )
+);
