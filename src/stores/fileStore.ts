@@ -1,17 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { FileNode } from '../types';
 
-export interface FileNode {
-  id: string;
-  name: string;
-  path: string;
-  isDir: boolean;
-  isFile: boolean;
-  size: number;
-  modified?: number;
-  children?: FileNode[];
-  expanded?: boolean;
-}
+export type { FileNode };
 
 export interface OpenTab {
   id: string;

@@ -1,7 +1,11 @@
 export interface FileNode {
+  id: string;
   name: string;
   path: string;
-  type: 'file' | 'folder';
+  isDir: boolean;
+  isFile: boolean;
+  size: number;
+  modified?: number;
   children?: FileNode[];
   expanded?: boolean;
 }
