@@ -37,6 +37,7 @@ export function useAI() {
   const customEndpoints = useSettingsStore((state) => state.customEndpoints);
   const providers = useSettingsStore((state) => state.providers);
   const defaultBoard = useSettingsStore((state) => state.build.defaultBoard);
+  const aiParameters = useSettingsStore((state) => state.aiParameters);
 
   const isLoading = useAIStore((state) => state.isLoading);
 
@@ -136,16 +137,22 @@ export function useAI() {
           apiKey: customEndpoint.apiKey,
           baseUrl: customEndpoint.baseUrl,
           tools: null,
+          temperature: aiParameters.temperature,
+          maxTokens: aiParameters.maxTokens,
+          topP: aiParameters.topP,
         });
       } else {
         response = await invoke<AIResponse>('chat_completion', {
           messages: allMessages,
           model: null,
           tools: null,
+          temperature: aiParameters.temperature,
+          maxTokens: aiParameters.maxTokens,
+          topP: aiParameters.topP,
         });
       }
 
-      addMessage({ role: 'assistant', content: response.content });
+      addMessage({ role: 'assistant', content: response.content, usage: response.usage });
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -155,7 +162,7 @@ export function useAI() {
     } finally {
       setLoading(false);
     }
-  }, [mode, addMessage, setLoading, getContextForQuery, hasActiveProvider, getActiveEndpoint, getApprovedPlanFromMessages]);
+  }, [mode, addMessage, setLoading, getContextForQuery, hasActiveProvider, getActiveEndpoint, getApprovedPlanFromMessages, aiParameters]);
 
   const clearAllMessages = useCallback(() => {
     useAIStore.getState().clearAllMessages();

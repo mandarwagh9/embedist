@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useFileStore, FileNode } from '../../stores/fileStore';
+import { useUIStore } from '../../stores/uiStore';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { Breadcrumbs } from './Breadcrumbs';
@@ -360,9 +361,10 @@ export function FileExplorer() {
     listDirectory,
   } = useFileSystem();
 
+  const { commandPaletteVisible, setCommandPaletteVisible } = useUIStore();
+
   const [isDragOver, setIsDragOver] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [inlineNewItem, setInlineNewItem] = useState<{ path: string; isDir: boolean } | null>(null);
   const [inlineNewName, setInlineNewName] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -414,7 +416,7 @@ export function FileExplorer() {
     const handleGlobalKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
         e.preventDefault();
-        setShowCommandPalette(true);
+        setCommandPaletteVisible(true);
       }
       if (e.key === 'F2' && selectedPaths.length === 1) {
         const node = getNodeByPath(selectedPaths[0]);
@@ -673,7 +675,7 @@ export function FileExplorer() {
               <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
             </svg>
           </button>
-          <button className="file-explorer-action" onClick={() => setShowCommandPalette(true)} title="Command Palette" aria-label="Open command palette">
+          <button className="file-explorer-action" onClick={() => setCommandPaletteVisible(true)} title="Command Palette" aria-label="Open command palette">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="4 17 10 11 4 5" />
               <line x1="12" y1="19" x2="20" y2="19" />
@@ -808,9 +810,9 @@ export function FileExplorer() {
       )}
 
       <CommandPalette
-        isOpen={showCommandPalette}
+        isOpen={commandPaletteVisible}
         commands={paletteCommands}
-        onClose={() => setShowCommandPalette(false)}
+        onClose={() => setCommandPaletteVisible(false)}
         placeholder="Search files, commands..."
       />
     </div>

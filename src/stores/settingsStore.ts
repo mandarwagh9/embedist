@@ -31,6 +31,9 @@ interface SettingsState {
     tabSize: number;
     wordWrap: boolean;
     minimap: boolean;
+    theme: 'embedist-dark' | 'vs-dark' | 'light';
+    autoSave: boolean;
+    autoSaveDelay: number;
   };
   serial: {
     baudRate: number;
@@ -43,6 +46,11 @@ interface SettingsState {
     uploadSpeed: number;
   };
   defaultImplementationMode: 'chat' | 'agent';
+  aiParameters: {
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+  };
   open: () => void;
   close: () => void;
   setActiveSection: (section: string) => void;
@@ -53,6 +61,7 @@ interface SettingsState {
   updateSerial: (config: Partial<SettingsState['serial']>) => void;
   updateBuild: (config: Partial<SettingsState['build']>) => void;
   setDefaultImplementationMode: (mode: 'chat' | 'agent') => void;
+  updateAiParameters: (config: Partial<SettingsState['aiParameters']>) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -75,6 +84,9 @@ export const useSettingsStore = create<SettingsState>()(
         tabSize: 4,
         wordWrap: false,
         minimap: true,
+        theme: 'embedist-dark',
+        autoSave: false,
+        autoSaveDelay: 2000,
       },
       serial: {
         baudRate: 115200,
@@ -87,6 +99,11 @@ export const useSettingsStore = create<SettingsState>()(
         uploadSpeed: 921600,
       },
       defaultImplementationMode: 'agent',
+      aiParameters: {
+        temperature: 0.7,
+        maxTokens: 4096,
+        topP: 1.0,
+      },
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
@@ -123,6 +140,10 @@ export const useSettingsStore = create<SettingsState>()(
       })),
 
       setDefaultImplementationMode: (mode) => set({ defaultImplementationMode: mode }),
+
+      updateAiParameters: (config) => set((state) => ({
+        aiParameters: { ...state.aiParameters, ...config },
+      })),
     }),
     { name: 'embedist-settings' }
   )

@@ -17,6 +17,8 @@ interface UIState {
   bottomPanelVisible: boolean;
   bottomPanelTab: BottomPanelTab;
 
+  commandPaletteVisible: boolean;
+
   serialConnected: boolean;
   serialPort: string | null;
   serialBaudRate: number;
@@ -33,6 +35,8 @@ interface UIState {
   setBottomPanelHeight: (height: number) => void;
   toggleBottomPanel: () => void;
   setBottomPanelTab: (tab: BottomPanelTab) => void;
+  toggleCommandPalette: () => void;
+  setCommandPaletteVisible: (visible: boolean) => void;
   setSerialConnected: (connected: boolean) => void;
   setSerialPort: (port: string | null) => void;
   setSerialBaudRate: (rate: number) => void;
@@ -54,6 +58,8 @@ export const useUIStore = create<UIState>((set) => ({
   bottomPanelVisible: false,
   bottomPanelTab: 'terminal',
 
+  commandPaletteVisible: false,
+
   serialConnected: false,
   serialPort: null,
   serialBaudRate: 115200,
@@ -70,6 +76,8 @@ export const useUIStore = create<UIState>((set) => ({
   setBottomPanelHeight: (height) => set({ bottomPanelHeight: height }),
   toggleBottomPanel: () => set((state) => ({ bottomPanelVisible: !state.bottomPanelVisible })),
   setBottomPanelTab: (tab) => set({ bottomPanelTab: tab, bottomPanelVisible: true }),
+  toggleCommandPalette: () => set((state) => ({ commandPaletteVisible: !state.commandPaletteVisible })),
+  setCommandPaletteVisible: (visible) => set({ commandPaletteVisible: visible }),
   setSerialConnected: (connected) => set({ serialConnected: connected }),
   setSerialPort: (port) => set({ serialPort: port }),
   setSerialBaudRate: (rate) => set({ serialBaudRate: rate }),

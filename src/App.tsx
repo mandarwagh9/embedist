@@ -89,18 +89,21 @@ function App() {
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  const {
     sidebarSection,
     sidebarWidth,
     setSidebarWidth,
     bottomPanelVisible,
     setBottomPanelTab,
     toggleBottomPanel,
+    toggleCommandPalette,
     navigateToFiles,
     navigateToAI,
     navigateToSerial,
-    navigateToBuild
+    navigateToBuild,
   } = useUIStore();
-  const { open: openSettings } = useSettingsStore();
+  const { open: openSettings, editor: editorSettings } = useSettingsStore();
   const {
     rootPath,
     openTabs,
@@ -166,6 +169,29 @@ function App() {
     const { fileContents: fc } = useFileStore.getState();
     return fc.get(tab.path) ?? tab.content ?? '';
   }, [activeFileTabId, openTabs]);
+
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!editorSettings.autoSave || !activeFileTabId) return;
+    
+    const tab = openTabs.find(t => t.id === activeFileTabId);
+    if (!tab || !tab.modified) return;
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveFile(tab.path);
+    }, editorSettings.autoSaveDelay);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [activeFileTabId, openTabs, editorSettings.autoSave, editorSettings.autoSaveDelay, saveFile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -247,6 +273,12 @@ function App() {
       if (ctrl && e.key === '3') {
         e.preventDefault();
         setMode('agent');
+        return;
+      }
+
+      if (ctrl && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        toggleCommandPalette();
         return;
       }
     };

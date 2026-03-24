@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBuild } from '../../hooks/useBuild';
 import { useFileStore } from '../../stores/fileStore';
+import { useUIStore } from '../../stores/uiStore';
 import './BuildPanel.css';
 
 interface BuildPanelProps {
@@ -16,7 +17,8 @@ interface ParsedError {
 }
 
 export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
-  const { rootPath, isPlatformIOProject, detectedBoard } = useFileStore();
+  const { rootPath, isPlatformIOProject, detectedBoard, openFile } = useFileStore();
+  const { setBottomPanelTab, toggleBottomPanel } = useUIStore();
   const {
     isBuilding,
     isUploading,
@@ -102,6 +104,27 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
       }
       return <span key={i}>{part}</span>;
     }).filter(Boolean) as JSX.Element[];
+  };
+
+  const handleProblemClick = async (problem: ParsedError) => {
+    if (!problem.file || !rootPath) return;
+    
+    const fullPath = problem.file.startsWith('/') || problem.file.match(/^[A-Z]:/)
+      ? problem.file
+      : `${rootPath}/${problem.file}`;
+    
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const content = await invoke<string>('read_file', { path: fullPath });
+      openFile(fullPath, content);
+      
+      if (!useUIStore.getState().bottomPanelVisible) {
+        toggleBottomPanel();
+      }
+      setBottomPanelTab('build');
+    } catch (err) {
+      console.error('Failed to open file:', err);
+    }
   };
 
   return (
@@ -204,7 +227,14 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
             </span>
           </div>
           {parsedProblems.map((problem, i) => (
-            <div key={i} className={`build-problem-row ${problem.type}`}>
+            <div 
+              key={i} 
+              className={`build-problem-row ${problem.type}`}
+              onClick={() => handleProblemClick(problem)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleProblemClick(problem)}
+            >
               <span className="build-problem-icon">{problem.type === 'error' ? '✕' : '⚠'}</span>
               <span className="build-problem-message">{problem.message}</span>
               {problem.file && <span className="build-problem-location">{problem.file}:{problem.line}</span>}

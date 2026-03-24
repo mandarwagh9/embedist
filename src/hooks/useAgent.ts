@@ -58,6 +58,7 @@ export function useAgent() {
 
   const customEndpoints = useSettingsStore((s) => s.customEndpoints);
   const providerConfigs = useSettingsStore((s) => s.providers);
+  const aiParameters = useSettingsStore((s) => s.aiParameters);
 
   const isRunningRef = useRef(false);
   const cancelRef = useRef(false);
@@ -100,13 +101,16 @@ export function useAgent() {
         apiKey: modelConfig.apiKey || null,
         baseUrl: modelConfig.baseUrl || null,
         tools: toolDefs || null,
+        temperature: aiParameters.temperature,
+        maxTokens: aiParameters.maxTokens,
+        topP: aiParameters.topP,
       });
       return response;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(msg);
     }
-  }, [getActiveModel]);
+  }, [getActiveModel, aiParameters]);
 
   const buildSystemPrompt = useCallback(async (): Promise<string> => {
     const modeConfig = SYSTEM_PROMPTS['agent'];

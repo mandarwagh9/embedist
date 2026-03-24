@@ -4,7 +4,7 @@ import { useSettingsStore } from '../../../stores/settingsStore';
 import { useAIStore } from '../../../stores/aiStore';
 
 export function AISettings() {
-  const { providers, updateProvider, addCustomEndpoint, removeCustomEndpoint, customEndpoints, defaultImplementationMode, setDefaultImplementationMode } = useSettingsStore();
+  const { providers, updateProvider, addCustomEndpoint, removeCustomEndpoint, customEndpoints, defaultImplementationMode, setDefaultImplementationMode, aiParameters, updateAiParameters } = useSettingsStore();
   const { activeProvider, setActiveProvider } = useAIStore();
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [customForm, setCustomForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '' });
@@ -227,6 +227,66 @@ export function AISettings() {
             <option value="chat">Chat Mode</option>
             <option value="agent">Agent Mode</option>
           </select>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Model Parameters</h3>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Temperature</span>
+            <small>Controls randomness (0 = deterministic, 1 = creative)</small>
+          </div>
+          <div className="settings-row-input">
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={aiParameters.temperature}
+              onChange={(e) => updateAiParameters({ temperature: Number(e.target.value) })}
+              className="settings-range"
+            />
+            <span className="settings-value">{aiParameters.temperature.toFixed(1)}</span>
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Max Tokens</span>
+            <small>Maximum tokens in response</small>
+          </div>
+          <select
+            className="settings-select"
+            value={aiParameters.maxTokens}
+            onChange={(e) => updateAiParameters({ maxTokens: Number(e.target.value) })}
+          >
+            <option value={1024}>1024</option>
+            <option value={2048}>2048</option>
+            <option value={4096}>4096</option>
+            <option value={8192}>8192</option>
+            <option value={16384}>16384</option>
+          </select>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Top P</span>
+            <small>Nucleus sampling threshold</small>
+          </div>
+          <div className="settings-row-input">
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.1"
+              value={aiParameters.topP}
+              onChange={(e) => updateAiParameters({ topP: Number(e.target.value) })}
+              className="settings-range"
+            />
+            <span className="settings-value">{aiParameters.topP.toFixed(1)}</span>
+          </div>
         </div>
       </div>
     </div>

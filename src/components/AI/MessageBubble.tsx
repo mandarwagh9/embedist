@@ -127,6 +127,14 @@ export function MessageBubble({ message, onFeedback, onRetry }: MessageBubblePro
           {renderContent(message.content, message.mode, message.role)}
         </div>
 
+        {message.usage && message.role === 'assistant' && (
+          <div className="msg-usage">
+            <span className="msg-usage-label">Tokens:</span>
+            <span className="msg-usage-value">{message.usage.total_tokens}</span>
+            <span className="msg-usage-detail">(prompt: {message.usage.prompt_tokens}, completion: {message.usage.completion_tokens})</span>
+          </div>
+        )}
+
         <div className={`msg-actions ${hovered ? 'visible' : ''}`}>
           {message.role === 'assistant' && (
             <>

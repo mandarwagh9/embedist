@@ -82,7 +82,7 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
     const ed = monaco.editor.create(containerRef.current, {
       value,
       language,
-      theme: 'embedist-dark',
+      theme: editorSettings.theme || 'embedist-dark',
       readOnly,
       fontSize: editorSettings.fontSize,
       fontFamily: editorSettings.fontFamily,
@@ -150,6 +150,11 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       minimap: { enabled: editorSettings.minimap },
     });
   }, [editorSettings]);
+
+  useEffect(() => {
+    if (!monaco || !editorRef.current) return;
+    monaco.editor.setTheme(editorSettings.theme || 'embedist-dark');
+  }, [editorSettings.theme, monaco]);
 
   if (error) {
     return (

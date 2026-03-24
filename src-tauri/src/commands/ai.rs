@@ -43,13 +43,6 @@ pub struct ToolCall {
     pub arguments: String,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ToolCallResult {
-    pub call_id: String,
-    pub output: String,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AIMessage {
     pub role: String,
@@ -127,6 +120,9 @@ pub async fn chat_completion(
     api_key: Option<String>,
     base_url: Option<String>,
     tools: Option<Vec<ToolDefinition>>,
+    temperature: Option<f64>,
+    max_tokens: Option<u32>,
+    top_p: Option<f64>,
 ) -> Result<AIResponse, String> {
     let (active, config, use_direct_config) = {
         let active = state.active_provider.lock().clone();
@@ -168,15 +164,15 @@ pub async fn chat_completion(
     if use_direct_config {
         let url = base_url.ok_or("Direct endpoint requires a base URL")?;
         if url.contains("api.openai.com") {
-            chat_openai(&api_key, &model_name, &messages, tools.as_ref()).await
+            chat_openai(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await
         } else {
-            chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref()).await
+            chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await
         }
     } else {
         match active.as_str() {
-            "openai" => chat_openai(&api_key, &model_name, &messages, tools.as_ref()).await,
-            "anthropic" => chat_anthropic(&api_key, &model_name, &messages, tools.as_ref()).await,
-            "deepseek" => chat_deepseek(&api_key, &model_name, &messages).await,
+            "openai" => chat_openai(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await,
+            "anthropic" => chat_anthropic(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await,
+            "deepseek" => chat_deepseek(&api_key, &model_name, &messages, tools.as_ref()).await,
             "ollama" => {
                 let url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
                 chat_ollama(&url, &model_name, &messages).await
@@ -184,14 +180,14 @@ pub async fn chat_completion(
             "google" => chat_google(&api_key, &model_name, &messages).await,
             _ if active.starts_with("custom-") => {
                 let url = base_url.ok_or("Custom endpoint requires a base URL")?;
-                chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref()).await
+                chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await
             }
             _ => Err(format!("Unknown provider '{}'. Please add it in Settings.", active)),
         }
     }
 }
 
-async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
+async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
     
     let mut body = serde_json::json!({
@@ -202,6 +198,18 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: 
     
     if let Some(t) = tools {
         body["tools"] = serde_json::json!(t);
+    }
+    
+    if let Some(temp) = temperature {
+        body["temperature"] = temp.into();
+    }
+    
+    if let Some(mt) = max_tokens {
+        body["max_tokens"] = mt.into();
+    }
+    
+    if let Some(tp) = top_p {
+        body["top_p"] = tp.into();
     }
     
     let response = client
@@ -254,7 +262,7 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: 
     })
 }
 
-async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
+async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, _top_p: Option<f64>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
     
     let system = messages.iter()
@@ -299,7 +307,7 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
     let mut body = serde_json::json!({
         "model": model,
         "messages": formatted_messages,
-        "max_tokens": 4096,
+        "max_tokens": max_tokens.unwrap_or(4096),
     });
     
     if !system.is_empty() {
@@ -308,6 +316,10 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
     
     if let Some(t) = tools {
         body["tools"] = serde_json::json!(t);
+    }
+    
+    if let Some(temp) = temperature {
+        body["temperature"] = temp.into();
     }
     
     let response = client
@@ -367,14 +379,18 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
     })
 }
 
-async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
     
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
         "messages": messages,
         "stream": false,
     });
+    
+    if let Some(t) = tools {
+        body["tools"] = serde_json::json!(t);
+    }
     
     let response = client
         .post("https://api.deepseek.com/chat/completions")
@@ -398,11 +414,25 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage]) -> Re
         .unwrap_or("")
         .to_string();
     
+    let tool_calls: Vec<ToolCall> = data["choices"][0]["message"]["tool_calls"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|tc| {
+                    let id = tc["id"].as_str()?.to_string();
+                    let name = tc["function"]["name"].as_str()?.to_string();
+                    let args = tc["function"]["arguments"].as_str().unwrap_or("{}").to_string();
+                    Some(ToolCall { id, name, arguments: args })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    
     Ok(AIResponse {
         content,
         model: model.to_string(),
         usage: None,
-        tool_calls: vec![],
+        tool_calls,
     })
 }
 
@@ -519,7 +549,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
     })
 }
 
-async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
+async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
     let client = reqwest::Client::new();
 
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
@@ -593,6 +623,18 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
 
     if let Some(t) = tools {
         body["tools"] = serde_json::json!(t);
+    }
+
+    if let Some(temp) = temperature {
+        body["temperature"] = temp.into();
+    }
+
+    if let Some(mt) = max_tokens {
+        body["max_tokens"] = mt.into();
+    }
+
+    if let Some(tp) = top_p {
+        body["top_p"] = tp.into();
     }
 
     let response = client

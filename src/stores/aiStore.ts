@@ -18,6 +18,11 @@ export interface AIMessage {
   timestamp: number;
   mode: AIMode;
   feedback?: 'positive' | 'negative';
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export interface CustomModel {

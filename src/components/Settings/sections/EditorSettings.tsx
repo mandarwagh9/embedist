@@ -72,6 +72,22 @@ export function EditorSettings() {
 
         <div className="settings-row">
           <div className="settings-label">
+            <span>Theme</span>
+            <small>Editor color scheme</small>
+          </div>
+          <select
+            className="settings-select"
+            value={editor.theme}
+            onChange={(e) => updateEditor({ theme: e.target.value as 'embedist-dark' | 'vs-dark' | 'light' })}
+          >
+            <option value="embedist-dark">Embedist Dark</option>
+            <option value="vs-dark">VS Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label">
             <span>Word Wrap</span>
             <small>Wrap long lines instead of horizontal scroll</small>
           </div>
@@ -91,6 +107,42 @@ export function EditorSettings() {
             onClick={() => updateEditor({ minimap: !editor.minimap })}
           />
         </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Auto-Save</h3>
+
+        <div className="settings-row">
+          <div className="settings-label">
+            <span>Enable Auto-Save</span>
+            <small>Automatically save files after changes</small>
+          </div>
+          <button
+            className={`settings-toggle ${editor.autoSave ? 'active' : ''}`}
+            onClick={() => updateEditor({ autoSave: !editor.autoSave })}
+          />
+        </div>
+
+        {editor.autoSave && (
+          <div className="settings-row">
+            <div className="settings-label">
+              <span>Auto-Save Delay</span>
+              <small>Milliseconds to wait after last edit</small>
+            </div>
+            <div className="settings-row-input">
+              <input
+                type="range"
+                min="500"
+                max="10000"
+                step="500"
+                value={editor.autoSaveDelay}
+                onChange={(e) => updateEditor({ autoSaveDelay: Number(e.target.value) })}
+                className="settings-range"
+              />
+              <span className="settings-value">{editor.autoSaveDelay}ms</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
