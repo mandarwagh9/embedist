@@ -1,17 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { FileNode } from '../types';
+import type { FileNode, OpenTab } from '../types';
 
 export type { FileNode };
-
-export interface OpenTab {
-  id: string;
-  title: string;
-  path: string;
-  modified: boolean;
-  pinned: boolean;
-  content?: string;
-}
+export type { OpenTab };
 
 export interface RecentFile {
   path: string;
