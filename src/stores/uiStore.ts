@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { SerialPort } from '../types';
 
-export interface SerialPort {
-  path: string;
-  friendlyName?: string;
-}
+export type { SerialPort };
 
 type SidebarSection = 'files' | 'ai' | 'serial' | 'build';
 type BottomPanelTab = 'terminal' | 'ai' | 'build';
