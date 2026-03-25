@@ -17,8 +17,9 @@ pub fn run() {
         .manage(commands::AIState::default())
         .manage(commands::BuildState::default())
         .setup(|app| {
-            let window = app.get_webview_window("main").unwrap();
-            window.set_title("Embedist - AI-Native Embedded Development").ok();
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_title("Embedist - AI-Native Embedded Development").ok();
+            }
             info!("Embedist window initialized");
             Ok(())
         })
@@ -59,5 +60,8 @@ pub fn run() {
             commands::reveal_in_explorer,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("Error while running tauri application: {}", e);
+            std::process::exit(1);
+        });
 }
