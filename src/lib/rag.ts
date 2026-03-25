@@ -278,7 +278,6 @@ class RAGEngine {
     
     this.reindexProject();
     
-    console.log(`[RAGEngine] Indexed ${projectDocuments.length} project files`);
     return projectDocuments.length;
   }
   
@@ -297,7 +296,6 @@ class RAGEngine {
     this.projectTokens.clear();
     this.projectTFIDF.clear();
     this.projectIdf.clear();
-    console.log('[RAGEngine] Cleared project index');
   }
   
   private reindexProject(): void {
@@ -363,8 +361,6 @@ class RAGEngine {
       const tf = computeTF(tokens);
       this.documentTFIDF.set(id, computeTFIDF(tf, this.idf));
     }
-    
-    console.log(`[RAGEngine] Indexed ${documents.length} documents`);
   }
   
   search(query: string, limit: number = 5): SearchResult[] {
