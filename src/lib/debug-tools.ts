@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { useFileStore } from '../stores/fileStore';
 
 export interface DebugToolDefinition {
   type: 'function';
@@ -54,7 +55,9 @@ registerDebugTool('read_file', {
     },
   },
 }, async (args) => {
-  const content = await invoke<string>('read_file', { path: args.path as string });
+  const path = args.path as string;
+  if (!path) return 'Please provide a file path.';
+  const content = await invoke<string>('read_file', { path });
   return content;
 });
 
@@ -74,9 +77,11 @@ registerDebugTool('search_code', {
   },
 }, async (args) => {
   const pattern = args.pattern as string;
-  const path = args.path as string | undefined;
+  const searchPath = args.path as string || useFileStore.getState().rootPath;
+  if (!searchPath) return 'No project open. Please provide a path.';
+  
   const result = await invoke<{path: string, line_number: number, content: string}[]>('grep_search', { 
-    rootPath: path || '.', 
+    rootPath: searchPath, 
     pattern, 
     filePattern: null,
     maxResults: 50 
@@ -105,7 +110,10 @@ registerDebugTool('list_directory', {
     is_dir: boolean;
     is_file: boolean;
   }
-  const files = await invoke<FileEntry[]>('list_directory', { path: args.path as string });
+  const path = args.path as string || useFileStore.getState().rootPath;
+  if (!path) return 'No project open. Please provide a path.';
+  
+  const files = await invoke<FileEntry[]>('list_directory', { path });
   return files.map(f => f.is_dir ? `${f.name}/` : f.name).join('\n');
 });
 
@@ -130,6 +138,9 @@ registerDebugTool('get_directory_tree', {
     is_dir: boolean;
     children: TreeNode[];
   }
+  const path = args.path as string || useFileStore.getState().rootPath;
+  if (!path) return 'No project open. Please provide a path.';
+  
   const tree = await invoke<TreeNode>('get_directory_tree', { 
     path: args.path as string, 
     depth: args.depth as number | undefined || 3 
@@ -163,9 +174,12 @@ registerDebugTool('run_shell', {
     },
   },
 }, async (args) => {
+  const cwd = args.cwd as string || useFileStore.getState().rootPath;
+  if (!cwd) return 'No project open. Please provide a working directory.';
+  
   const result = await invoke<{stdout: string, stderr: string, return_code: number}>('run_shell', { 
     command: args.command as string, 
-    cwd: args.cwd as string | undefined || null 
+    cwd
   });
   if (result.return_code !== 0) {
     return `Exit code: ${result.return_code}\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`;
