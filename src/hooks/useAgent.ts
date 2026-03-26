@@ -206,6 +206,16 @@ ALL files you read or write MUST be inside this directory. Never reference files
       return;
     }
 
+    try {
+      const pioStatus = await invoke<{ installed: boolean; version: string }>('check_platformio');
+      if (!pioStatus.installed) {
+        logActivity('error', 'PlatformIO not found', 'PlatformIO is not installed or not in PATH. Please install PlatformIO and ensure "pio" command is available in your system PATH.');
+        return;
+      }
+    } catch {
+      logActivity('error', 'PlatformIO check failed', 'Could not verify PlatformIO installation. Build commands may fail.');
+    }
+
     isRunningRef.current = true;
     cancelRef.current = false;
 
