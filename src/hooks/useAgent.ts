@@ -4,7 +4,7 @@ import { useAIStore } from '../stores/aiStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useFileStore } from '../stores/fileStore';
 import { buildPlanContext } from './usePlanContext';
-import { SYSTEM_PROMPTS } from '../lib/ai-prompts';
+import { getPromptConfig } from '../lib/prompts';
 import { getAllToolDefinitions, executeTool, type ToolCall } from '../lib/agent-tools';
 
 interface AIResponse {
@@ -113,21 +113,15 @@ export function useAgent() {
   }, [getActiveModel, aiParameters]);
 
   const buildSystemPrompt = useCallback(async (): Promise<string> => {
-    const modeConfig = SYSTEM_PROMPTS['agent'];
+    const modeConfig = getPromptConfig('agent');
     let prompt = modeConfig.system;
 
     const { rootPath } = useFileStore.getState();
     if (rootPath) {
       const context = await buildPlanContext('');
-      prompt = prompt.replace('**PROJECT ROOT: The project root directory is provided in the ## Current Project Context section below. ALL files you read or write MUST be inside it. Never touch files outside this directory.**', `**PROJECT ROOT: ${rootPath}**
-
-ALL files you read or write MUST be inside this directory. Never reference files outside it.`);
       prompt += `\n\n## Current Project Context\n${context}`;
     } else {
-      prompt = prompt.replace(
-        '**PROJECT ROOT: The project root directory is provided in the ## Current Project Context section below. ALL files you read or write MUST be inside it. Never touch files outside this directory.**',
-        '**WARNING: No project is open. Do NOT write files unless the user specifies a directory path.**'
-      );
+      prompt += `\n\n## Current Project Context\n\n**WARNING: No project is open. Do NOT write files unless the user specifies a directory path.**`;
     }
 
     const currentMessages = useAIStore.getState().messages;
