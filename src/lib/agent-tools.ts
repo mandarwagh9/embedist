@@ -232,7 +232,7 @@ registerTool('build_project', {
     stderr: string;
     return_code: number;
     duration_ms: number;
-  }>('build_project', { project_path: args.projectPath as string });
+  }>('build_project', { projectPath: args.projectPath as string });
 
   if (result.success) {
     return `Build successful (${result.duration_ms}ms)\n\n--- Build Output ---\n${result.stdout}`;
