@@ -75,8 +75,14 @@ registerDebugTool('search_code', {
 }, async (args) => {
   const pattern = args.pattern as string;
   const path = args.path as string | undefined;
-  const result = await invoke<string[]>('search_code', { pattern, path: path || null });
-  return result.length > 0 ? result.join('\n') : 'No matches found';
+  const result = await invoke<{path: string, line_number: number, content: string}[]>('grep_search', { 
+    rootPath: path || '.', 
+    pattern, 
+    filePattern: null,
+    maxResults: 50 
+  });
+  if (result.length === 0) return 'No matches found';
+  return result.map(r => `${r.path}:${r.line_number}: ${r.content}`).join('\n');
 });
 
 registerDebugTool('list_directory', {
@@ -93,8 +99,78 @@ registerDebugTool('list_directory', {
     },
   },
 }, async (args) => {
-  const files = await invoke<string[]>('list_directory', { path: args.path as string });
-  return files.join('\n');
+  interface FileEntry {
+    name: string;
+    path: string;
+    is_dir: boolean;
+    is_file: boolean;
+  }
+  const files = await invoke<FileEntry[]>('list_directory', { path: args.path as string });
+  return files.map(f => f.is_dir ? `${f.name}/` : f.name).join('\n');
+});
+
+registerDebugTool('get_directory_tree', {
+  type: 'function',
+  function: {
+    name: 'get_directory_tree',
+    description: 'Get the directory tree structure of a project. Use to understand the project layout.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the directory' },
+        depth: { type: 'number', description: 'Maximum depth to traverse (optional, default 3)' },
+      },
+      required: ['path'],
+    },
+  },
+}, async (args) => {
+  interface TreeNode {
+    name: string;
+    path: string;
+    is_dir: boolean;
+    children: TreeNode[];
+  }
+  const tree = await invoke<TreeNode>('get_directory_tree', { 
+    path: args.path as string, 
+    depth: args.depth as number | undefined || 3 
+  });
+  
+  function formatTree(node: TreeNode, indent: string = ''): string {
+    let result = `${indent}${node.is_dir ? '📁 ' : '📄 '}${node.name}\n`;
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        result += formatTree(child, indent + '  ');
+      }
+    }
+    return result;
+  }
+  
+  return formatTree(tree);
+});
+
+registerDebugTool('run_shell', {
+  type: 'function',
+  function: {
+    name: 'run_shell',
+    description: 'Run a shell command to execute builds, tests, or other operations. Use to reproduce errors.',
+    parameters: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Command to run' },
+        cwd: { type: 'string', description: 'Working directory (optional)' },
+      },
+      required: ['command'],
+    },
+  },
+}, async (args) => {
+  const result = await invoke<{stdout: string, stderr: string, return_code: number}>('run_shell', { 
+    command: args.command as string, 
+    cwd: args.cwd as string | undefined || null 
+  });
+  if (result.return_code !== 0) {
+    return `Exit code: ${result.return_code}\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`;
+  }
+  return result.stdout || '(no output)';
 });
 
 registerDebugTool('get_error_details', {
