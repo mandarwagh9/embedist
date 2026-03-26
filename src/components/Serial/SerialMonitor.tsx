@@ -10,6 +10,12 @@ const LINE_ENDINGS = [
   { value: 'CR', label: 'CR (\\r)' },
 ] as const;
 
+const ENCODINGS = [
+  { value: 'iso-8859-1', label: 'ISO-8859-1 (Latin-1)' },
+  { value: 'utf-8', label: 'UTF-8' },
+  { value: 'ascii', label: 'ASCII' },
+] as const;
+
 export function SerialMonitor() {
   const { serialConnected, serialBaudRate, setSerialConnected, setSerialPort, setSerialBaudRate } = useUIStore();
   const { serial, updateSerial } = useSettingsStore();
@@ -19,6 +25,7 @@ export function SerialMonitor() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const bufferRef = useRef<string>('');
   const portRef = useRef<{
     readable: ReadableStream<Uint8Array>;
     writable: WritableStream<Uint8Array>;
@@ -97,15 +104,31 @@ export function SerialMonitor() {
 
       const readLoop = async () => {
         try {
+          const { serial } = useSettingsStore.getState();
+          const decoder = new TextDecoder(serial.encoding || 'iso-8859-1');
+          
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
             
-            const text = new TextDecoder().decode(value);
-            const lines = text.split('\n').filter(l => l.trim());
-            lines.forEach(line => {
-              addLog(line, 'info');
-            });
+            const text = decoder.decode(value, { stream: true });
+            bufferRef.current += text;
+            
+            const normalized = bufferRef.current.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const lines = normalized.split('\n');
+            
+            bufferRef.current = lines.pop() || '';
+            
+            for (const line of lines) {
+              if (line.trim()) {
+                addLog(line, 'info');
+              }
+            }
+          }
+          
+          if (bufferRef.current.trim()) {
+            addLog(bufferRef.current, 'info');
+            bufferRef.current = '';
           }
         } catch (err) {
           console.error('Read error:', err);
@@ -128,6 +151,7 @@ export function SerialMonitor() {
       await portRef.current.close().catch(() => {});
       portRef.current = null;
     }
+    bufferRef.current = '';
     setSerialConnected(false);
     setSerialPort(null);
     addLog('Disconnected', 'info');
@@ -201,6 +225,17 @@ export function SerialMonitor() {
         >
           {LINE_ENDINGS.map(ending => (
             <option key={ending.value} value={ending.value}>{ending.label}</option>
+          ))}
+        </select>
+        
+        <select
+          className="serial-select encoding-select"
+          value={serial.encoding}
+          onChange={(e) => updateSerial({ encoding: e.target.value as 'utf-8' | 'iso-8859-1' | 'ascii' })}
+          title="Encoding"
+        >
+          {ENCODINGS.map(enc => (
+            <option key={enc.value} value={enc.value}>{enc.label}</option>
           ))}
         </select>
         
