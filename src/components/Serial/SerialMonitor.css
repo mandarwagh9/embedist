@@ -8,9 +8,55 @@
 .serial-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-sm);
   padding: var(--space-sm);
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.serial-settings {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.settings-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+
+.settings-toggle:hover,
+.settings-toggle.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.serial-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+
+.serial-actions .serial-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+
+.serial-actions .serial-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
 }
 
 .serial-connection {
