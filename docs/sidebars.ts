@@ -25,6 +25,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'AI Modes',
+      items: ['ai-modes/overview'],
+    },
+    {
+      type: 'category',
       label: 'Development',
       items: ['development/setup', 'development/contributing', 'development/testing'],
     },

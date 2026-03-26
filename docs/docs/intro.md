@@ -9,7 +9,7 @@ Embedist is an **AI-native embedded development environment** designed specifica
 ## Key Features
 
 ### 🤖 Hardware-Aware AI Debugging
-Embedist understands your specific board (ESP32, Arduino, STM32), pin configurations, and hardware constraints. It provides specific, actionable fixes rather than generic suggestions.
+Embedist understands your specific board (ESP32, Arduino, STM32), pin configurations, and hardware constraints. It provides specific, actionable fixes rather than generic suggestions. Includes Debug mode with file access tools.
 
 ### 📡 Integrated Serial Monitor
 Real-time serial communication with your embedded devices directly in the application. Auto-detect baud rates and filter logs.
@@ -18,7 +18,13 @@ Real-time serial communication with your embedded devices directly in the applic
 Built-in PlatformIO integration for compiling and flashing firmware to your devices.
 
 ### 🔌 Multi-Provider AI
-Use your preferred AI provider:
+Use your preferred AI provider with multiple modes:
+- **Chat** — Ask questions, get hardware-aware answers
+- **Plan** — Collaborate on project plans before coding
+- **Agent** — Autonomous code implementation with tools
+- **Debug** — Hardware-aware debugging with file access tools
+
+Supported providers:
 - **OpenAI** (GPT-4o, GPT-4o-mini)
 - **Anthropic** (Claude 3.5 Sonnet)
 - **Google** (Gemini Pro/Flash)
