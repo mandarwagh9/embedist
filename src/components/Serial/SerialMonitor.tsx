@@ -3,10 +3,16 @@ import { useUIStore } from '../../stores/uiStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import './SerialMonitor.css';
 
-const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+const BAUD_RATES = [74480, 115200, 9600, 19200, 38400, 57600, 230400, 460800, 921600, 250000];
+const LINE_ENDINGS = [
+  { value: 'CRLF', label: 'CRLF (\\r\\n)' },
+  { value: 'LF', label: 'LF (\\n)' },
+  { value: 'CR', label: 'CR (\\r)' },
+] as const;
 
 export function SerialMonitor() {
   const { serialConnected, serialBaudRate, setSerialConnected, setSerialPort, setSerialBaudRate } = useUIStore();
+  const { serial, updateSerial } = useSettingsStore();
   const [logs, setLogs] = useState<{ id: number; text: string; type: 'info' | 'error' | 'input'; timestamp: number }[]>([]);
   const [input, setInput] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
@@ -65,17 +71,25 @@ export function SerialMonitor() {
       const port = await navigator.serial!.requestPort() as {
         readable: ReadableStream<Uint8Array>;
         writable: WritableStream<Uint8Array>;
-        open(opts: { baudRate: number }): Promise<void>;
+        open(opts: { baudRate: number; dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
         getInfo(): { path: string };
         close(): Promise<void>;
+        setSignals?(opts: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
       };
-      portRef.current = port;
-      await port.open({ baudRate: serialBaudRate });
+      portRef.current = port as typeof portRef.current;
+      
+      await port.open({ 
+        baudRate: serialBaudRate,
+        dataTerminalReady: serial.dtr,
+        requestToSend: serial.rts,
+      });
       
       setSerialPort(port.getInfo?.()?.path || 'Connected');
       setSerialConnected(true);
       
       addLog(`Connected at ${serialBaudRate} baud`, 'info');
+      if (serial.dtr) addLog('DTR enabled', 'info');
+      if (serial.rts) addLog('RTS enabled', 'info');
 
       abortRef.current = new AbortController();
       const reader = port.readable.getReader();
@@ -178,6 +192,17 @@ export function SerialMonitor() {
             {isConnecting ? 'Connecting...' : serialConnected ? 'Disconnect' : 'Connect'}
           </button>
         </div>
+
+        <select
+          className="serial-select line-ending-select"
+          value={serial.lineEnding}
+          onChange={(e) => updateSerial({ lineEnding: e.target.value as 'CR' | 'LF' | 'CRLF' })}
+          title="Line Ending"
+        >
+          {LINE_ENDINGS.map(ending => (
+            <option key={ending.value} value={ending.value}>{ending.label}</option>
+          ))}
+        </select>
         
         <button className="serial-btn clear" onClick={clearLogs} title="Clear">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
