@@ -9,6 +9,37 @@ import { getPromptConfig } from '../lib/prompts';
 import { getDebugToolDefinitions, executeDebugTool, type DebugToolCall } from '../lib/debug-tools';
 import type { AIMode } from '../lib/ai-prompts';
 
+interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string | Record<string, unknown>;
+}
+
+function parseJsonToolCalls(content: string): ToolCall[] {
+  const toolCalls: ToolCall[] = [];
+  const lines = content.split('\n');
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.name && (parsed.arguments || parsed.args)) {
+        toolCalls.push({
+          id: `json-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: parsed.name,
+          arguments: parsed.arguments || parsed.args || {},
+        });
+      }
+    } catch {
+      continue;
+    }
+  }
+  
+  return toolCalls;
+}
+
 interface AIResponse {
   content: string;
   model: string;
@@ -163,11 +194,18 @@ export function useAI() {
         });
       }
 
-      if (response.tool_calls && response.tool_calls.length > 0) {
-        for (const tc of response.tool_calls) {
+      const parsedToolCalls = parseJsonToolCalls(response.content);
+      const toolCallsToExecute = parsedToolCalls.length > 0 ? parsedToolCalls : (response.tool_calls || []);
+
+      if (toolCallsToExecute.length > 0) {
+        for (const tc of toolCallsToExecute) {
           let args: Record<string, unknown> = {};
           try {
-            args = JSON.parse(tc.arguments);
+            if (typeof tc.arguments === 'string') {
+              args = JSON.parse(tc.arguments);
+            } else {
+              args = tc.arguments as Record<string, unknown>;
+            }
           } catch {
             args = {};
           }
