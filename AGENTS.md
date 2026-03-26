@@ -102,37 +102,243 @@ cd embedist/embedist/src-tauri && cargo clippy
 components/
   AI/          # AIChatPanel, MessageBubble, CodeBlock, MarkdownRenderer,
                # StreamingIndicator, FeedbackPanel, AgentActivityPanel,
-               # PromptSuggestions, PlanToolbar
-  Build/       # Build panel components
-  Common/      # Shared UI (resizable panels, etc.)
-  Editor/      # Monaco editor wrapper
+               # PromptSuggestions, PlanToolbar, AgentToolbar
+  Build/       # BuildPanel, ProblemsPanel
+  Common/      # Toast, Dialog, ErrorBoundary
+  Editor/      # CodeEditor (Monaco wrapper), useMonacoEditor
   FileExplorer/# FileExplorer, ContextMenu, Breadcrumbs, CommandPalette,
-               # RecentFiles
-  Layout/      # Sidebar, MenuBar, StatusBar
-  Serial/      # Serial monitor
-  Settings/    # Settings panel
-stores/        # Zustand: aiStore, fileStore, settingsStore, uiStore
+               # RecentFiles, TreeItem
+  Layout/      # Sidebar, MenuBar, TitleBar, StatusBar, BottomPanel, TabBar
+  Serial/      # SerialMonitor
+  Settings/    # SettingsModal, SettingsSidebar, AI/Editor/Serial/Build sections
+stores/        # aiStore, fileStore, settingsStore, uiStore (Zustand)
 hooks/         # useAI, useAgent, useBuild, useFileSystem, useSerial, usePlanContext
-lib/           # prompts/, rag.ts, agent-tools.ts, debug-tools.ts
+lib/
+  prompts/    # Mode-specific system prompts (chat.md, plan.md, agent.md, debug.md)
+  knowledge/  # RAG knowledge base (board JSON files)
+  ai-prompts.ts   # AIMode type, system prompts definitions
+  agent-tools.ts  # Agent mode tool definitions and execution
+  debug-tools.ts  # Debug mode tool definitions
+  rag.ts          # TF-IDF based RAG engine
 types/         # index.ts (shared types)
 ```
 
 ### Backend (`src-tauri/src/`)
 ```
 lib.rs         # App entry, plugin init, invoke_handler registration
-main.rs       # Binary entry
+main.rs        # Binary entry
 commands/
-  ai.rs        # AI API calls (OpenAI, Anthropic, vLLM, etc.)
-  filesystem.rs # File CRUD + PlatformIO commands
-  platformio.rs # Build/upload commands
-  serial.rs    # Serial port communication
+  ai.rs        # Multi-provider AI API calls (OpenAI, Anthropic, DeepSeek, Ollama, Google, custom)
+  filesystem.rs # File CRUD, directory ops, grep, shell, reveal in explorer
+  platformio.rs # Build, upload, board detection, PlatformIO CLI
+  serial.rs    # Serial port listing, state management
 ```
 
 ### Zustand Stores
-- **fileStore**: File tree, open tabs, file contents (Maps), dirty state, PlatformIO detection
-- **uiStore**: Sidebar, bottom panel, tabs, cursor position, serial/build state
-- **settingsStore**: Editor/serial/build settings, AI providers, persisted via `localStorage`
-- **aiStore**: AI mode (chat/plan/agent/debug), per-mode message histories, streaming state, feedback
+
+- **aiStore** (`src/stores/aiStore.ts`): AI mode (chat/plan/agent/debug), activeProvider, providers, messages, planPhase, agentStatus, agentActivityLog
+- **fileStore** (`src/stores/fileStore.ts`): File tree (FileNode[]), open tabs, fileContents/originalContents Maps, dirty state, PlatformIO detection, context menu, renaming, selection
+- **uiStore** (`src/stores/uiStore.ts`): Sidebar section/width, bottom panel height, serial/build state, cursor position
+- **settingsStore** (`src/stores/settingsStore.ts`): Providers (API keys), editor/serial/build settings, AI parameters, customEndpoints
+
+---
+
+## AI Modes Implementation
+
+### Four Modes
+
+| Mode | System Prompt | Tools | Use Case |
+|------|--------------|-------|----------|
+| **Chat** | General embedded assistant | None | Q&A, learning |
+| **Plan** | 5-phase workflow (Explore→Design→Review→Plan→Ready) | read_file, search_code, web_search | Project planning |
+| **Debug** | Systematic debugging | read_file, search_code, list_directory, get_error_details | Hardware-aware debugging |
+| **Agent** | Autonomous implementation | All file/build/shell tools | Code implementation |
+
+### AI Mode Hooks
+
+- **useAI.ts**: Handles Chat/Plan/Debug modes via `sendMessage()` function. Builds system prompt with project context, RAG context, and mode-specific instructions. Supports tool calling for debug mode.
+- **useAgent.ts**: Handles Agent mode via `startAgentTask()` function. Runs loop of AI call → tool execution → response until no tools called or max iterations (50). Path safety enforcement for file writes.
+
+### Tool Systems
+
+**Agent Tools** (`src/lib/agent-tools.ts`):
+- `read_file(path)`: Read file contents via Tauri `invoke('read_file')`
+- `write_file(path, content)`: Create/overwrite file
+- `create_file(parent, name)`: Create empty file
+- `create_folder(parent, name)`: Create directory
+- `list_directory(path)`: List directory entries
+- `get_directory_tree(path, depth?)`: Get recursive tree structure
+- `search_code(path, pattern, filePattern?)`: Grep search in files
+- `build_project(projectPath)`: Run PlatformIO build
+- `run_shell(command, cwd?)`: Execute shell command
+
+**Debug Tools** (`src/lib/debug-tools.ts`):
+- `read_file(path)`: Read any project file
+- `search_code(path, pattern, filePattern?)`: Search code patterns
+- `list_directory(path)`: Browse project structure
+- `get_error_details()`: Access build errors
+
+### Provider Support (`src-tauri/src/commands/ai.rs`)
+
+| Provider | Tool Support | API |
+|----------|--------------|-----|
+| **OpenAI** | Full (function calling) | api.openai.com/v1/chat/completions |
+| **Anthropic** | Full (tool use) | api.anthropic.com/v1/messages |
+| **DeepSeek** | Text-only (no function calling) | api.deepseek.com |
+| **Ollama** | Text-only (no tools) | localhost:11434 |
+| **Google** | Text-only (no tools) | generativelanguage.googleapis.com |
+| **Custom** | Varies (OpenAI-compatible) | User-provided base URL |
+
+---
+
+## State Management Deep Dive
+
+### Critical: Store Access in Async Functions
+
+```typescript
+// WRONG - stale closure bug
+const { messages } = useAIStore();
+useEffect(() => { sendMessage(messages); }, [messages]);
+
+// CORRECT - fresh state via getState()
+const messages = useAIStore.getState().messages;
+await sendMessage(messages);
+```
+
+### Persistence
+
+- **aiStore**: mode, activeProvider, messages, customModels (persisted)
+- **fileStore**: rootPath, projectName, openTabs, fileContents, isPlatformIOProject (persisted)
+- **settingsStore**: All settings (persisted to localStorage via Zustand persist)
+
+### Store Pattern Example
+
+```typescript
+export const useAIStore = create<AIState>()(
+  persist(
+    (set, get) => ({
+      mode: 'chat',
+      messages: [],
+      setMode: (mode) => set({ mode }),
+      addMessage: (message) => {
+        const { mode } = get();
+        const fullMessage = { ...message, mode, id: crypto.randomUUID(), timestamp: Date.now() };
+        set((state) => ({ messages: [...state.messages, fullMessage] }));
+      },
+      // ...other state and methods
+    }),
+    { name: 'embedist-ai-store', partialize: (state) => ({ /* selective persistence */ }) }
+  )
+);
+```
+
+---
+
+## Tauri Command Flow
+
+```
+React Hook (invoke) → Tauri IPC → Rust Handler (#[tauri::command]) → Return Result<T, String>
+```
+
+### Adding a New Command
+
+1. Add `#[tauri::command]` function in `src-tauri/src/commands/<domain>.rs`
+2. Re-export from `commands/mod.rs` with `pub use <domain>::*`
+3. Register in `lib.rs` `invoke_handler` macro
+4. Call from TypeScript via `invoke('command_name', params)` in a hook
+
+### Example: Filesystem Commands
+
+```rust
+// Rust: src-tauri/src/commands/filesystem.rs
+#[command]
+pub fn read_file(path: String) -> Result<String, String> {
+    fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
+}
+
+#[command]
+pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResult, String> {
+    // Async shell execution with metacharacter validation
+}
+```
+
+```typescript
+// TypeScript: src/hooks/useFileSystem.ts
+const content = await invoke<string>('read_file', { path });
+await invoke('write_file', { path, content });
+```
+
+---
+
+## Build System (PlatformIO)
+
+### Rust Commands (`src-tauri/src/commands/platformio.rs`)
+
+- `check_platformio()`: Verify PlatformIO installation
+- `list_connected_boards()`: Get connected devices via `pio device list --json-output`
+- `get_available_boards()`: List all supported boards via `pio boards --json-output`
+- `build_project(state, project_path)`: Run `pio run -d <path>`
+- `upload_firmware(state, project_path, port?)`: Run `pio run --target upload`
+- `stop_build(state)`: Kill process via `taskkill /F /PID {pid}`
+
+### Build State (`BuildState`)
+
+```rust
+pub struct BuildState {
+    pub child_id: AsyncMutex<Option<u32>>,
+}
+
+impl Default for BuildState {
+    fn default() -> Self { Self { child_id: AsyncMutex::new(None) } }
+}
+```
+
+- Async mutex stores child PID for build cancellation
+- `stop_build` uses Windows `taskkill` or Unix `kill -9`
+
+---
+
+## Serial Communication
+
+### Architecture
+
+- **Frontend**: Web Serial API (`navigator.serial`) — browser-based, NOT Rust backend
+- **Backend**: Lists COM ports, manages state
+- **Config**: Baud rate, line ending (CR/LF/CRLF), encoding
+
+### Frontend (`src/hooks/useSerial.ts`)
+
+```typescript
+const port = await navigator.serial.requestPort();
+await port.open({ baudRate: 115200 });
+const reader = port.readable.getReader();
+while (true) { const { value } = await reader.read(); /* process data */ }
+```
+
+### Backend (`src-tauri/src/commands/serial.rs`)
+
+- Lists available COM ports (Windows: 0-255)
+- Returns port list for UI dropdown
+
+---
+
+## Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `src/stores/aiStore.ts` | AI state: mode, messages, providers, plan/agent status |
+| `src/stores/fileStore.ts` | File state: tree, tabs, content, PlatformIO detection |
+| `src/hooks/useAI.ts` | Chat/Plan/Debug mode: `sendMessage()`, RAG context, tool execution |
+| `src/hooks/useAgent.ts` | Agent mode: `startAgentTask()` loop, path safety, tool execution |
+| `src/lib/agent-tools.ts` | Agent tool registry: `registerTool()`, `executeTool()`, `getAllToolDefinitions()` |
+| `src/lib/debug-tools.ts` | Debug tool definitions and execution |
+| `src/lib/ai-prompts.ts` | AIMode type, SYSTEM_PROMPTS, MODE_SWITCH_REMINDERS |
+| `src/lib/prompts/index.ts` | `getPromptConfig(mode)` loader for mode-specific prompts |
+| `src/lib/rag.ts` | TF-IDF RAG engine: `getBoardContext()`, `getRelevantContext()` |
+| `src-tauri/src/commands/ai.rs` | Multi-provider API: `chat_completion()`, OpenAI/Anthropic/DeepSeek/Ollama/Google |
+| `src-tauri/src/commands/filesystem.rs` | File ops: read/write, create, delete, rename, grep, shell |
+| `src-tauri/src/commands/platformio.rs` | Build system: build, upload, board detection |
+| `src-tauri/src/lib.rs` | App init: plugin setup, command registration, state management |
 
 ---
 
@@ -185,6 +391,9 @@ gh release upload v0.x.x embedist/embedist/src-tauri/target/release/embedist.exe
 - **Debug tools**: Debug mode now has file access tools (read_file, search_code, list_directory, get_error_details) defined in `src/lib/debug-tools.ts`.
 - **Build state**: `BuildState` (in `platformio.rs`) is managed via `tauri::State` in `lib.rs`. When adding async commands that use state, ensure the state is passed as `tauri::State<'_, BuildState>` parameter and returns `Result<T, String>`.
 - **Build cancellation**: `stop_build` uses PID-based killing (via `taskkill` on Windows). The child PID is stored in `BuildState.child_id`.
+- **Path safety**: Agent mode validates all file write paths are inside project root via `isPathSafe()` function.
+- **Tool batching**: Agent mode emphasizes batching multiple tool calls in single response for efficiency.
+- **Provider tool support**: Only OpenAI and Anthropic support tool calling. DeepSeek/Ollama/Google fall back to text-only.
 
 ---
 
@@ -198,3 +407,26 @@ gh release upload v0.x.x embedist/embedist/src-tauri/target/release/embedist.exe
 - Agent Mode: DeepSeek, Ollama, Google fall back to text-only (no tool execution)
 - Settings toggle for "default implementation mode" not exposed in Settings UI
 - `SerialConfig` struct in `serial.rs` generates dead_code warning
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+O` | Open Folder |
+| `Ctrl+S` | Save File |
+| `Ctrl+Shift+E` | Focus File Explorer |
+| `Ctrl+Shift+X` | Focus AI Assistant |
+| `Ctrl+Shift+L` | Focus Serial Monitor |
+| `Ctrl+Shift+B` | Focus Build Panel |
+| `Ctrl+Shift+P` | Command Palette |
+| `Ctrl+1` | Chat Mode |
+| `Ctrl+2` | Plan Mode |
+| `Ctrl+3` | Agent Mode |
+| `Ctrl+4` | Debug Mode |
+| `Ctrl+Tab` | Cycle Tabs |
+| `Ctrl+W` | Close Tab |
+| `Ctrl+B` | Toggle Sidebar |
+| `Ctrl+J` | Toggle Bottom Panel |
+| `Ctrl+,` | Open Settings |
