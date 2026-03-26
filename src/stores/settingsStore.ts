@@ -40,6 +40,7 @@ interface SettingsState {
   serial: {
     baudRate: number;
     lineEnding: 'CR' | 'LF' | 'CRLF';
+    encoding: 'utf-8' | 'iso-8859-1' | 'ascii';
     autoScroll: boolean;
     dtr: boolean;
     rts: boolean;
@@ -98,6 +99,7 @@ export const useSettingsStore = create<SettingsState>()(
       serial: {
         baudRate: 115200,
         lineEnding: 'CRLF',
+        encoding: 'iso-8859-1',
         autoScroll: true,
         dtr: false,
         rts: false,

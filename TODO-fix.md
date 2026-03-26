@@ -479,3 +479,7 @@ Effort: Trivial (1 line) | Low (<1hr) | Medium (1-4hr) | High (4+hr)
 | v0.13.0 | TypeScript type consolidation | `types/index.ts`, `fileStore.ts`, `uiStore.ts` |
 | v0.13.0 | Remove debug console.log from RAG | `rag.ts` |
 | v0.13.0 | Fix Rust error handling | `lib.rs` |
+| v0.14.0 | Serial Monitor DTR/RTS support | `SerialMonitor.tsx` |
+| v0.14.0 | Add 74480 and 250000 baud rates | `SerialMonitor.tsx` |
+| v0.14.0 | Wire line ending selector to UI | `SerialMonitor.tsx` |
+| v0.14.0 | Add ESP8266 board variants | `BuildSettings.tsx` |
