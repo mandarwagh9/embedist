@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Version](https://img.shields.io/badge/version-v0.11.5-blue)](https://github.com/mandarwagh9/embedist/releases)
+[![Version](https://img.shields.io/badge/version-v0.15.0-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
 </div>
@@ -45,7 +45,7 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 ## Features
 
-- 🤖 **Multi-Provider AI** — Chat, Plan, and Agent modes with support for OpenAI, Anthropic, Google, DeepSeek, Ollama, and custom vLLM endpoints
+- 🤖 **Multi-Provider AI** — Chat, Plan, Agent, and Debug modes with support for OpenAI, Anthropic, Google, DeepSeek, Ollama, and custom vLLM endpoints
 - 🔍 **Board-Aware Context** — AI debugging uses detected board info (ESP32 Dev Module, Arduino Uno, etc.) for accurate, hardware-specific fixes
 - 📡 **Serial Monitor** — Real-time device communication with configurable baud rates and auto-connect
 - 🔨 **Build & Upload** — PlatformIO CLI integration with live output streaming, parsed errors/warnings in a Problems panel, and a Stop Build button
@@ -57,9 +57,9 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 ## Downloads
 
-### Latest Release: v0.11.5
+### Latest Release: v0.15.0
 
-[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.11.5/embedist.exe)
+[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.15.0/embedist.exe)
 
 Download the executable and run it directly — no installation required.
 
@@ -212,14 +212,20 @@ embedist/
 
 ## Known Issues
 
-- Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only responses and do not execute tools
-- Drag-and-drop files in the File Explorer is not yet implemented
 - Settings toggle for "default implementation mode" is not exposed in the Settings UI
 - Editor settings (font size, word wrap, minimap) are saved but not yet wired to the Monaco editor instance
 
 ---
 
 ## Changelog
+
+### [v0.15.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.15.0) — 2026-03-26
+- **New**: SOTA AI prompt architecture with separate prompt files per mode
+- **New**: Debug mode now has file access tools (read_file, search_code, list_directory, get_error_details)
+- **New**: Agent mode emphasizes tool usage with explicit "USE THEM" guidance
+- **New**: Board-specific context for ESP8266/ESP32 in AI prompts
+- **New**: Plan mode with structured milestone planning
+- **Refactor**: Prompts moved to dedicated files in `src/lib/prompts/modes/`
 
 ### [v0.11.5](https://github.com/mandarwagh9/embedist/releases/tag/v0.11.5) — 2026-03-23
 - **Fix**: Serial monitor TX — `sendCommand()` only logged to UI but never wrote to the port; now transmits with Web Serial API WritableStream + TextEncoder, respects line ending from settings (CR/LF/CRLF)
