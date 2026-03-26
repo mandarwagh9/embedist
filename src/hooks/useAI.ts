@@ -2,9 +2,11 @@ import { useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAIStore, AIMessage } from '../stores/aiStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useFileStore } from '../stores/fileStore';
 import { ragEngine } from '../lib/rag';
 import { buildPlanContext } from './usePlanContext';
-import { SYSTEM_PROMPTS } from '../lib/ai-prompts';
+import { getPromptConfig } from '../lib/prompts';
+import { getDebugToolDefinitions, executeDebugTool, type DebugToolCall } from '../lib/debug-tools';
 import type { AIMode } from '../lib/ai-prompts';
 
 interface AIResponse {
@@ -15,11 +17,12 @@ interface AIResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  tool_calls?: DebugToolCall[];
 }
 
 interface APIMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   mode?: AIMode;
 }
@@ -99,7 +102,7 @@ export function useAI() {
     try {
       const currentMessages = useAIStore.getState().messages;
       const context = getContextForQuery(content, boardType);
-      const modeConfig = SYSTEM_PROMPTS[mode];
+      const modeConfig = getPromptConfig(mode);
 
       let systemPrompt = modeConfig.system;
 
@@ -116,6 +119,11 @@ export function useAI() {
         if (approvedPlan) {
           systemPrompt += `\n\n## Approved Implementation Plan\n${approvedPlan}`;
         }
+      } else if (mode === 'debug') {
+        const fileStore = useFileStore.getState();
+        if (fileStore.rootPath) {
+          systemPrompt += `\n\n## Current Project\n**Root**: ${fileStore.rootPath}`;
+        }
       }
 
       systemPrompt += `\n\nKnowledge Base:\n${context || 'No relevant context found.'}`;
@@ -127,6 +135,9 @@ export function useAI() {
       ];
 
       const customEndpoint = getActiveEndpoint();
+      const useTools = mode === 'debug';
+      const toolDefs = useTools ? getDebugToolDefinitions() : undefined;
+
       let response: AIResponse;
 
       if (customEndpoint) {
@@ -136,7 +147,7 @@ export function useAI() {
           provider: customEndpoint.id,
           apiKey: customEndpoint.apiKey,
           baseUrl: customEndpoint.baseUrl,
-          tools: null,
+          tools: toolDefs || null,
           temperature: aiParameters.temperature,
           maxTokens: aiParameters.maxTokens,
           topP: aiParameters.topP,
@@ -145,11 +156,46 @@ export function useAI() {
         response = await invoke<AIResponse>('chat_completion', {
           messages: allMessages,
           model: null,
+          tools: toolDefs || null,
+          temperature: aiParameters.temperature,
+          maxTokens: aiParameters.maxTokens,
+          topP: aiParameters.topP,
+        });
+      }
+
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        for (const tc of response.tool_calls) {
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(tc.arguments);
+          } catch {
+            args = {};
+          }
+
+          const result = await executeDebugTool(tc.id, tc.name, args);
+          const toolResultMsg: APIMessage = {
+            id: `tool-${tc.id}`,
+            role: 'tool',
+            content: result.output,
+            mode,
+          };
+          allMessages.push(toolResultMsg);
+        }
+
+        const followUpResponse = await invoke<AIResponse>('chat_completion', {
+          messages: allMessages,
+          model: customEndpoint?.model || null,
+          provider: customEndpoint?.id || null,
+          apiKey: customEndpoint?.apiKey || null,
+          baseUrl: customEndpoint?.baseUrl || null,
           tools: null,
           temperature: aiParameters.temperature,
           maxTokens: aiParameters.maxTokens,
           topP: aiParameters.topP,
         });
+        
+        response.content = followUpResponse.content;
+        response.usage = followUpResponse.usage;
       }
 
       addMessage({ role: 'assistant', content: response.content, usage: response.usage });
