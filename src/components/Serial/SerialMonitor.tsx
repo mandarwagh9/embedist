@@ -16,12 +16,38 @@ const ENCODINGS = [
   { value: 'ascii', label: 'ASCII' },
 ] as const;
 
+const MAX_INPUT_LENGTH = 256;
+const MAX_LINE_LENGTH = 512;
+const MAX_BUFFER_SIZE = 64 * 1024;
+
+const SHELL_METACHARS = /[;|&$`(){}[\]<>\"'\\]/g;
+const CONTROL_CHARS = /[\x00-\x1F]/g;
+
+function sanitizeInput(input: string): string {
+  return input
+    .slice(0, MAX_INPUT_LENGTH)
+    .replace(SHELL_METACHARS, '')
+    .replace(CONTROL_CHARS, '')
+    .trim();
+}
+
+function sanitizeOutput(text: string): string {
+  return text
+    .slice(0, MAX_LINE_LENGTH)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function SerialMonitor() {
   const { serialConnected, serialBaudRate, setSerialConnected, setSerialPort, setSerialBaudRate } = useUIStore();
   const { serial, updateSerial } = useSettingsStore();
   const [logs, setLogs] = useState<{ id: number; text: string; type: 'info' | 'error' | 'input'; timestamp: number }[]>([]);
   const [input, setInput] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -35,7 +61,8 @@ export function SerialMonitor() {
   } | null>(null);
   
   const addLog = (text: string, type: 'info' | 'error' | 'input') => {
-    setLogs(prev => [...prev, { id: Date.now(), text, type, timestamp: Date.now() }]);
+    const sanitized = sanitizeOutput(text);
+    setLogs(prev => [...prev, { id: Date.now(), text: sanitized, type, timestamp: Date.now() }]);
   };
 
   const scrollToBottom = () => {
@@ -55,6 +82,10 @@ export function SerialMonitor() {
         readerRef.current.cancel().catch(() => {});
         readerRef.current = null;
       }
+      if (portRef.current) {
+        portRef.current.close().catch(() => {});
+        portRef.current = null;
+      }
       if (abortRef.current) {
         abortRef.current.abort();
         abortRef.current = null;
@@ -63,6 +94,18 @@ export function SerialMonitor() {
   }, []);
 
   const connect = async () => {
+    if (portRef.current) {
+      addLog('Port already open, closing first...', 'info');
+      try {
+        if (readerRef.current) {
+          await readerRef.current.cancel().catch(() => {});
+          readerRef.current = null;
+        }
+        await portRef.current.close();
+        portRef.current = null;
+      } catch {}
+    }
+
     if (!navigator.serial) {
       addLog('Web Serial API not supported in this browser', 'error');
       return;
@@ -114,6 +157,11 @@ export function SerialMonitor() {
             const text = decoder.decode(value, { stream: true });
             bufferRef.current += text;
             
+            if (bufferRef.current.length > MAX_BUFFER_SIZE) {
+              bufferRef.current = bufferRef.current.slice(-MAX_BUFFER_SIZE);
+              addLog('Buffer overflow, trimming...', 'error');
+            }
+            
             const normalized = bufferRef.current.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             const lines = normalized.split('\n');
             
@@ -159,9 +207,13 @@ export function SerialMonitor() {
 
   const sendCommand = async () => {
     if (!input.trim() || !portRef.current) return;
+    
+    const sanitized = sanitizeInput(input);
+    if (!sanitized) return;
+    
     const { lineEnding } = useSettingsStore.getState().serial;
     const ending = lineEnding === 'CR' ? '\r' : lineEnding === 'LF' ? '\n' : '\r\n';
-    const data = input + ending;
+    const data = sanitized + ending;
     try {
       const writer = portRef.current.writable.getWriter();
       await writer.write(new TextEncoder().encode(data));
@@ -169,7 +221,7 @@ export function SerialMonitor() {
     } catch {
       addLog('Send failed', 'error');
     }
-    addLog(`> ${input}`, 'input');
+    addLog(`> ${sanitized}`, 'input');
     setInput('');
   };
 
@@ -213,42 +265,59 @@ export function SerialMonitor() {
             onClick={serialConnected ? disconnect : connect}
             disabled={isConnecting}
           >
-            {isConnecting ? 'Connecting...' : serialConnected ? 'Disconnect' : 'Connect'}
+            {isConnecting ? '...' : serialConnected ? 'Disconnect' : 'Connect'}
           </button>
         </div>
 
-        <select
-          className="serial-select line-ending-select"
-          value={serial.lineEnding}
-          onChange={(e) => updateSerial({ lineEnding: e.target.value as 'CR' | 'LF' | 'CRLF' })}
-          title="Line Ending"
+        <button 
+          className={`serial-btn settings-toggle ${showSettings ? 'active' : ''}`}
+          onClick={() => setShowSettings(!showSettings)}
+          title="Settings"
         >
-          {LINE_ENDINGS.map(ending => (
-            <option key={ending.value} value={ending.value}>{ending.label}</option>
-          ))}
-        </select>
-        
-        <select
-          className="serial-select encoding-select"
-          value={serial.encoding}
-          onChange={(e) => updateSerial({ encoding: e.target.value as 'utf-8' | 'iso-8859-1' | 'ascii' })}
-          title="Encoding"
-        >
-          {ENCODINGS.map(enc => (
-            <option key={enc.value} value={enc.value}>{enc.label}</option>
-          ))}
-        </select>
-        
-        <button className="serial-btn clear" onClick={clearLogs} title="Clear">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
           </svg>
         </button>
-        <button className="serial-btn save" onClick={saveLogs} title="Save Output" disabled={logs.length === 0}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-          </svg>
-        </button>
+
+        {showSettings && (
+          <div className="serial-settings">
+            <select
+              className="serial-select"
+              value={serial.lineEnding}
+              onChange={(e) => updateSerial({ lineEnding: e.target.value as 'CR' | 'LF' | 'CRLF' })}
+              title="Line Ending"
+            >
+              {LINE_ENDINGS.map(ending => (
+                <option key={ending.value} value={ending.value}>{ending.label}</option>
+              ))}
+            </select>
+            
+            <select
+              className="serial-select"
+              value={serial.encoding}
+              onChange={(e) => updateSerial({ encoding: e.target.value as 'utf-8' | 'iso-8859-1' | 'ascii' })}
+              title="Encoding"
+            >
+              {ENCODINGS.map(enc => (
+                <option key={enc.value} value={enc.value}>{enc.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        
+        <div className="serial-actions">
+          <button className="serial-btn" onClick={clearLogs} title="Clear">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+          </button>
+          <button className="serial-btn" onClick={saveLogs} title="Save" disabled={logs.length === 0}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="serial-output">
@@ -278,6 +347,7 @@ export function SerialMonitor() {
           onKeyDown={(e) => e.key === 'Enter' && sendCommand()}
           placeholder={serialConnected ? "Type command..." : "Connect to send"}
           disabled={!serialConnected}
+          maxLength={MAX_INPUT_LENGTH}
         />
         <button
           className="serial-send"
