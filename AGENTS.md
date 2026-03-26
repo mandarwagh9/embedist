@@ -3,7 +3,7 @@
 **Project**: AI-native embedded development environment (Tauri 2 + React + TypeScript + Rust)
 **Platform**: Windows only
 **Git repo**: `embedist/embedist/` (not the root `embedist/` directory)
-**Latest release**: v0.8.4
+**Latest release**: v0.15.0
 
 ---
 
@@ -113,7 +113,7 @@ components/
   Settings/    # Settings panel
 stores/        # Zustand: aiStore, fileStore, settingsStore, uiStore
 hooks/         # useAI, useAgent, useBuild, useFileSystem, useSerial, usePlanContext
-lib/           # ai-prompts.ts, rag.ts, agent-tools.ts
+lib/           # prompts/, rag.ts, agent-tools.ts, debug-tools.ts
 types/         # index.ts (shared types)
 ```
 
@@ -181,7 +181,8 @@ gh release upload v0.x.x embedist/embedist/src-tauri/target/release/embedist.exe
 - **Store closure bugs**: When adding to store state in async flows, always read fresh state via `get()` or `getState()`, not destructured values from `useStore()` at render time.
 - **File persistence**: `activeFileTab.content` in `App.tsx` is the fallback for unsaved content on restart. If adding new content sources, sync to `fileContents` Map in `fileStore`.
 - **RefreshRoot merge**: `refreshRoot` in `useFileSystem.ts` must merge with existing tree (via `setFiles` with merged entries), not replace the root. The `updateInTree` helper exists for this.
-- **Provider routing**: Only `api.openai.com` routes to OpenAI format. All other endpoints (vLLM, custom) go through generic routing in `ai-prompts.ts`.
+- **Prompts module**: System prompts are now in dedicated files under `src/lib/prompts/modes/` (agent.md, debug.md, chat.md, plan.md). Use `src/lib/prompts/index.ts` to load them.
+- **Debug tools**: Debug mode now has file access tools (read_file, search_code, list_directory, get_error_details) defined in `src/lib/debug-tools.ts`.
 - **Build state**: `BuildState` (in `platformio.rs`) is managed via `tauri::State` in `lib.rs`. When adding async commands that use state, ensure the state is passed as `tauri::State<'_, BuildState>` parameter and returns `Result<T, String>`.
 - **Build cancellation**: `stop_build` uses PID-based killing (via `taskkill` on Windows). The child PID is stored in `BuildState.child_id`.
 
@@ -192,6 +193,7 @@ gh release upload v0.x.x embedist/embedist/src-tauri/target/release/embedist.exe
 - Drag-drop files in FileExplorer is a stub
 - Agent Mode: Non-tool-call providers (DeepSeek, Ollama, Google) fall back to text-only (no tool execution)
 - Agent Mode: Settings toggle for "default implementation mode" not exposed in Settings UI
+- Debug tools only work with providers that support tool calling (OpenAI, Anthropic)
 - Recent Files, file rename/delete, theme settings, AI model params, board auto-detect not implemented
 - Agent Mode: DeepSeek, Ollama, Google fall back to text-only (no tool execution)
 - Settings toggle for "default implementation mode" not exposed in Settings UI

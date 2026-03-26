@@ -1,6 +1,6 @@
 # Embedist — TODO Fix List
 
-Generated from comprehensive codebase analysis. Last updated: v0.12.2.
+Generated from comprehensive codebase analysis. Last updated: v0.15.0.
 
 ## Legend
 - **BROKEN**: Feature doesn't work at all
