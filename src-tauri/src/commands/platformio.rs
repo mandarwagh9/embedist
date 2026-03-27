@@ -54,7 +54,24 @@ fn run_sync_command(cmd: &str, args: &[&str]) -> Result<std::process::Output, St
         .map_err(|e| format!("Failed to execute command: {}", e))
 }
 
-fn find_platformio_executable() -> Option<String> {
+fn run_pio_command_via_python(args: &[&str]) -> Result<std::process::Output, String> {
+    let python_cmds = ["python", "python3", "py"];
+    for python_cmd in python_cmds {
+        let result = SyncCommand::new(python_cmd)
+            .args(["-m", "platformio"])
+            .args(args)
+            .output();
+        
+        if let Ok(output) = result {
+            if output.status.success() || !String::from_utf8_lossy(&output.stderr).contains("No module named") {
+                return Ok(output);
+            }
+        }
+    }
+    Err("No Python with PlatformIO found".to_string())
+}
+
+fn find_pio_in_filesystem() -> Option<String> {
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(parent) = exe_path.parent() {
             let bundled = parent.join("python").join("Scripts").join("pio.exe");
@@ -64,6 +81,30 @@ fn find_platformio_executable() -> Option<String> {
             let bundled_alt = parent.join("platformio").join("pio.exe");
             if bundled_alt.exists() {
                 return Some(bundled_alt.to_string_lossy().to_string());
+            }
+        }
+    }
+    
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        let search_paths = vec![
+            format!("{}\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Local\\Programs\\Python\\Python310\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Roaming\\Python\\Python313\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Roaming\\Python\\Python312\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Roaming\\Python\\Python311\\Scripts\\pio.exe", home),
+            format!("{}\\AppData\\Roaming\\Python\\Scripts\\pio.exe", home),
+            format!("{}\\miniconda3\\Scripts\\pio.exe", home),
+            format!("{}\\miniconda3\\Scripts\\python.exe", home),
+            format!("{}\\anaconda3\\Scripts\\pio.exe", home),
+            format!("{}\\anaconda3\\Scripts\\python.exe", home),
+        ];
+        
+        for p in search_paths {
+            let path = std::path::Path::new(&p);
+            if path.exists() {
+                return Some(p);
             }
         }
     }
@@ -80,32 +121,46 @@ fn find_platformio_executable() -> Option<String> {
     None
 }
 
-fn get_pio_executable_name() -> String {
-    find_platformio_executable().unwrap_or_else(|| "pio".to_string())
+fn get_pio_command() -> String {
+    if let Some(_) = find_pio_in_filesystem() {
+        return find_pio_in_filesystem().unwrap();
+    }
+    "pio".to_string()
 }
 
 fn run_pio_command(args: &[&str]) -> Result<std::process::Output, String> {
-    let pio_cmd = find_platformio_executable().unwrap_or_else(|| "pio".to_string());
-    run_sync_command(&pio_cmd, args)
+    if let Some(path) = find_pio_in_filesystem() {
+        run_sync_command(&path, args)
+    } else {
+        run_pio_command_via_python(args)
+    }
 }
 
 #[command]
 pub fn check_platformio() -> PlatformInfo {
-    let output = run_pio_command(&["--version"]);
-    match output {
-        Ok(out) => {
-            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            PlatformInfo {
+    if let Ok(output) = run_pio_command_via_python(&["--version"]) {
+        if output.status.success() {
+            let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            return PlatformInfo {
                 version,
                 core_version: "".to_string(),
                 installed: true,
-            }
+            };
         }
-        Err(_) => PlatformInfo {
-            version: "Not installed".to_string(),
+    }
+    
+    if let Some(_) = find_pio_in_filesystem() {
+        return PlatformInfo {
+            version: "Installed (version check failed)".to_string(),
             core_version: "".to_string(),
-            installed: false,
-        },
+            installed: true,
+        };
+    }
+    
+    PlatformInfo {
+        version: "Not installed".to_string(),
+        core_version: "".to_string(),
+        installed: false,
     }
 }
 
@@ -189,7 +244,7 @@ pub async fn run_platformio_command(
     use std::time::Instant;
 
     let start = Instant::now();
-    let pio_cmd = get_pio_executable_name();
+    let pio_cmd = get_pio_command();
     let mut cmd = tokio::process::Command::new(&pio_cmd);
     cmd.args(&args);
 
@@ -318,43 +373,51 @@ pub fn parse_build_errors(output: String) -> Vec<serde_json::Value> {
 pub async fn install_platformio() -> Result<String, String> {
     use tokio::process::Command;
     
-    let python_cmd = if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(parent) = exe_path.parent() {
-            let python_exe = parent.join("python").join("python.exe");
-            if python_exe.exists() {
-                Some(python_exe.to_string_lossy().to_string())
-            } else {
-                None
+    let python_cmds = vec![
+        "python".to_string(),
+    ];
+    
+    let mut installed = false;
+    let mut last_error = String::new();
+    
+    for python_cmd in python_cmds {
+        let output = Command::new(&python_cmd)
+            .args(["-m", "pip", "install", "platformio"])
+            .output()
+            .await;
+        
+        match output {
+            Ok(out) => {
+                if out.status.success() {
+                    installed = true;
+                    break;
+                } else {
+                    last_error = String::from_utf8_lossy(&out.stderr).to_string();
+                }
             }
-        } else {
-            None
+            Err(e) => {
+                last_error = format!("Failed to run {}: {}", python_cmd, e);
+            }
         }
-    } else {
-        None
-    };
+    }
     
-    let cmd = python_cmd.as_deref().unwrap_or("python");
-    
-    let output = Command::new(cmd)
-        .args(["-m", "pip", "install", "platformio"])
-        .output()
-        .await
-        .map_err(|e| format!("Failed to install PlatformIO: {}", e))?;
-    
-    if output.status.success() {
+    if installed {
+        if let Ok(out) = run_pio_command_via_python(&["--version"]) {
+            if out.status.success() {
+                let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                return Ok(format!("PlatformIO installed successfully: {}", version));
+            }
+        }
         Ok("PlatformIO installed successfully".to_string())
     } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("Failed to install PlatformIO: {}", stderr))
+        Err(format!("Failed to install PlatformIO: {}", last_error))
     }
 }
 
 #[command]
 pub async fn install_platform(platform: String) -> Result<String, String> {
-    let pio_cmd = get_pio_executable_name();
-    
-    let output = tokio::process::Command::new(&pio_cmd)
-        .args(["platform", "install", &platform])
+    let mut cmd = tokio::process::Command::new(&get_pio_command());
+    let output = cmd.args(["platform", "install", &platform])
         .output()
         .await
         .map_err(|e| format!("Failed to install platform {}: {}", platform, e))?;
