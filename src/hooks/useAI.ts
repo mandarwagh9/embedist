@@ -84,12 +84,12 @@ export function useAI() {
   }, [mode, messages]);
 
   const getActiveEndpoint = useCallback(() => {
-    const customEndpoint = customEndpoints.find(ep => ep.baseUrl && ep.apiKey);
+    const customEndpoint = customEndpoints.find(ep => ep.id === activeProvider && ep.baseUrl && ep.apiKey);
     return customEndpoint || null;
-  }, [customEndpoints]);
+  }, [customEndpoints, activeProvider]);
 
   const hasActiveProvider = useCallback(() => {
-    const ep = customEndpoints.find(e => e.baseUrl && e.apiKey);
+    const ep = customEndpoints.find(e => e.id === activeProvider && e.baseUrl && e.apiKey);
     if (ep) return true;
     if (providers[activeProvider as keyof typeof providers]?.apiKey) return true;
     return false;

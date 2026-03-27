@@ -70,10 +70,11 @@ export function AISettings() {
   };
 
   const handleProviderUpdate = async (providerId: string, updates: { apiKey?: string; model?: string }) => {
+    const currentProviders = useSettingsStore.getState().providers;
     updateProvider(providerId, updates);
     
     try {
-      const config = providers[providerId as keyof typeof providers];
+      const config = currentProviders[providerId as keyof typeof currentProviders];
       await invoke('add_ai_provider', {
         config: {
           id: providerId,

@@ -4,6 +4,7 @@ import { useSettingsStore } from './stores/settingsStore';
 import { useFileStore } from './stores/fileStore';
 import { useAIStore } from './stores/aiStore';
 import { useFileSystem } from './hooks/useFileSystem';
+import { useAIProviderSync } from './hooks/useAIProviderSync';
 import { TitleBar } from './components/Layout/TitleBar';
 import { MenuBar } from './components/Layout/MenuBar';
 import { Sidebar } from './components/Layout/Sidebar';
@@ -115,6 +116,7 @@ function App() {
   } = useFileStore();
   const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
+  useAIProviderSync();
 
   const resizeRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
