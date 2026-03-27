@@ -54,9 +54,44 @@ fn run_sync_command(cmd: &str, args: &[&str]) -> Result<std::process::Output, St
         .map_err(|e| format!("Failed to execute command: {}", e))
 }
 
+fn find_platformio_executable() -> Option<String> {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            let bundled = parent.join("python").join("Scripts").join("pio.exe");
+            if bundled.exists() {
+                return Some(bundled.to_string_lossy().to_string());
+            }
+            let bundled_alt = parent.join("platformio").join("pio.exe");
+            if bundled_alt.exists() {
+                return Some(bundled_alt.to_string_lossy().to_string());
+            }
+        }
+    }
+    
+    if let Ok(output) = SyncCommand::new("where").arg("pio").output() {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Some(path.lines().next().unwrap_or("pio").to_string());
+            }
+        }
+    }
+    
+    None
+}
+
+fn get_pio_executable_name() -> String {
+    find_platformio_executable().unwrap_or_else(|| "pio".to_string())
+}
+
+fn run_pio_command(args: &[&str]) -> Result<std::process::Output, String> {
+    let pio_cmd = find_platformio_executable().unwrap_or_else(|| "pio".to_string());
+    run_sync_command(&pio_cmd, args)
+}
+
 #[command]
 pub fn check_platformio() -> PlatformInfo {
-    let output = run_sync_command("pio", &["--version"]);
+    let output = run_pio_command(&["--version"]);
     match output {
         Ok(out) => {
             let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -76,7 +111,7 @@ pub fn check_platformio() -> PlatformInfo {
 
 #[command]
 pub fn list_connected_boards() -> Result<Vec<BoardInfo>, String> {
-    let output = run_sync_command("pio", &["device", "list", "--json-output"])?;
+    let output = run_pio_command(&["device", "list", "--json-output"])?;
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let boards: Vec<BoardInfo> = serde_json::from_str(&stdout).unwrap_or_default();
@@ -88,7 +123,7 @@ pub fn list_connected_boards() -> Result<Vec<BoardInfo>, String> {
 
 #[command]
 pub fn get_available_boards() -> Vec<BoardInfo> {
-    let output = match run_sync_command("pio", &["boards", "--json-output"]) {
+    let output = match run_pio_command(&["boards", "--json-output"]) {
         Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
         _ => return vec![],
     };
@@ -154,7 +189,8 @@ pub async fn run_platformio_command(
     use std::time::Instant;
 
     let start = Instant::now();
-    let mut cmd = tokio::process::Command::new("pio");
+    let pio_cmd = get_pio_executable_name();
+    let mut cmd = tokio::process::Command::new(&pio_cmd);
     cmd.args(&args);
 
     let child = cmd.spawn().map_err(|e| format!("Failed to spawn pio: {}", e))?;
@@ -276,4 +312,57 @@ pub fn parse_build_errors(output: String) -> Vec<serde_json::Value> {
     }
 
     errors
+}
+
+#[command]
+pub async fn install_platformio() -> Result<String, String> {
+    use tokio::process::Command;
+    
+    let python_cmd = if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            let python_exe = parent.join("python").join("python.exe");
+            if python_exe.exists() {
+                Some(python_exe.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    
+    let cmd = python_cmd.as_deref().unwrap_or("python");
+    
+    let output = Command::new(cmd)
+        .args(["-m", "pip", "install", "platformio"])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to install PlatformIO: {}", e))?;
+    
+    if output.status.success() {
+        Ok("PlatformIO installed successfully".to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("Failed to install PlatformIO: {}", stderr))
+    }
+}
+
+#[command]
+pub async fn install_platform(platform: String) -> Result<String, String> {
+    let pio_cmd = get_pio_executable_name();
+    
+    let output = tokio::process::Command::new(&pio_cmd)
+        .args(["platform", "install", &platform])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to install platform {}: {}", platform, e))?;
+    
+    if output.status.success() {
+        Ok(format!("Platform {} installed successfully", platform))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("Failed to install platform {}: {}", platform, stderr))
+    }
 }

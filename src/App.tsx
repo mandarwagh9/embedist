@@ -17,6 +17,7 @@ import { AIChatPanel } from './components/AI/AIChatPanel';
 import { SerialMonitor } from './components/Serial/SerialMonitor';
 import { BuildPanel } from './components/Build/BuildPanel';
 import { SettingsModal } from './components/Settings/SettingsModal';
+import { SetupWizard } from './components/Settings/SetupWizard';
 import { ErrorBoundary } from './components/Common/ErrorBoundary';
 import { ToastContainer, setToastDispatcher, type ToastType } from './components/Common/Toast';
 import './styles/global.css';
@@ -390,6 +391,7 @@ void loop() {
 
       <StatusBar />
       <SettingsModal />
+      <SetupWizard />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

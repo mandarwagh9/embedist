@@ -8,6 +8,8 @@ interface ProviderConfig {
 }
 
 interface SettingsState {
+  hasHydrated: boolean;
+  hasCompletedSetup: boolean;
   isOpen: boolean;
   activeSection: string;
   providers: {
@@ -59,6 +61,8 @@ interface SettingsState {
   };
   open: () => void;
   close: () => void;
+  setHasHydrated: (state: boolean) => void;
+  setHasCompletedSetup: (state: boolean) => void;
   setActiveSection: (section: string) => void;
   updateProvider: (provider: string, config: Partial<ProviderConfig>) => void;
   addCustomEndpoint: (endpoint: { id?: string; name: string; baseUrl: string; apiKey: string; model: string }) => void;
@@ -73,6 +77,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
+      hasHydrated: false,
+      hasCompletedSetup: false,
       isOpen: false,
       activeSection: 'ai',
       providers: {
@@ -119,6 +125,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
+      setHasHydrated: (state) => set({ hasHydrated: state }),
+      setHasCompletedSetup: (state) => set({ hasCompletedSetup: state }),
       setActiveSection: (section) => set({ activeSection: section }),
 
       updateProvider: (provider, config) => set((state) => ({
@@ -157,6 +165,11 @@ export const useSettingsStore = create<SettingsState>()(
         aiParameters: { ...state.aiParameters, ...config },
       })),
     }),
-    { name: 'embedist-settings' }
+    { 
+      name: 'embedist-settings',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
   )
 );

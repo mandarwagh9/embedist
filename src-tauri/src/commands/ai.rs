@@ -162,6 +162,13 @@ pub async fn chat_completion(
     let api_key = api_key.unwrap_or_else(|| config.api_key.clone());
     let base_url = base_url.or(config.base_url.clone());
     
+    if api_key.is_empty() {
+        return Err(format!(
+            "No API key configured for provider '{}'. Please add your API key in Settings.",
+            active
+        ));
+    }
+    
     if use_direct_config {
         let url = base_url.ok_or("Direct endpoint requires a base URL")?;
         if url.contains("api.openai.com") {
