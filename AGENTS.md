@@ -3,7 +3,7 @@
 **Project**: AI-native embedded development environment (Tauri 2 + React + TypeScript + Rust)
 **Platform**: Windows only
 **Git repo**: `embedist/embedist/` (not the root `embedist/` directory)
-**Latest release**: v0.16.0
+**Latest release**: v0.16.1
 
 ---
 

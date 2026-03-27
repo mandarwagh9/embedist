@@ -58,6 +58,8 @@ pub fn run() {
             commands::grep_search,
             commands::run_shell,
             commands::reveal_in_explorer,
+            commands::install_platformio,
+            commands::install_platform,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
