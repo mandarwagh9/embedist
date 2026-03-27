@@ -240,6 +240,48 @@
   width: 100%;
 }
 
+.provider-endpoint-apikey {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.provider-card-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.custom-endpoint-form .form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.custom-endpoint-form .form-header h4 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.thinking-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.thinking-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
 /* Settings Section Header */
 .settings-section-header {
   display: flex;
@@ -287,6 +329,34 @@
 .settings-btn.danger:hover {
   background: var(--error);
   color: white;
+}
+
+.settings-btn.secondary {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.settings-btn.secondary:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-active);
+}
+
+.settings-btn.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: var(--space-xs);
+}
+
+.settings-btn.link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.settings-btn.small {
+  padding: 4px 8px;
+  font-size: 11px;
 }
 
 /* Custom Endpoint Form */

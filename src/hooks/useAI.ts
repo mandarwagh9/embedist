@@ -172,6 +172,7 @@ export function useAI() {
       let response: AIResponse;
 
       if (customEndpoint) {
+        const chatTemplateKwargs = customEndpoint.thinking ? { thinking: true } : undefined;
         response = await invoke<AIResponse>('chat_completion', {
           messages: allMessages,
           model: customEndpoint.model || null,
@@ -182,6 +183,7 @@ export function useAI() {
           temperature: aiParameters.temperature,
           maxTokens: aiParameters.maxTokens,
           topP: aiParameters.topP,
+          chatTemplate_kwargs: chatTemplateKwargs || null,
         });
       } else {
         response = await invoke<AIResponse>('chat_completion', {

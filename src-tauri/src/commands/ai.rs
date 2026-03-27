@@ -124,6 +124,7 @@ pub async fn chat_completion(
     temperature: Option<f64>,
     max_tokens: Option<u32>,
     top_p: Option<f64>,
+    chat_template_kwargs: Option<std::collections::HashMap<String, serde_json::Value>>,
 ) -> Result<AIResponse, String> {
     let (active, config, use_direct_config) = {
         let active = state.active_provider.lock().clone();
@@ -174,7 +175,7 @@ pub async fn chat_completion(
         if url.contains("api.openai.com") {
             chat_openai(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await
         } else {
-            chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await
+            chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p, chat_template_kwargs.as_ref()).await
         }
     } else {
         match active.as_str() {
@@ -188,7 +189,7 @@ pub async fn chat_completion(
             "google" => chat_google(&api_key, &model_name, &messages).await,
             _ if active.starts_with("custom-") => {
                 let url = base_url.ok_or("Custom endpoint requires a base URL")?;
-                chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await
+                chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p, chat_template_kwargs.as_ref()).await
             }
             _ => Err(format!("Unknown provider '{}'. Please add it in Settings.", active)),
         }
@@ -573,7 +574,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
+async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>, chat_template_kwargs: Option<&std::collections::HashMap<String, serde_json::Value>>) -> Result<AIResponse, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()
@@ -662,6 +663,10 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
 
     if let Some(tp) = top_p {
         body["top_p"] = tp.into();
+    }
+
+    if let Some(ctk) = chat_template_kwargs {
+        body["chat_template_kwargs"] = serde_json::json!(ctk);
     }
 
     let response = client

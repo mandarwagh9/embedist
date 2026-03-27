@@ -26,6 +26,7 @@ interface SettingsState {
     baseUrl: string;
     apiKey: string;
     model: string;
+    thinking?: boolean;
   }>;
   editor: {
     fontSize: number;
@@ -65,8 +66,9 @@ interface SettingsState {
   setHasCompletedSetup: (state: boolean) => void;
   setActiveSection: (section: string) => void;
   updateProvider: (provider: string, config: Partial<ProviderConfig>) => void;
-  addCustomEndpoint: (endpoint: { id?: string; name: string; baseUrl: string; apiKey: string; model: string }) => void;
+  addCustomEndpoint: (endpoint: { id?: string; name: string; baseUrl: string; apiKey: string; model: string; thinking?: boolean }) => void;
   removeCustomEndpoint: (id: string) => void;
+  updateCustomEndpoint: (id: string, updates: { name?: string; baseUrl?: string; apiKey?: string; model?: string; thinking?: boolean }) => void;
   updateEditor: (config: Partial<SettingsState['editor']>) => void;
   updateSerial: (config: Partial<SettingsState['serial']>) => void;
   updateBuild: (config: Partial<SettingsState['build']>) => void;
@@ -145,6 +147,12 @@ export const useSettingsStore = create<SettingsState>()(
 
       removeCustomEndpoint: (id) => set((state) => ({
         customEndpoints: state.customEndpoints.filter((e) => e.id !== id),
+      })),
+
+      updateCustomEndpoint: (id, updates) => set((state) => ({
+        customEndpoints: state.customEndpoints.map((e) =>
+          e.id === id ? { ...e, ...updates } : e
+        ),
       })),
 
       updateEditor: (config) => set((state) => ({

@@ -4,10 +4,13 @@ import { useSettingsStore } from '../../../stores/settingsStore';
 import { useAIStore } from '../../../stores/aiStore';
 
 export function AISettings() {
-  const { providers, updateProvider, addCustomEndpoint, removeCustomEndpoint, customEndpoints, defaultImplementationMode, setDefaultImplementationMode, aiParameters, updateAiParameters } = useSettingsStore();
+  const { providers, updateProvider, addCustomEndpoint, removeCustomEndpoint, updateCustomEndpoint, customEndpoints, defaultImplementationMode, setDefaultImplementationMode, aiParameters, updateAiParameters } = useSettingsStore();
   const { activeProvider, setActiveProvider } = useAIStore();
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [customForm, setCustomForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '' });
+  const [editingEndpoint, setEditingEndpoint] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '', thinking: false });
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const providerList = [
     { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'] },
@@ -57,6 +60,38 @@ export function AISettings() {
       await invoke('set_active_provider', { providerId: endpointId });
     } catch (err) {
       console.error('Failed to set active provider:', err);
+    }
+  };
+
+  const handleEditCustom = async (endpointId: string) => {
+    if (editForm.name && editForm.baseUrl && editForm.model) {
+      const current = customEndpoints.find(e => e.id === endpointId);
+      const newApiKey = editForm.apiKey || current?.apiKey || '';
+      
+      updateCustomEndpoint(endpointId, {
+        name: editForm.name,
+        baseUrl: editForm.baseUrl,
+        apiKey: newApiKey,
+        model: editForm.model,
+        thinking: editForm.thinking,
+      });
+      
+      try {
+        await invoke('add_ai_provider', {
+          config: {
+            id: endpointId,
+            name: editForm.name,
+            api_key: newApiKey,
+            base_url: editForm.baseUrl,
+            default_model: editForm.model,
+          }
+        });
+      } catch (err) {
+        console.error('Failed to update custom endpoint in backend:', err);
+      }
+      
+      setEditingEndpoint(null);
+      setEditForm({ name: '', baseUrl: '', apiKey: '', model: '', thinking: false });
     }
   };
 
@@ -150,15 +185,47 @@ export function AISettings() {
                   <div className="provider-card-body">
                     <div className="provider-endpoint-url">{endpoint.baseUrl}</div>
                     <div className="provider-endpoint-model">Model: {endpoint.model}</div>
-                    <button
-                      className="settings-btn danger small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeCustomEndpoint(endpoint.id);
-                      }}
-                    >
-                      Remove
-                    </button>
+                    <div className="provider-endpoint-apikey">
+                      API Key: {endpoint.apiKey ? (showApiKey ? endpoint.apiKey : '••••••••') : 'Not set'}
+                      {endpoint.apiKey && (
+                        <button
+                          className="settings-btn link small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowApiKey(!showApiKey);
+                          }}
+                        >
+                          {showApiKey ? 'Hide' : 'Show'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="provider-card-actions">
+                      <button
+                        className="settings-btn secondary small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingEndpoint(endpoint.id);
+                          setEditForm({
+                            name: endpoint.name,
+                            baseUrl: endpoint.baseUrl,
+                            apiKey: endpoint.apiKey,
+                            model: endpoint.model,
+                            thinking: endpoint.thinking || false,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="settings-btn danger small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeCustomEndpoint(endpoint.id);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -207,6 +274,56 @@ export function AISettings() {
             />
             <button className="settings-btn primary" onClick={handleAddCustom}>
               Add Endpoint
+            </button>
+          </div>
+        )}
+
+        {editingEndpoint && (
+          <div className="custom-endpoint-form">
+            <div className="form-header">
+              <h4>Edit Custom Endpoint</h4>
+              <button className="settings-btn link small" onClick={() => setEditingEndpoint(null)}>
+                Cancel
+              </button>
+            </div>
+            <input
+              type="text"
+              className="settings-input"
+              placeholder="Name (e.g., LM Studio)"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            />
+            <input
+              type="text"
+              className="settings-input"
+              placeholder="Base URL (e.g., http://localhost:1234/v1)"
+              value={editForm.baseUrl}
+              onChange={(e) => setEditForm({ ...editForm, baseUrl: e.target.value })}
+            />
+            <input
+              type="password"
+              className="settings-input"
+              placeholder="API Key (leave empty to keep current)"
+              value={editForm.apiKey}
+              onChange={(e) => setEditForm({ ...editForm, apiKey: e.target.value })}
+            />
+            <input
+              type="text"
+              className="settings-input"
+              placeholder="Model name"
+              value={editForm.model}
+              onChange={(e) => setEditForm({ ...editForm, model: e.target.value })}
+            />
+            <label className="thinking-toggle">
+              <input
+                type="checkbox"
+                checked={editForm.thinking}
+                onChange={(e) => setEditForm({ ...editForm, thinking: e.target.checked })}
+              />
+              <span>Enable Thinking Mode (for NVIDIA NIM models)</span>
+            </label>
+            <button className="settings-btn primary" onClick={() => handleEditCustom(editingEndpoint)}>
+              Save Changes
             </button>
           </div>
         )}
