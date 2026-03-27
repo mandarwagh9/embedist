@@ -17,6 +17,18 @@ Real-time serial communication with your embedded devices directly in the applic
 ### 🔨 Build & Upload
 Built-in PlatformIO integration for compiling and flashing firmware to your devices.
 
+### 🧠 NVIDIA NIM Support
+Advanced reasoning models with **Thinking Mode** for complex debugging and code analysis. Models like Kimi-K2.5 show their reasoning process.
+
+### 🔧 Edit Custom Endpoints
+Modify existing custom AI endpoints directly from Settings. Update API keys, models, or configuration without deleting and recreating.
+
+### 🔐 Secure API Keys
+Show/Hide toggle for API key visibility. Your credentials stay protected.
+
+### 🚀 Setup Wizard
+First-run guided setup for PlatformIO installation. Get started quickly with embedded development.
+
 ### 🔌 Multi-Provider AI
 Use your preferred AI provider with multiple modes:
 - **Chat** — Ask questions, get hardware-aware answers
@@ -30,6 +42,7 @@ Supported providers:
 - **Google** (Gemini Pro/Flash)
 - **DeepSeek** (DeepSeek Chat)
 - **Ollama** (Local models)
+- **NVIDIA NIM** (Thinking-enabled models)
 - **Custom endpoints** (Add your own)
 
 ### 📚 Hardware Knowledge Base

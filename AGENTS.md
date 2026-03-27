@@ -3,7 +3,7 @@
 **Project**: AI-native embedded development environment (Tauri 2 + React + TypeScript + Rust)
 **Platform**: Windows only
 **Git repo**: `embedist/embedist/` (not the root `embedist/` directory)
-**Latest release**: v0.16.2
+**Latest release**: v0.17.0
 
 ---
 
@@ -187,7 +187,10 @@ commands/
 | **DeepSeek** | Text-only (no function calling) | api.deepseek.com |
 | **Ollama** | Text-only (no tools) | localhost:11434 |
 | **Google** | Text-only (no tools) | generativelanguage.googleapis.com |
+| **NVIDIA NIM** | Text-only (no tools) | integrate.api.nvidia.com/v1 |
 | **Custom** | Varies (OpenAI-compatible) | User-provided base URL |
+
+NVIDIA NIM supports thinking mode via `chat_template_kwargs: {"thinking": true}` for reasoning models like `moonshotai/kimi-k2.5`.
 
 ---
 
@@ -280,6 +283,8 @@ await invoke('write_file', { path, content });
 - `build_project(state, project_path)`: Run `pio run -d <path>`
 - `upload_firmware(state, project_path, port?)`: Run `pio run --target upload`
 - `stop_build(state)`: Kill process via `taskkill /F /PID {pid}`
+- `install_platformio()`: Install PlatformIO via pip
+- `install_platform(platform)`: Install a specific platform (e.g., espressif32) via pio
 
 ### Build State (`BuildState`)
 

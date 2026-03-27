@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Version](https://img.shields.io/badge/version-v0.15.0-blue)](https://github.com/mandarwagh9/embedist/releases)
+[![Version](https://img.shields.io/badge/version-v0.17.0-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
 </div>
@@ -45,7 +45,7 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 ## Features
 
-- 🤖 **Multi-Provider AI** — Chat, Plan, Agent, and Debug modes with support for OpenAI, Anthropic, Google, DeepSeek, Ollama, and custom vLLM endpoints
+- 🤖 **Multi-Provider AI** — Chat, Plan, Agent, and Debug modes with support for OpenAI, Anthropic, Google, DeepSeek, Ollama, NVIDIA NIM, and custom vLLM endpoints
 - 🔍 **Board-Aware Context** — AI debugging uses detected board info (ESP32 Dev Module, Arduino Uno, etc.) for accurate, hardware-specific fixes
 - 📡 **Serial Monitor** — Real-time device communication with configurable baud rates and auto-connect
 - 🔨 **Build & Upload** — PlatformIO CLI integration with live output streaming, parsed errors/warnings in a Problems panel, and a Stop Build button
@@ -54,12 +54,17 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 - ⌨️ **Keyboard Shortcuts** — VS Code-style keybindings for all major operations
 - 🎨 **Dark Theme** — Professional monochrome design with CSS variables
 - ⚡ **Fast & Lightweight** — Tauri 2 Rust backend, ~5.7 MB executable, native performance
+- 🧠 **NVIDIA NIM Support** — Thinking mode for advanced reasoning models (e.g., Kimi-K2.5)
+- 🔧 **Edit Custom Endpoints** — Modify existing custom AI endpoints
+- 🔐 **Secure API Keys** — Show/hide toggle for API key visibility
+- 🚀 **Setup Wizard** — First-run guided setup for PlatformIO installation
 
 ## Downloads
 
-### Latest Release: v0.15.0
+### Latest Release: v0.17.0
 
-[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.15.0/embedist.exe)
+[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.17.0/embedist.exe)
+[![Download Installer](https://img.shields.io/badge/Download-Installer-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.17.0/Embedist_0.17.0_x64-setup.exe)
 
 Download the executable and run it directly — no installation required.
 
@@ -137,6 +142,8 @@ cd src-tauri && cargo clippy
 | `Ctrl+1` | AI Chat Mode |
 | `Ctrl+2` | AI Plan Mode |
 | `Ctrl+3` | AI Agent Mode |
+| `Ctrl+4` | AI Debug Mode |
+| `Ctrl+Tab` | Cycle Tabs |
 
 ---
 
@@ -173,7 +180,7 @@ Embedist is built on a modern, lightweight stack optimized for performance and d
 | Frontend | React 18 + TypeScript (strict mode) |
 | Code Editor | Monaco Editor (VS Code's editor) |
 | State Management | Zustand with `localStorage` persistence |
-| AI Integration | OpenAI, Anthropic, Google, DeepSeek, Ollama, vLLM |
+| AI Integration | OpenAI, Anthropic, Google, DeepSeek, Ollama, NVIDIA NIM, vLLM |
 | Build System | PlatformIO CLI (`pio`, `pio run`, `pio device monitor`) |
 | Serial Communication | Web Serial API (Chrome/Edge) |
 | Styling | CSS Variables — no framework |
@@ -218,6 +225,27 @@ embedist/
 ---
 
 ## Changelog
+
+### [v0.17.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.17.0) — 2026-03-27
+- **New**: Edit custom endpoints UI — modify existing AI endpoint configurations
+- **New**: Show/Hide API key toggle — secure API key input with visibility toggle
+- **New**: Thinking Mode toggle — support for NVIDIA NIM models with reasoning (e.g., moonshotai/kimi-k2.5)
+- **Fix**: AI provider state now persists across app restarts
+- **Fix**: PlatformIO detection now uses `python -m platformio` for robust detection
+- **Feat**: Setup Wizard for first-run PlatformIO installation
+
+### [v0.16.2](https://github.com/mandarwagh9/embedist/releases/tag/v0.16.2) — 2026-03-27
+- **Fix**: Robust PlatformIO detection using python -m platformio approach
+
+### [v0.16.1](https://github.com/mandarwagh9/embedist/releases/tag/v0.16.1) — 2026-03-27
+- **Fix**: Registered missing Tauri commands (install_platformio, install_platform)
+
+### [v0.16.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.16.0) — 2026-03-27
+- **New**: Setup Wizard for first-run PlatformIO installation guidance
+- **New**: hasCompletedSetup flag to track initial setup completion
+
+### [v0.15.1](https://github.com/mandarwagh9/embedist/releases/tag/v0.15.1) — 2026-03-26
+- **Fix**: AI provider state now restores properly on app startup
 
 ### [v0.15.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.15.0) — 2026-03-26
 - **New**: SOTA AI prompt architecture with separate prompt files per mode
