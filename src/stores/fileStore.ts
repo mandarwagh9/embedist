@@ -84,6 +84,10 @@ interface FileState {
   addLoadingPath: (path: string) => void;
   removeLoadingPath: (path: string) => void;
 
+  externallyModifiedPaths: string[];
+  markExternallyModified: (path: string) => void;
+  clearExternalModification: (path: string) => void;
+
   getAllNodes: () => FileNode[];
   getNodeByPath: (path: string) => FileNode | null;
   getParentPath: (path: string) => string | null;
@@ -142,14 +146,24 @@ export const useFileStore = create<FileState>()(
       renamingPath: null,
       hoveredPath: null,
       loadingPaths: [],
+      externallyModifiedPaths: [],
+
+      markExternallyModified: (path) => set(state => {
+        if (state.externallyModifiedPaths.includes(path)) return state;
+        return { externallyModifiedPaths: [...state.externallyModifiedPaths, path] };
+      }),
+
+      clearExternalModification: (path) => set(state => ({
+        externallyModifiedPaths: state.externallyModifiedPaths.filter(p => p !== path)
+      })),
 
       setRootPath: (path) => {
         if (path) {
           const parts = path.replace(/\\/g, '/').split('/');
           const name = parts[parts.length - 1] || parts[parts.length - 2];
-          set({ rootPath: path, projectName: name, selectedPaths: [], searchQuery: '' });
+          set({ rootPath: path, projectName: name, selectedPaths: [], searchQuery: '', externallyModifiedPaths: [] });
         } else {
-          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null, selectedPaths: [], searchQuery: '', loadingPaths: [] });
+          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null, selectedPaths: [], searchQuery: '', loadingPaths: [], externallyModifiedPaths: [] });
         }
       },
 
@@ -393,6 +407,7 @@ export const useFileStore = create<FileState>()(
           openTabs: state.openTabs.map(t =>
             t.path === path ? { ...t, modified: isModified } : t
           ),
+          externallyModifiedPaths: state.externallyModifiedPaths.filter(p => p !== path),
         });
       },
 
