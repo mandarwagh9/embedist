@@ -175,7 +175,19 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
     const current = lastKnownValueRef.current;
     if (current !== value) {
       isSettingValueRef.current = true;
-      ed.setValue(value);
+      
+      const model = ed.getModel();
+      if (model) {
+        const fullRange = model.getFullModelRange();
+        ed.executeEdits('external-change', [{
+          range: fullRange,
+          text: value,
+          forceMoveMarkers: true,
+        }]);
+      } else {
+        ed.setValue(value);
+      }
+      
       lastKnownValueRef.current = value;
       isSettingValueRef.current = false;
     }
