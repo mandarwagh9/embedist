@@ -12,10 +12,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_pty::init())
         .plugin(tauri_plugin_prevent_default::init())
         .manage(commands::SerialState::default())
         .manage(commands::AIState::default())
         .manage(commands::BuildState::default())
+        .manage(commands::PtyState::default())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("Embedist - AI-Native Embedded Development").ok();
@@ -60,6 +62,10 @@ pub fn run() {
             commands::reveal_in_explorer,
             commands::install_platformio,
             commands::install_platform,
+            commands::pty_spawn,
+            commands::pty_write,
+            commands::pty_resize,
+            commands::pty_kill,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

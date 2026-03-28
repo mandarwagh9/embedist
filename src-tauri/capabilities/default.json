@@ -56,6 +56,11 @@
         { "path": "**" }
       ]
     },
-    "shell:allow-open"
+    "shell:allow-open",
+    "pty:default",
+    "pty:allow-spawn",
+    "pty:allow-write",
+    "pty:allow-resize",
+    "pty:allow-kill"
   ]
 }
