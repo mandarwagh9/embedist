@@ -3,6 +3,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { SerialMonitor } from '../Serial/SerialMonitor';
 import { AIChatPanel } from '../AI/AIChatPanel';
 import { BuildPanel } from '../Build/BuildPanel';
+import { TerminalPanel } from '../Terminal/TerminalPanel';
 import './BottomPanel.css';
 
 const MIN_BOTTOM_PANEL_HEIGHT = 100;
@@ -51,6 +52,7 @@ export function BottomPanel() {
 
   const tabs = [
     { id: 'terminal', label: 'Terminal' },
+    { id: 'serial', label: 'Serial Monitor' },
     { id: 'ai', label: 'AI Assistant' },
     { id: 'build', label: 'Build Output' },
   ] as const;
@@ -85,7 +87,8 @@ export function BottomPanel() {
       </div>
       
       <div className="bottom-panel-content">
-        {bottomPanelTab === 'terminal' && <SerialMonitor />}
+        {bottomPanelTab === 'terminal' && <TerminalPanel />}
+        {bottomPanelTab === 'serial' && <SerialMonitor />}
         {bottomPanelTab === 'ai' && <AIChatPanel />}
         {bottomPanelTab === 'build' && <BuildPanel />}
       </div>

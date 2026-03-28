@@ -5,7 +5,7 @@ import type { SerialPort } from '../types';
 export type { SerialPort };
 
 type SidebarSection = 'files' | 'ai' | 'serial' | 'build';
-type BottomPanelTab = 'terminal' | 'ai' | 'build';
+type BottomPanelTab = 'terminal' | 'serial' | 'ai' | 'build';
 
 interface UIState {
   sidebarExpanded: boolean;
