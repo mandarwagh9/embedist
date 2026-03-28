@@ -5,6 +5,7 @@ import { useFileStore } from './stores/fileStore';
 import { useAIStore } from './stores/aiStore';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useAIProviderSync } from './hooks/useAIProviderSync';
+import { useFileWatcher } from './hooks/useFileWatcher';
 import { TitleBar } from './components/Layout/TitleBar';
 import { MenuBar } from './components/Layout/MenuBar';
 import { Sidebar } from './components/Layout/Sidebar';
@@ -19,7 +20,7 @@ import { BuildPanel } from './components/Build/BuildPanel';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { SetupWizard } from './components/Settings/SetupWizard';
 import { ErrorBoundary } from './components/Common/ErrorBoundary';
-import { ToastContainer, setToastDispatcher, type ToastType } from './components/Common/Toast';
+import { ToastContainer, setToastDispatcher, type ToastItem } from './components/Common/Toast';
 import './styles/global.css';
 
 const SIDEBAR_MIN = 350;
@@ -80,11 +81,11 @@ function getLanguageFromPath(path: string): string {
 }
 
 function App() {
-  const [toasts, setToasts] = useState<Array<{ id: string; type: ToastType; message: string }>>([]);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
-    setToastDispatcher((type, message) => {
-      setToasts(prev => [...prev, { id: `toast-${Date.now()}`, type, message }]);
+    setToastDispatcher((type, message, options) => {
+      setToasts(prev => [...prev, { id: `toast-${Date.now()}`, type, message, ...options }]);
     });
   }, []);
 
@@ -118,6 +119,7 @@ function App() {
   const { setMode } = useAIStore();
   const { openFolder } = useFileSystem();
   useAIProviderSync();
+  useFileWatcher();
 
   const resizeRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);

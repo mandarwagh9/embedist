@@ -6,6 +6,7 @@ import { useFileStore } from '../stores/fileStore';
 import { buildPlanContext } from './usePlanContext';
 import { getPromptConfig } from '../lib/prompts';
 import { getAllToolDefinitions, executeTool, type ToolCall } from '../lib/agent-tools';
+import { toast } from '../components/Common/Toast';
 
 interface AIResponse {
   content: string;
@@ -306,6 +307,23 @@ export function useAgent() {
             const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
             logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
 
+            if (result.success) {
+              const fileName = typeof args.path === 'string' ? args.path.split(/[/\\]/).pop() : '';
+              if (tc.name === 'write_file') {
+                toast('success', `File "${fileName}" saved`);
+              } else if (tc.name === 'create_file') {
+                toast('success', `File "${fileName}" created`);
+              } else if (tc.name === 'create_folder') {
+                toast('success', `Folder "${fileName}" created`);
+              } else if (tc.name === 'build_project') {
+                toast('success', 'Build completed successfully');
+              }
+            } else {
+              if (tc.name === 'build_project') {
+                toast('error', 'Build failed');
+              }
+            }
+
             conversationMessages.push({
               id: `tool-${tc.id}`,
               role: 'tool',
@@ -327,11 +345,15 @@ export function useAgent() {
 
       if (iteration >= MAX_ITERATIONS) {
         logActivity('error', 'Max iterations reached', 'The agent ran for too long. Break the task into smaller steps.');
+        toast('warning', 'Agent reached max iterations. Try a simpler task.');
+      } else {
+        toast('success', 'Agent task completed');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logActivity('error', 'Agent error', msg);
       addMessage({ role: 'assistant', content: `Error: ${msg}` });
+      toast('error', `Agent error: ${msg.substring(0, 100)}`);
     } finally {
       isRunningRef.current = false;
       setLoading(false);
