@@ -3,10 +3,17 @@ import './Toast.css';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: string;
   type: ToastType;
   message: string;
+  action?: ToastAction;
+  autoClose?: number | false;
 }
 
 interface ToastProps {
@@ -46,18 +53,34 @@ function Toast({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: string)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      onDismiss(toast.id);
-    }, 3000);
+    const autoCloseDelay = toast.autoClose ?? 3000;
+    if (autoCloseDelay !== false) {
+      timerRef.current = setTimeout(() => {
+        onDismiss(toast.id);
+      }, autoCloseDelay);
+    }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [toast.id, onDismiss]);
+  }, [toast.id, onDismiss, toast.autoClose]);
 
   return (
-    <div className={`toast toast-${toast.type}`} onClick={() => onDismiss(toast.id)}>
+    <div className={`toast toast-${toast.type}`}>
       <span className="toast-icon">{ICONS[toast.type]}</span>
       <span className="toast-message">{toast.message}</span>
+      {toast.action && (
+        <button
+          className="toast-action"
+          onClick={(e) => {
+            e.stopPropagation();
+            toast.action?.onClick();
+            onDismiss(toast.id);
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
+      <button className="toast-close" onClick={() => onDismiss(toast.id)}>×</button>
     </div>
   );
 }
@@ -73,14 +96,19 @@ export function ToastContainer({ toasts, onDismiss }: ToastProps) {
   );
 }
 
-let addToastFn: ((type: ToastType, message: string) => void) | null = null;
+interface ToastOptions {
+  action?: ToastAction;
+  autoClose?: number | false;
+}
 
-export function setToastDispatcher(fn: (type: ToastType, message: string) => void) {
+let addToastFn: ((type: ToastType, message: string, options?: ToastOptions) => void) | null = null;
+
+export function setToastDispatcher(fn: (type: ToastType, message: string, options?: ToastOptions) => void) {
   addToastFn = fn;
 }
 
-export function toast(type: ToastType, message: string) {
+export function toast(type: ToastType, message: string, options?: ToastOptions) {
   if (addToastFn) {
-    addToastFn(type, message);
+    addToastFn(type, message, options);
   }
 }
