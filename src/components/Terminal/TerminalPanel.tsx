@@ -19,6 +19,37 @@ export function TerminalPanel() {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleClear = useCallback(() => {
+    if (terminalInstanceRef.current) {
+      terminalInstanceRef.current.clear();
+    }
+  }, []);
+
+  const handleCopyAll = useCallback(() => {
+    if (terminalInstanceRef.current) {
+      const selection = terminalInstanceRef.current.getSelection();
+      if (selection) {
+        navigator.clipboard.writeText(selection).catch((err) => {
+          console.error('Failed to copy:', err);
+        });
+      } else {
+        const buffer = terminalInstanceRef.current.buffer.active;
+        const lines: string[] = [];
+        for (let i = 0; i < buffer.length; i++) {
+          const line = buffer.getLine(i);
+          if (line) {
+            lines.push(line.translateToString());
+          }
+        }
+        if (lines.length > 0) {
+          navigator.clipboard.writeText(lines.join('\n')).catch((err) => {
+            console.error('Failed to copy:', err);
+          });
+        }
+      }
+    }
+  }, []);
+
   const rootPath = useFileStore((state) => state.rootPath);
 
   const initializePty = useCallback(async (): Promise<() => void> => {
@@ -176,6 +207,21 @@ export function TerminalPanel() {
 
   return (
     <div className="terminal-panel">
+      <div className="terminal-toolbar">
+        <button className="terminal-toolbar-btn" onClick={handleClear} title="Clear Terminal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+          </svg>
+          <span>Clear</span>
+        </button>
+        <button className="terminal-toolbar-btn" onClick={handleCopyAll} title="Copy All">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+          </svg>
+          <span>Copy All</span>
+        </button>
+      </div>
       <div ref={terminalRef} className="terminal-container" />
       {!isReady && !error && (
         <div className="terminal-loading">

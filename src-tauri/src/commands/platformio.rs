@@ -122,7 +122,7 @@ fn find_pio_in_filesystem() -> Option<String> {
 }
 
 fn get_pio_command() -> String {
-    if let Some(_) = find_pio_in_filesystem() {
+    if find_pio_in_filesystem().is_some() {
         return find_pio_in_filesystem().unwrap();
     }
     "pio".to_string()
@@ -149,7 +149,7 @@ pub fn check_platformio() -> PlatformInfo {
         }
     }
     
-    if let Some(_) = find_pio_in_filesystem() {
+    if find_pio_in_filesystem().is_some() {
         return PlatformInfo {
             version: "Installed (version check failed)".to_string(),
             core_version: "".to_string(),
@@ -416,7 +416,7 @@ pub async fn install_platformio() -> Result<String, String> {
 
 #[command]
 pub async fn install_platform(platform: String) -> Result<String, String> {
-    let mut cmd = tokio::process::Command::new(&get_pio_command());
+    let mut cmd = tokio::process::Command::new(get_pio_command());
     let output = cmd.args(["platform", "install", &platform])
         .output()
         .await
