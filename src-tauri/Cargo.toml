@@ -1,6 +1,6 @@
 [package]
 name = "embedist"
-version = "0.1.0"
+version = "0.18.1"
 description = "AI-native embedded development environment"
 authors = ["Embedist Team"]
 edition = "2021"
