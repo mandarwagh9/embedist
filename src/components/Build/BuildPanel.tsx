@@ -45,6 +45,12 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
   const isRunning = isBuilding || isUploading;
 
   useEffect(() => {
+    if (detectedBoard && !selectedBoard) {
+      setSelectedBoard(detectedBoard);
+    }
+  }, [detectedBoard, selectedBoard, setSelectedBoard]);
+
+  useEffect(() => {
     getPlatformInfo();
     listBoards();
     listPorts();
