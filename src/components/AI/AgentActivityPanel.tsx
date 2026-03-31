@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useAIStore } from '../../stores/aiStore';
 import type { ActivityLogEntry } from '../../stores/aiStore';
 
 interface AgentActivityPanelProps {
@@ -90,6 +91,7 @@ function formatTime(ts: number): string {
 export function AgentActivityPanel({ entries, isStreaming = false }: AgentActivityPanelProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const lastCountRef = useRef(entries.length);
+  const toolProgress = useAIStore((s) => s.toolProgress);
 
   useEffect(() => {
     if (listRef.current) {
@@ -100,7 +102,44 @@ export function AgentActivityPanel({ entries, isStreaming = false }: AgentActivi
 
   const streamingEntry = isStreaming && entries.length > 0 ? entries[entries.length - 1] : null;
 
-  if (entries.length === 0) {
+  const renderProgress = () => {
+    if (!toolProgress) return null;
+
+    const stageColors: Record<string, string> = {
+      starting: 'var(--accent)',
+      running: 'var(--warning)',
+      complete: 'var(--success)',
+      error: 'var(--error)',
+    };
+
+    return (
+      <div className="tool-progress-bar">
+        <div className="tool-progress-header">
+          <span className="tool-progress-name">{toolProgress.toolName}</span>
+          <span className="tool-progress-stage" style={{ color: stageColors[toolProgress.stage] }}>
+            {toolProgress.stage}
+          </span>
+        </div>
+        <div className="tool-progress-message">{toolProgress.message}</div>
+        {toolProgress.percent !== undefined && (
+          <div className="tool-progress-track">
+            <div
+              className="tool-progress-fill"
+              style={{
+                width: `${toolProgress.percent}%`,
+                background: stageColors[toolProgress.stage],
+              }}
+            />
+          </div>
+        )}
+        {toolProgress.elapsedMs !== undefined && (
+          <div className="tool-progress-time">{(toolProgress.elapsedMs / 1000).toFixed(1)}s</div>
+        )}
+      </div>
+    );
+  };
+
+  if (entries.length === 0 && !toolProgress) {
     return (
       <div className="agent-activity-panel agent-activity-empty">
         <div className="agent-activity-empty-content">
@@ -116,6 +155,7 @@ export function AgentActivityPanel({ entries, isStreaming = false }: AgentActivi
 
   return (
     <div className="agent-activity-panel" ref={listRef}>
+      {toolProgress && renderProgress()}
       {entries.map((entry) => {
         const { icon, color } = ICON_MAP[entry.type];
         return (

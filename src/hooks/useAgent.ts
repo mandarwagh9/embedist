@@ -6,6 +6,7 @@ import { useFileStore } from '../stores/fileStore';
 import { buildPlanContext } from './usePlanContext';
 import { getPromptConfig } from '../lib/prompts';
 import { getAllToolDefinitions, executeTool, type ToolCall } from '../lib/agent-tools';
+import { isBlocked } from '../lib/tool-permissions';
 import { toast } from '../components/Common/Toast';
 
 interface AIResponse {
@@ -291,6 +292,17 @@ export function useAgent() {
         if (response.tool_calls && response.tool_calls.length > 0) {
           for (const tc of response.tool_calls) {
             if (cancelRef.current) break;
+
+            if (isBlocked(tc.name)) {
+              logActivity('error', `${tc.name} blocked`, `This tool is blocked. Change permission in Settings.`);
+              conversationMessages.push({
+                id: `tool-${tc.id}`,
+                role: 'tool',
+                tool_call_id: tc.id,
+                content: `Tool "${tc.name}" is blocked. The user has configured to always block this tool.`,
+              });
+              continue;
+            }
 
             const toolIcon = getIconForTool(tc.name);
             logActivity(toolIcon, `${tc.name}...`, tc.arguments);

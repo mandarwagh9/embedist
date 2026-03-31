@@ -1,6 +1,6 @@
 {
   "name": "embedist",
-  "version": "0.18.1",
+  "version": "0.19.0",
   "description": "AI-native embedded development environment",
   "type": "module",
   "scripts": {

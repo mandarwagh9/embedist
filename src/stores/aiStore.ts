@@ -35,6 +35,8 @@ export interface CustomModel {
 
 export type PlanPhase = 'explore' | 'design' | 'review' | 'ready' | 'clarify';
 
+export type PlanExplorerMode = 'idle' | 'exploring' | 'planning';
+
 export type AgentStatus = 'idle' | 'running' | 'done';
 
 export interface ActivityLogEntry {
@@ -43,6 +45,24 @@ export interface ActivityLogEntry {
   type: 'read' | 'write' | 'build' | 'shell' | 'search' | 'info' | 'error' | 'done';
   message: string;
   details?: string;
+}
+
+export interface ToolProgress {
+  toolId: string;
+  toolName: string;
+  stage: 'starting' | 'running' | 'complete' | 'error';
+  message: string;
+  percent?: number;
+  elapsedMs?: number;
+}
+
+export interface PendingPermission {
+  id: string;
+  toolName: string;
+  toolDescription: string;
+  arguments: string;
+  onAllow: (remember: boolean) => void;
+  onBlock: (remember: boolean) => void;
 }
 
 interface AIState {
@@ -60,10 +80,16 @@ interface AIState {
   planContent: string;
   isEditingPlan: boolean;
   planToApprove: string | null;
+  planExplorerMode: PlanExplorerMode;
+  selectedFiles: string[];
 
   agentStatus: AgentStatus;
   agentTask: string | null;
   agentActivityLog: ActivityLogEntry[];
+  agentRunInBackground: boolean;
+  toolProgress: ToolProgress | null;
+  pendingPermission: PendingPermission | null;
+  showPermissionDialog: boolean;
 
   setMode: (mode: AIMode) => void;
   setActiveProvider: (id: string) => void;
@@ -72,7 +98,7 @@ interface AIState {
   removeProvider: (id: string) => void;
   addCustomModel: (model: CustomModel) => void;
   removeCustomModel: (id: string) => void;
-      addMessage: (message: Omit<AIMessage, 'id' | 'timestamp' | 'mode'>) => void;
+  addMessage: (message: Omit<AIMessage, 'id' | 'timestamp' | 'mode'>) => void;
   clearMessages: () => void;
   clearAllMessages: () => void;
   setLoading: (loading: boolean) => void;
@@ -84,9 +110,16 @@ interface AIState {
   setPlanContent: (content: string) => void;
   setIsEditingPlan: (editing: boolean) => void;
   setPlanToApprove: (content: string | null) => void;
+  setPlanExplorerMode: (mode: PlanExplorerMode) => void;
+  toggleSelectedFile: (path: string) => void;
+  clearSelectedFiles: () => void;
 
   setAgentStatus: (status: AgentStatus) => void;
   setAgentTask: (task: string | null) => void;
+  setAgentRunInBackground: (runInBackground: boolean) => void;
+  setToolProgress: (progress: ToolProgress | null) => void;
+  setPendingPermission: (permission: PendingPermission | null) => void;
+  setShowPermissionDialog: (show: boolean) => void;
   addActivityLog: (entry: ActivityLogEntry) => void;
   clearActivityLog: () => void;
 }
@@ -142,10 +175,16 @@ export const useAIStore = create<AIState>()(
       planContent: '',
       isEditingPlan: false,
       planToApprove: null,
+      planExplorerMode: 'idle' as PlanExplorerMode,
+      selectedFiles: [],
 
       agentStatus: 'idle',
       agentTask: null,
       agentActivityLog: [],
+      agentRunInBackground: false,
+      toolProgress: null,
+      pendingPermission: null,
+      showPermissionDialog: false,
 
       setMode: (mode) => set({
         mode,
@@ -222,9 +261,20 @@ export const useAIStore = create<AIState>()(
       setPlanContent: (content) => set({ planContent: content }),
       setIsEditingPlan: (editing) => set({ isEditingPlan: editing }),
       setPlanToApprove: (content) => set({ planToApprove: content }),
+      setPlanExplorerMode: (mode) => set({ planExplorerMode: mode }),
+      toggleSelectedFile: (path) => set((state) => ({
+        selectedFiles: state.selectedFiles.includes(path)
+          ? state.selectedFiles.filter(p => p !== path)
+          : [...state.selectedFiles, path]
+      })),
+      clearSelectedFiles: () => set({ selectedFiles: [] }),
 
       setAgentStatus: (status) => set({ agentStatus: status }),
       setAgentTask: (task) => set({ agentTask: task }),
+      setAgentRunInBackground: (runInBackground) => set({ agentRunInBackground: runInBackground }),
+      setToolProgress: (progress) => set({ toolProgress: progress }),
+      setPendingPermission: (permission) => set({ pendingPermission: permission, showPermissionDialog: permission !== null }),
+      setShowPermissionDialog: (show) => set({ showPermissionDialog: show }),
       addActivityLog: (entry) => set((state) => ({
         agentActivityLog: [...state.agentActivityLog, entry],
       })),

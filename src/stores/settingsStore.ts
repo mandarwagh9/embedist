@@ -74,6 +74,8 @@ interface SettingsState {
   updateBuild: (config: Partial<SettingsState['build']>) => void;
   setDefaultImplementationMode: (mode: 'chat' | 'agent') => void;
   updateAiParameters: (config: Partial<SettingsState['aiParameters']>) => void;
+  toolPermissions: Record<string, 'allow' | 'ask' | 'block'>;
+  setToolPermission: (tool: string, permission: 'allow' | 'ask' | 'block') => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -124,6 +126,18 @@ export const useSettingsStore = create<SettingsState>()(
         maxTokens: 4096,
         topP: 1.0,
       },
+      toolPermissions: {
+        read_file: 'allow',
+        list_directory: 'allow',
+        get_directory_tree: 'allow',
+        search_code: 'allow',
+        create_file: 'ask',
+        create_folder: 'ask',
+        write_file: 'ask',
+        build_project: 'ask',
+        run_shell: 'ask',
+        get_error_details: 'allow',
+      },
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
@@ -171,6 +185,10 @@ export const useSettingsStore = create<SettingsState>()(
 
       updateAiParameters: (config) => set((state) => ({
         aiParameters: { ...state.aiParameters, ...config },
+      })),
+
+      setToolPermission: (tool, permission) => set((state) => ({
+        toolPermissions: { ...state.toolPermissions, [tool]: permission },
       })),
     }),
     { 

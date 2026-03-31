@@ -7,12 +7,13 @@ import { useAIStore } from '../../stores/aiStore';
 const MODE_TAG_STYLE = { color: 'var(--accent)' } as const;
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
-import { PlanToolbar, PlanEditPanel, PlanPhaseIndicator } from './PlanPanel';
+import { PlanToolbar, PlanEditPanel, PlanPhaseIndicator, PlanExplorerPanel } from './PlanPanel';
 import { AgentToolbar } from './AgentToolbar';
 import { AgentActivityPanel } from './AgentActivityPanel';
 import { MessageBubble } from './MessageBubble';
 import { PromptSuggestions } from './PromptSuggestions';
 import { StreamingIndicator } from './StreamingIndicator';
+import { ToolPermissionDialog } from '../Common/ToolPermissionDialog';
 import { SYSTEM_PROMPTS } from '../../lib/ai-prompts';
 import type { AIMode } from '../../lib/ai-prompts';
 import './AIChatPanel.css';
@@ -287,6 +288,7 @@ function AIChatPanelContent() {
             onDiscard={handleDiscardPlan}
             onEdit={() => setIsEditingPlan(true)}
           />
+          <PlanExplorerPanel />
           {isEditingPlan && <PlanEditPanel />}
         </>
       )}
@@ -482,9 +484,36 @@ function AIFallback() {
 }
 
 export function AIChatPanel() {
+  const pendingPermission = useAIStore((s) => s.pendingPermission);
+  const showPermissionDialog = useAIStore((s) => s.showPermissionDialog);
+  const setShowPermissionDialog = useAIStore((s) => s.setShowPermissionDialog);
+  const setPendingPermission = useAIStore((s) => s.setPendingPermission);
+
+  const handleAllow = (_remember: boolean) => {
+    setShowPermissionDialog(false);
+    setPendingPermission(null);
+  };
+
+  const handleBlock = (_remember: boolean) => {
+    setShowPermissionDialog(false);
+    setPendingPermission(null);
+  };
+
   return (
     <ErrorBoundary fallback={<AIFallback />}>
       <AIChatPanelContent />
+      <ToolPermissionDialog
+        open={showPermissionDialog}
+        toolName={pendingPermission?.toolName || ''}
+        toolDescription={pendingPermission?.toolDescription || ''}
+        arguments={pendingPermission?.arguments || '{}'}
+        onAllow={handleAllow}
+        onBlock={handleBlock}
+        onCancel={() => {
+          setShowPermissionDialog(false);
+          setPendingPermission(null);
+        }}
+      />
     </ErrorBoundary>
   );
 }

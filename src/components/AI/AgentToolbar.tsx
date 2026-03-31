@@ -1,3 +1,4 @@
+import { useAIStore } from '../../stores/aiStore';
 import type { AgentStatus } from '../../stores/aiStore';
 
 interface AgentToolbarProps {
@@ -41,6 +42,12 @@ const STATUS_CONFIG: Record<AgentStatus, { label: string; color: string; icon: J
 
 export function AgentToolbar({ status, task, onStop }: AgentToolbarProps) {
   const config = STATUS_CONFIG[status];
+  const agentRunInBackground = useAIStore((s) => s.agentRunInBackground);
+  const setAgentRunInBackground = useAIStore((s) => s.setAgentRunInBackground);
+
+  const toggleBackground = () => {
+    setAgentRunInBackground(!agentRunInBackground);
+  };
 
   return (
     <div className="agent-toolbar">
@@ -49,14 +56,28 @@ export function AgentToolbar({ status, task, onStop }: AgentToolbarProps) {
           <span className="agent-status-icon" style={{ color: config.color }}>{config.icon}</span>
           <span className="agent-status-label" style={{ color: config.color }}>{config.label}</span>
         </div>
-        {status === 'running' && (
-          <button className="agent-stop-btn" onClick={onStop}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="6" width="12" height="12" rx="1"/>
-            </svg>
-            Stop
-          </button>
-        )}
+        <div className="agent-toolbar-actions">
+          {status === 'running' && (
+            <button
+              className={`agent-bg-btn ${agentRunInBackground ? 'active' : ''}`}
+              onClick={toggleBackground}
+              title={agentRunInBackground ? 'Run in background (enabled)' : 'Run in background'}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+              Background
+            </button>
+          )}
+          {status === 'running' && (
+            <button className="agent-stop-btn" onClick={onStop}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="1"/>
+              </svg>
+              Stop
+            </button>
+          )}
+        </div>
       </div>
       {task && (
         <div className="agent-task-preview">

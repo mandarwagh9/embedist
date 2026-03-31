@@ -1,4 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
+import { useAIStore } from '../stores/aiStore';
+import { isBlocked } from './tool-permissions';
 
 export interface ToolDefinition {
   type: 'function';
@@ -274,11 +276,58 @@ export async function executeTool(callId: string, name: string, args: Record<str
   if (!tool) {
     return { callId, toolCallId: callId, success: false, output: `Unknown tool: ${name}` };
   }
+
+  if (isBlocked(name)) {
+    return { callId, toolCallId: callId, success: false, output: `Tool "${name}" is blocked. Change permission in Settings.` };
+  }
+
   try {
+    useAIStore.getState().setToolProgress({
+      toolId: callId,
+      toolName: name,
+      stage: 'starting',
+      message: `Executing ${name}...`,
+      elapsedMs: 0,
+    });
+
+    useAIStore.getState().setToolProgress({
+      toolId: callId,
+      toolName: name,
+      stage: 'running',
+      message: `Running ${name}...`,
+      percent: 50,
+      elapsedMs: 0,
+    });
+
+    const startTime = Date.now();
     const output = await tool.execute(args);
+    const elapsedMs = Date.now() - startTime;
+
+    useAIStore.getState().setToolProgress({
+      toolId: callId,
+      toolName: name,
+      stage: 'complete',
+      message: `${name} completed`,
+      percent: 100,
+      elapsedMs,
+    });
+
+    setTimeout(() => useAIStore.getState().setToolProgress(null), 2000);
+
     return { callId, toolCallId: callId, success: true, output: typeof output === 'string' ? output : JSON.stringify(output) };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+
+    useAIStore.getState().setToolProgress({
+      toolId: callId,
+      toolName: name,
+      stage: 'error',
+      message: msg,
+      elapsedMs: 0,
+    });
+
+    setTimeout(() => useAIStore.getState().setToolProgress(null), 3000);
+
     return { callId, toolCallId: callId, success: false, output: `Error: ${msg}` };
   }
 }
