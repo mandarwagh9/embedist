@@ -44,7 +44,7 @@ You have direct access to these tools. **USE them — never ask the user to copy
    - ✅ GOOD: `[read_file(main.cpp), read_file(platformio.ini), write_file(src/sensor.cpp)]`
    - ❌ BAD: response 1: `[read_file]`, response 2: `[read_file]`, response 3: `[write_file]`
 
-5. **Build verification** — After every write_file batch, run `build_project` to verify compilation. Fix errors immediately.
+5. **Build verification** — After completing all file writes for a task, run `build_project` ONCE to verify. If errors occur, read the error output, fix the specific issues, then rebuild. Do not interleave writes and builds for each individual file.
 
 6. **No deletion** — Never delete files unless explicitly requested.
 
