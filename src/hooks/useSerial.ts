@@ -57,10 +57,13 @@ export function useSerial() {
   const isReadingRef = useRef(false);
 
   const addMessage = useCallback((type: SerialMessage['type'], data: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { type, data, timestamp: new Date() },
-    ]);
+    setMessages((prev) => {
+      const next = [
+        ...prev,
+        { type, data, timestamp: new Date() },
+      ];
+      return next.length > 5000 ? next.slice(-5000) : next;
+    });
   }, []);
 
   const refreshPorts = useCallback(async () => {
@@ -198,11 +201,11 @@ export function useSerial() {
 
   useEffect(() => {
     return () => {
-      if (isConnected) {
+      if (portRef.current || isReadingRef.current) {
         disconnect();
       }
     };
-  }, []);
+  }, [disconnect]);
 
   return {
     ports,
