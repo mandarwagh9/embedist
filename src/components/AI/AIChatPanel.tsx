@@ -486,17 +486,14 @@ function AIFallback() {
 export function AIChatPanel() {
   const pendingPermission = useAIStore((s) => s.pendingPermission);
   const showPermissionDialog = useAIStore((s) => s.showPermissionDialog);
-  const setShowPermissionDialog = useAIStore((s) => s.setShowPermissionDialog);
-  const setPendingPermission = useAIStore((s) => s.setPendingPermission);
+  const setPermissionDecision = useAIStore((s) => s.setPermissionDecision);
 
   const handleAllow = (_remember: boolean) => {
-    setShowPermissionDialog(false);
-    setPendingPermission(null);
+    setPermissionDecision('allow');
   };
 
   const handleBlock = (_remember: boolean) => {
-    setShowPermissionDialog(false);
-    setPendingPermission(null);
+    setPermissionDecision('deny');
   };
 
   return (
@@ -509,10 +506,7 @@ export function AIChatPanel() {
         arguments={pendingPermission?.arguments || '{}'}
         onAllow={handleAllow}
         onBlock={handleBlock}
-        onCancel={() => {
-          setShowPermissionDialog(false);
-          setPendingPermission(null);
-        }}
+        onCancel={() => setPermissionDecision('deny')}
       />
     </ErrorBoundary>
   );

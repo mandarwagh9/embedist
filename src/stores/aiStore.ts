@@ -57,12 +57,9 @@ export interface ToolProgress {
 }
 
 export interface PendingPermission {
-  id: string;
   toolName: string;
   toolDescription: string;
   arguments: string;
-  onAllow: (remember: boolean) => void;
-  onBlock: (remember: boolean) => void;
 }
 
 interface AIState {
@@ -90,6 +87,7 @@ interface AIState {
   toolProgress: ToolProgress | null;
   pendingPermission: PendingPermission | null;
   showPermissionDialog: boolean;
+  lastPermissionDecision: 'allow' | 'deny' | 'allowAll' | 'denyAll' | null;
 
   setMode: (mode: AIMode) => void;
   setActiveProvider: (id: string) => void;
@@ -120,6 +118,7 @@ interface AIState {
   setToolProgress: (progress: ToolProgress | null) => void;
   setPendingPermission: (permission: PendingPermission | null) => void;
   setShowPermissionDialog: (show: boolean) => void;
+  setPermissionDecision: (decision: 'allow' | 'deny' | 'allowAll' | 'denyAll' | null) => void;
   addActivityLog: (entry: ActivityLogEntry) => void;
   clearActivityLog: () => void;
 }
@@ -185,6 +184,7 @@ export const useAIStore = create<AIState>()(
       toolProgress: null,
       pendingPermission: null,
       showPermissionDialog: false,
+      lastPermissionDecision: null,
 
       setMode: (mode) => set({
         mode,
@@ -275,6 +275,7 @@ export const useAIStore = create<AIState>()(
       setToolProgress: (progress) => set({ toolProgress: progress }),
       setPendingPermission: (permission) => set({ pendingPermission: permission, showPermissionDialog: permission !== null }),
       setShowPermissionDialog: (show) => set({ showPermissionDialog: show }),
+      setPermissionDecision: (decision: 'allow' | 'deny' | 'allowAll' | 'denyAll' | null) => set({ lastPermissionDecision: decision, pendingPermission: null, showPermissionDialog: false }),
       addActivityLog: (entry) => set((state) => ({
         agentActivityLog: [...state.agentActivityLog, entry].slice(-200),
       })),
