@@ -21,6 +21,7 @@ interface SearchResult {
 }
 
 import type { FileNode } from '../types';
+import { useFileStore } from '../stores/fileStore';
 
 const INDEXED_EXTENSIONS = new Set([
   '.c', '.cpp', '.h', '.hpp', '.ino', '.py', '.rs', '.asm', '.s',
@@ -262,12 +263,13 @@ class RAGEngine {
   
   indexProject(files: FileNode[], projectName: string = 'project'): number {
     const indexableFiles = this.collectFiles(files);
+    const fileContents = useFileStore.getState().fileContents;
     
     projectDocuments = indexableFiles.map((file) => ({
       id: `project-${file.path}`,
       category: 'project',
       title: file.name,
-      content: '',
+      content: fileContents.get(file.path) || '',
       metadata: {
         type: 'project-file',
         path: file.path,
