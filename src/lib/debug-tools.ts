@@ -81,10 +81,10 @@ registerDebugTool('search_code', {
   if (!searchPath) return 'No project open. Please provide a path.';
   
   const result = await invoke<{path: string, line_number: number, content: string}[]>('grep_search', { 
-    rootPath: searchPath, 
+    root_path: searchPath, 
     pattern, 
-    filePattern: null,
-    maxResults: 50 
+    file_pattern: null,
+    max_results: 50 
   });
   if (result.length === 0) return 'No matches found';
   return result.map(r => `${r.path}:${r.line_number}: ${r.content}`).join('\n');
@@ -142,8 +142,8 @@ registerDebugTool('get_directory_tree', {
   if (!path) return 'No project open. Please provide a path.';
   
   const tree = await invoke<TreeNode>('get_directory_tree', { 
-    path: args.path as string, 
-    depth: args.depth as number | undefined || 3 
+    path, 
+    depth: (args.depth as number) || 3 
   });
   
   function formatTree(node: TreeNode, indent: string = ''): string {
