@@ -183,7 +183,7 @@
 .serial-text {
   flex: 1;
   white-space: pre-wrap;
-  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .serial-input-area {

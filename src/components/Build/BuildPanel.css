@@ -115,7 +115,7 @@
 .build-line {
   padding: 1px 0;
   white-space: pre-wrap;
-  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .build-line.info {

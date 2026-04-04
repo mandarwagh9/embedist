@@ -39,6 +39,15 @@
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.bottom-panel-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .bottom-panel-tab:hover {
@@ -60,6 +69,9 @@
   color: var(--text-muted);
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .bottom-panel-toggle:hover {
@@ -71,4 +83,21 @@
   flex: 1;
   overflow: hidden;
   padding: 0;
+  position: relative;
+}
+
+.bottom-panel-tab-content {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity var(--transition-fast);
+}
+
+.bottom-panel-tab-content.active {
+  position: relative;
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }

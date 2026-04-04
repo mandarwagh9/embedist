@@ -98,7 +98,7 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
     if (lowerLine.includes('[warn]') || lowerLine.includes('warning:')) {
       return 'warning';
     }
-    if (lowerLine.includes('[build]') && lowerLine.includes('success') || lowerLine.includes('[upload]') && lowerLine.includes('complete')) {
+    if ((lowerLine.includes('[build]') && lowerLine.includes('success')) || (lowerLine.includes('[upload]') && lowerLine.includes('complete'))) {
       return 'success';
     }
     if (lowerLine.includes('success') || lowerLine.includes('complete') || lowerLine.includes('done')) {
@@ -109,19 +109,22 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
 
   const parseAnsiColor = (text: string): JSX.Element[] => {
     const ansiColors: Record<string, string> = {
-      '30': '#666666', '31': '#6366F1', '32': '#22C55E', '33': '#F59E0B', '34': '#60A5FA', '35': '#A78BFA', '36': '#22D3EE', '37': '#EDEDED',
+      '30': '#666666', '31': '#EF4444', '32': '#22C55E', '33': '#F59E0B', '34': '#60A5FA', '35': '#A78BFA', '36': '#22D3EE', '37': '#EDEDED',
       '90': '#666666', '91': '#F87171', '92': '#22C55E', '93': '#F59E0B', '94': '#60A5FA', '95': '#A78BFA', '96': '#22D3EE', '97': '#EDEDED',
     };
     const parts = text.split(/(\x1b\[[0-9;]*m)/g);
     let currentColor = '';
+    let isBold = false;
     return parts.map((part, i) => {
       const match = part.match(/^\x1b\[([0-9;]*)m$/);
       if (match) {
         const codes = match[1].split(';');
         if (codes.includes('0')) {
           currentColor = '';
+          isBold = false;
         } else {
           for (const code of codes) {
+            if (code === '1') isBold = true;
             if (ansiColors[code]) {
               currentColor = ansiColors[code];
             }
@@ -130,7 +133,7 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
         return null;
       }
       if (!part) return null;
-      return <span key={i} style={currentColor ? { color: currentColor } : undefined}>{part}</span>;
+      return <span key={i} style={currentColor ? { color: currentColor, fontWeight: isBold ? 600 : 400 } : undefined}>{part}</span>;
     }).filter(Boolean) as JSX.Element[];
   };
 
@@ -143,7 +146,7 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
     
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const content = await invoke<string>('read_file', { path: fullPath });
+      const content = await invoke<string>('read_file', { path: fullPath, root: rootPath });
       openFile(fullPath, content);
       
       if (!useUIStore.getState().bottomPanelVisible) {
@@ -216,7 +219,7 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
             className="build-action-btn stop"
             onClick={stopBuild}
             disabled={!isRunning}
-            style={{ display: isRunning ? 'flex' : 'none' }}
+            style={{ visibility: isRunning ? 'visible' : 'hidden' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="6" y="6" width="12" height="12"/>

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { useUIStore } from '../../stores/uiStore';
 import { SerialMonitor } from '../Serial/SerialMonitor';
 import { AIChatPanel } from '../AI/AIChatPanel';
@@ -22,6 +22,7 @@ export function BottomPanel() {
   const isResizingRef = useRef(false);
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -44,11 +45,21 @@ export function BottomPanel() {
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      cleanupRef.current = null;
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    cleanupRef.current = handleMouseUp;
   }, [bottomPanelHeight, setBottomPanelHeight]);
+
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+    };
+  }, []);
 
   const tabs = [
     { id: 'terminal', label: 'Terminal' },
@@ -68,12 +79,15 @@ export function BottomPanel() {
         title="Drag to resize"
       />
       <div className="bottom-panel-header">
-        <div className="bottom-panel-tabs">
+        <div className="bottom-panel-tabs" role="tablist">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               className={`bottom-panel-tab ${bottomPanelTab === tab.id ? 'active' : ''}`}
               onClick={() => setBottomPanelTab(tab.id)}
+              role="tab"
+              aria-selected={bottomPanelTab === tab.id}
+              aria-controls={`bottom-panel-${tab.id}`}
             >
               {tab.label}
             </button>
@@ -87,10 +101,18 @@ export function BottomPanel() {
       </div>
       
       <div className="bottom-panel-content">
-        {bottomPanelTab === 'terminal' && <TerminalPanel />}
-        {bottomPanelTab === 'serial' && <SerialMonitor />}
-        {bottomPanelTab === 'ai' && <AIChatPanel />}
-        {bottomPanelTab === 'build' && <BuildPanel />}
+        <div className={`bottom-panel-tab-content ${bottomPanelTab === 'terminal' ? 'active' : ''}`} id="bottom-panel-terminal" role="tabpanel">
+          <TerminalPanel />
+        </div>
+        <div className={`bottom-panel-tab-content ${bottomPanelTab === 'serial' ? 'active' : ''}`} id="bottom-panel-serial" role="tabpanel">
+          <SerialMonitor />
+        </div>
+        <div className={`bottom-panel-tab-content ${bottomPanelTab === 'ai' ? 'active' : ''}`} id="bottom-panel-ai" role="tabpanel">
+          <AIChatPanel />
+        </div>
+        <div className={`bottom-panel-tab-content ${bottomPanelTab === 'build' ? 'active' : ''}`} id="bottom-panel-build" role="tabpanel">
+          <BuildPanel />
+        </div>
       </div>
     </div>
   );

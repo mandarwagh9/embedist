@@ -19,6 +19,7 @@ const ENCODINGS = [
 const MAX_INPUT_LENGTH = 256;
 const MAX_LINE_LENGTH = 512;
 const MAX_BUFFER_SIZE = 64 * 1024;
+const MAX_LOG_ENTRIES = 5000;
 
 const SHELL_METACHARS = /[;|&$`(){}[\]<>\"'\\]/g;
 const CONTROL_CHARS = /[\x00-\x1F]/g;
@@ -41,6 +42,8 @@ function sanitizeOutput(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+let logIdCounter = 0;
+
 export function SerialMonitor() {
   const { serialConnected, serialBaudRate, setSerialConnected, setSerialPort, setSerialBaudRate } = useUIStore();
   const { serial, updateSerial } = useSettingsStore();
@@ -62,16 +65,23 @@ export function SerialMonitor() {
   
   const addLog = (text: string, type: 'info' | 'error' | 'input') => {
     const sanitized = sanitizeOutput(text);
-    setLogs(prev => [...prev, { id: Date.now(), text: sanitized, type, timestamp: Date.now() }]);
+    setLogs(prev => {
+      const next = [...prev, { id: ++logIdCounter, text: sanitized, type, timestamp: Date.now() }];
+      return next.length > MAX_LOG_ENTRIES ? next.slice(-MAX_LOG_ENTRIES) : next;
+    });
   };
 
   const scrollToBottom = () => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const autoScrollRef = useRef(serial.autoScroll);
   useEffect(() => {
-    const { serial } = useSettingsStore.getState();
-    if (serial.autoScroll) {
+    autoScrollRef.current = serial.autoScroll;
+  }, [serial.autoScroll]);
+
+  useEffect(() => {
+    if (autoScrollRef.current) {
       scrollToBottom();
     }
   }, [logs]);
