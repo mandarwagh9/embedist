@@ -238,7 +238,7 @@ export function SerialMonitor() {
         filters: [{ name: 'Text Files', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }]
       });
       if (filePath) {
-        await invoke('write_file', { path: filePath, content });
+        await invoke('write_file', { path: filePath, content, root: '' });
       }
     } catch (err) {
       console.error('Failed to save logs:', err);

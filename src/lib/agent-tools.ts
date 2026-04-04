@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useAIStore } from '../stores/aiStore';
-import { isBlocked } from './tool-permissions';
+import { useFileStore } from '../stores/fileStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { isBlocked, shouldPromptForPermission } from './tool-permissions';
 
 export interface ToolDefinition {
   type: 'function';
@@ -61,7 +63,8 @@ registerTool('read_file', {
     },
   },
 }, async (args) => {
-  const content = await invoke<string>('read_file', { path: args.path as string });
+  const root = useFileStore.getState().rootPath;
+  const content = await invoke<string>('read_file', { path: args.path as string, root });
   return content;
 });
 
@@ -80,7 +83,8 @@ registerTool('write_file', {
     },
   },
 }, async (args) => {
-  await invoke('write_file', { path: args.path as string, content: args.content as string });
+  const root = useFileStore.getState().rootPath;
+  await invoke('write_file', { path: args.path as string, content: args.content as string, root });
   return `Written ${args.path}`;
 });
 
@@ -99,7 +103,8 @@ registerTool('create_file', {
     },
   },
 }, async (args) => {
-  const path = await invoke<string>('create_file', { parent: args.parent as string, name: args.name as string });
+  const root = useFileStore.getState().rootPath;
+  const path = await invoke<string>('create_file', { parent: args.parent as string, name: args.name as string, root });
   return path;
 });
 
@@ -118,7 +123,8 @@ registerTool('create_folder', {
     },
   },
 }, async (args) => {
-  const path = await invoke<string>('create_folder', { parent: args.parent as string, name: args.name as string });
+  const root = useFileStore.getState().rootPath;
+  const path = await invoke<string>('create_folder', { parent: args.parent as string, name: args.name as string, root });
   return path;
 });
 
@@ -136,13 +142,14 @@ registerTool('list_directory', {
     },
   },
 }, async (args) => {
+  const root = useFileStore.getState().rootPath;
   const entries = await invoke<Array<{
     name: string;
     path: string;
     is_dir: boolean;
     is_file: boolean;
     size: number;
-  }>>('list_directory', { path: args.path as string });
+  }>>('list_directory', { path: args.path as string, root });
   return entries.map(e => `${e.is_dir ? '[DIR]' : '[FILE]'} ${e.name}`).join('\n');
 });
 
@@ -161,12 +168,13 @@ registerTool('get_directory_tree', {
     },
   },
 }, async (args) => {
+  const root = useFileStore.getState().rootPath;
   const tree = await invoke<{
     name: string;
     path: string;
     is_dir: boolean;
     children: unknown[];
-  }>('get_directory_tree', { path: args.path as string, depth: (args.depth as number) ?? 3 });
+  }>('get_directory_tree', { path: args.path as string, depth: (args.depth as number) ?? 3, root });
 
   function formatNode(node: typeof tree, indent: number): string {
     const prefix = '  '.repeat(indent);
@@ -279,6 +287,40 @@ export async function executeTool(callId: string, name: string, args: Record<str
 
   if (isBlocked(name)) {
     return { callId, toolCallId: callId, success: false, output: `Tool "${name}" is blocked. Change permission in Settings.` };
+  }
+
+  if (shouldPromptForPermission(name)) {
+    const toolDef = tool.definition.function;
+    const argStr = JSON.stringify(args);
+    useAIStore.getState().setPendingPermission({
+      toolName: name,
+      toolDescription: toolDef.description,
+      arguments: argStr,
+    });
+
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        const pending = useAIStore.getState().pendingPermission;
+        if (pending === null) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+
+    const decision = useAIStore.getState().lastPermissionDecision;
+    if (decision === 'deny') {
+      return { callId, toolCallId: callId, success: false, output: `Tool "${name}" was denied by user.` };
+    }
+    if (decision === 'denyAll') {
+      useSettingsStore.getState().setToolPermission(name, 'block');
+      return { callId, toolCallId: callId, success: false, output: `Tool "${name}" was denied and blocked for future.` };
+    }
+    if (decision === 'allowAll') {
+      useSettingsStore.getState().setToolPermission(name, 'allow');
+    }
   }
 
   try {

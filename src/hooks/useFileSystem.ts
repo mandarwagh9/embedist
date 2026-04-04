@@ -139,7 +139,8 @@ export function useFileSystem() {
 
   const deleteItem = useCallback(async (path: string) => {
     try {
-      await invoke('delete_path', { path });
+      const root = useFileStore.getState().rootPath;
+      await invoke('delete_path', { path, root });
       const parentPath = await invoke<string | null>('get_parent_dir', { path });
       if (parentPath) {
         await refreshDirectory(parentPath);
@@ -184,7 +185,8 @@ export function useFileSystem() {
 
   const revealInExplorer = useCallback(async (path: string) => {
     try {
-      await invoke('reveal_in_explorer', { path });
+      const root = useFileStore.getState().rootPath;
+      await invoke('reveal_in_explorer', { path, root });
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

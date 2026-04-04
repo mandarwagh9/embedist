@@ -270,7 +270,8 @@ const TreeItem = React.memo(function TreeItem({
         (async () => {
           try {
             const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('move_path', { oldPath: draggedPath, newPath: destPath });
+            const root = useFileStore.getState().rootPath;
+            await invoke('move_path', { oldPath: draggedPath, newPath: destPath, root });
           } catch (err) {
             console.error('Move failed:', err);
           }
@@ -763,7 +764,8 @@ export function FileExplorer() {
           const destPath = `${targetPath}/${fileName}`.replace(/\\/g, '/');
           try {
             const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('move_path', { oldPath: srcPath, newPath: destPath });
+            const root = useFileStore.getState().rootPath;
+            await invoke('move_path', { oldPath: srcPath, newPath: destPath, root });
           } catch (err) {
             console.error('Move failed:', err);
           }
@@ -782,7 +784,7 @@ export function FileExplorer() {
           const reader = new FileReader();
           reader.onload = async () => {
             if (reader.result) {
-              await invoke('write_file', { path: destPath, content: reader.result as string });
+              await invoke('write_file', { path: destPath, content: reader.result as string, root: rootPath });
               refreshRoot();
             }
           };

@@ -93,7 +93,7 @@ export function PlanToolbar({ messages, onApprove, onDiscard }: PlanToolbarProps
       });
 
       if (path) {
-        await invoke('save_plan_file', { directory: '', name: path, content });
+        await invoke('save_plan_file', { directory: '', name: path, content, root: '' });
         setSaveStatus('Plan saved!');
         setTimeout(() => setSaveStatus(null), 2000);
       }
