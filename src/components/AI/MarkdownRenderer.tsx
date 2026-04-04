@@ -1,4 +1,5 @@
-import { useMemo, useRef, useCallback, MouseEvent as ReactMouseEvent } from 'react';
+import { useMemo, useRef, useCallback, useEffect, MouseEvent as ReactMouseEvent } from 'react';
+import hljs from 'highlight.js';
 
 interface MarkdownRendererProps {
   content: string;
@@ -22,6 +23,22 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
 
   const html = useMemo(() => parseMarkdown(content), [content]);
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const blocks = containerRef.current.querySelectorAll<HTMLElement>('code.md-code[data-lang]');
+    blocks.forEach((block) => {
+      const lang = block.getAttribute('data-lang');
+      if (lang && hljs.getLanguage(lang)) {
+        block.removeAttribute('data-highlighted');
+        try {
+          const result = hljs.highlight(block.textContent || '', { language: lang });
+          block.innerHTML = result.value;
+        } catch {
+        }
+      }
+    });
+  }, [html]);
+
   return (
     <div className={`md-renderer ${className}`}>
       <div ref={containerRef} onClick={handleClick} dangerouslySetInnerHTML={{ __html: html }} />
@@ -44,7 +61,7 @@ function parseMarkdown(text: string): string {
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
     const langAttr = lang ? ` data-lang="${lang}"` : '';
     const langLabel = lang ? `<span class="md-code-lang">${lang}</span>` : '';
-    return `<pre class="md-code-block"${langAttr}><div class="md-code-header">${langLabel}<button class="md-code-copy" data-copy="true">Copy</button></div><code class="md-code" data-lang="${lang}">${code.trim()}</code></pre>`;
+    return `<pre class="md-code-block"${langAttr}><div class="md-code-header">${langLabel}<button class="md-code-copy" data-copy="true">Copy</button></div><code class="md-code"${langAttr}>${code.trim()}</code></pre>`;
   });
 
   html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');

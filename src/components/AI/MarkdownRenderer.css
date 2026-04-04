@@ -204,3 +204,43 @@
 .md-renderer .md-link:hover {
   text-decoration: underline;
 }
+
+.md-renderer .md-code .hljs-keyword,
+.md-renderer .md-code .hljs-built_in {
+  color: #C678DD;
+}
+
+.md-renderer .md-code .hljs-string,
+.md-renderer .md-code .hljs-template-variable {
+  color: #98C379;
+}
+
+.md-renderer .md-code .hljs-number,
+.md-renderer .md-code .hljs-literal {
+  color: #D19A66;
+}
+
+.md-renderer .md-code .hljs-comment,
+.md-renderer .md-code .hljs-doctag {
+  color: #5C6370;
+  font-style: italic;
+}
+
+.md-renderer .md-code .hljs-function,
+.md-renderer .md-code .hljs-title {
+  color: #61AFEF;
+}
+
+.md-renderer .md-code .hljs-type,
+.md-renderer .md-code .hljs-class {
+  color: #E5C07B;
+}
+
+.md-renderer .md-code .hljs-meta {
+  color: #ABB2BF;
+}
+
+.md-renderer .md-code .hljs-operator,
+.md-renderer .md-code .hljs-punctuation {
+  color: #ABB2BF;
+}
