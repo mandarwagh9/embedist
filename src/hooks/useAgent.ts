@@ -369,7 +369,9 @@ export function useAgent() {
     } finally {
       isRunningRef.current = false;
       setLoading(false);
-      setAgentStatus('done');
+      if (!cancelRef.current) {
+        setAgentStatus('done');
+      }
     }
   }, [hasActiveProvider, buildSystemPrompt, callAI, addMessage, setLoading, setAgentStatus, clearActivityLog, logActivity, setAgentTask]);
 
