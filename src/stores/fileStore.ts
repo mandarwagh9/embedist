@@ -95,11 +95,12 @@ interface FileState {
 
 const traverseTree = (nodes: FileNode[], fn: (node: FileNode) => void): FileNode[] => {
   return nodes.map(node => {
-    fn(node);
-    if (node.children) {
-      return { ...node, children: traverseTree(node.children, fn) };
+    const newNode = { ...node };
+    fn(newNode);
+    if (newNode.children) {
+      return { ...newNode, children: traverseTree(newNode.children, fn) };
     }
-    return node;
+    return newNode;
   });
 };
 
@@ -565,12 +566,13 @@ export const useFileStore = create<FileState>()(
             state.originalContents = new Map(Object.entries(savedOriginalContents));
           }
           if (state.openTabs.length > 0) {
-            for (const tab of state.openTabs) {
+            state.openTabs = state.openTabs.map(tab => {
               const content = state.fileContents.get(tab.path);
               if (content !== undefined) {
-                (tab as { content?: string }).content = content;
+                return { ...tab, content };
               }
-            }
+              return tab;
+            });
           }
         }
       },
