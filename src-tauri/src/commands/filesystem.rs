@@ -311,7 +311,7 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
-            .args(["/select,", target])
+            .arg(format!("/select,{}", target))
             .spawn()
             .map_err(|e| format!("Failed to open explorer: {}", e))?
             .wait()
@@ -350,7 +350,7 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
 
 #[command]
 pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResult, String> {
-    if command.contains('&') || command.contains('|') || command.contains(';') || command.contains('\n') || command.contains('\r') {
+    if command.contains(&['&', '|', ';', '\n', '\r', '$', '`', '(', ')', '{', '}', '<', '>', '!', '~', '*', '?', '[', ']'][..]) {
         return Err("Shell metacharacters are not allowed.".to_string());
     }
 
@@ -358,7 +358,7 @@ pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResu
     if cfg!(target_os = "windows") {
         builder.args(["/C", &command]);
     } else {
-        builder.args(["sh", "-c", &command]);
+        builder.args(["-c", &command]);
     }
 
     if let Some(dir) = &cwd {
