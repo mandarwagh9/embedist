@@ -1,7 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use tauri::{command, State};
+
+static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .expect("Failed to create HTTP client")
+});
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ToolParamProperty {
@@ -197,11 +205,6 @@ pub async fn chat_completion(
 }
 
 async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-    
     let mut body = serde_json::json!({
         "model": model,
         "messages": messages,
@@ -224,7 +227,7 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: 
         body["top_p"] = tp.into();
     }
     
-    let response = client
+    let response = HTTP_CLIENT
         .post("https://api.openai.com/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
@@ -275,11 +278,6 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: 
 }
 
 async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, _top_p: Option<f64>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-    
     let system = messages.iter()
         .filter(|m| m.role == "system")
         .map(|m| m.content.clone())
@@ -337,10 +335,10 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
         body["temperature"] = temp.into();
     }
     
-    let response = client
+    let response = HTTP_CLIENT
         .post("https://api.anthropic.com/v1/messages")
         .header("x-api-key", api_key)
-        .header("anthropic-version", "2023-06-01")
+        .header("anthropic-version", "2024-10-21")
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
@@ -375,7 +373,7 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
                     block["id"].as_str(),
                     block["name"].as_str()
                 ) {
-                    let input = serde_json::to_string(&block["input"]).unwrap_or_else(|_| "{}".to_string());
+                    let input = block["input"].to_string();
                     tool_calls.push(ToolCall {
                         id: id.to_string(),
                         name: name.to_string(),
@@ -395,11 +393,6 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
 }
 
 async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-    
     let mut body = serde_json::json!({
         "model": model,
         "messages": messages,
@@ -410,7 +403,7 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools
         body["tools"] = serde_json::json!(t);
     }
     
-    let response = client
+    let response = HTTP_CLIENT
         .post("https://api.deepseek.com/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
@@ -455,11 +448,6 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools
 }
 
 async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-    
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         serde_json::json!({
             "role": m.role,
@@ -475,7 +463,7 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Res
     
     let url = format!("{}/api/chat", base_url);
     
-    let response = client
+    let response = HTTP_CLIENT
         .post(&url)
         .header("Content-Type", "application/json")
         .json(&body)
@@ -505,11 +493,6 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Res
 }
 
 async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-    
     let contents: Vec<serde_json::Value> = messages.iter()
         .filter(|m| m.role != "system")
         .map(|m| {
@@ -544,7 +527,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
         model, api_key
     );
     
-    let response = client
+    let response = HTTP_CLIENT
         .post(&url)
         .header("Content-Type", "application/json")
         .json(&body)
@@ -575,11 +558,6 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
 
 #[allow(clippy::too_many_arguments)]
 async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>, chat_template_kwargs: Option<&std::collections::HashMap<String, serde_json::Value>>) -> Result<AIResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Failed to create client: {}", e))?;
-
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         let mut msg = serde_json::Map::new();
         match m.role.as_str() {
@@ -669,7 +647,7 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
         body["chat_template_kwargs"] = serde_json::json!(ctk);
     }
 
-    let response = client
+    let response = HTTP_CLIENT
         .post(format!("{}/chat/completions", base_url.trim_end_matches('/')))
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
