@@ -377,7 +377,7 @@ void loop() {
           <TabBar />
 
           <div className="app-content">
-            <ErrorBoundary fallback={<div style={{ padding: 20, color: '#E94560', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Editor failed to load</div>}>
+            <ErrorBoundary fallback={<div style={{ padding: 20, color: '#6366F1', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Editor failed to load</div>}>
               <CodeEditor
                 value={activeContent !== undefined ? activeContent : getDefaultCode()}
                 language={activeFileTab ? getLanguageFromPath(activeFileTab.path) : 'cpp'}

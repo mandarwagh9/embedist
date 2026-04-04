@@ -1,29 +1,29 @@
 :root {
-  /* Background Colors */
-  --bg-primary: #000000;
-  --bg-secondary: #0D0D0D;
+  /* Background Colors - Vercel-inspired dark theme */
+  --bg-primary: #0A0A0A;
+  --bg-secondary: #111111;
   --bg-tertiary: #1A1A1A;
-  --bg-surface: #262626;
-  --bg-surface-hover: #333333;
+  --bg-surface: #1E1E1E;
+  --bg-surface-hover: #272727;
   
-  /* Border Colors */
-  --border-default: #333333;
-  --border-active: #666666;
-  --border-subtle: #262626;
+  /* Border Colors - subtle and refined */
+  --border-default: #2A2A2A;
+  --border-active: #404040;
+  --border-subtle: #1F1F1F;
   
-  /* Text Colors */
-  --text-primary: #FFFFFF;
-  --text-secondary: #A0A0A0;
-  --text-muted: #666666;
+  /* Text Colors - high contrast like Vercel */
+  --text-primary: #EDEDED;
+  --text-secondary: #A1A1A1;
+  --text-muted: #6B6B6B;
   --text-inverse: #000000;
   
-  /* Accent Colors */
-  --accent: #E94560;
-  --accent-hover: #FF5A75;
-  --accent-muted: rgba(233, 69, 96, 0.15);
+  /* Accent Colors - Vercel's blurple/indigo */
+  --accent: #6366F1;
+  --accent-hover: #818CF8;
+  --accent-muted: rgba(99, 102, 241, 0.15);
   
-  /* Status Colors */
-  --success: #4ADE80;
+  /* Status Colors - refined */
+  --success: #22C55E;
   --error: #EF4444;
   --warning: #F59E0B;
   --info: #3B82F6;
@@ -64,6 +64,7 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+  --radius-xl: 12px;
 }
 
 * {

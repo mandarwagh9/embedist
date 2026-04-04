@@ -109,8 +109,8 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
 
   const parseAnsiColor = (text: string): JSX.Element[] => {
     const ansiColors: Record<string, string> = {
-      '30': '#666666', '31': '#E94560', '32': '#4ADE80', '33': '#FBBF24', '34': '#60A5FA', '35': '#A78BFA', '36': '#22D3EE', '37': '#FFFFFF',
-      '90': '#666666', '91': '#F87171', '92': '#4ADE80', '93': '#FBBF24', '94': '#60A5FA', '95': '#A78BFA', '96': '#22D3EE', '97': '#FFFFFF',
+      '30': '#666666', '31': '#6366F1', '32': '#22C55E', '33': '#F59E0B', '34': '#60A5FA', '35': '#A78BFA', '36': '#22D3EE', '37': '#EDEDED',
+      '90': '#666666', '91': '#F87171', '92': '#22C55E', '93': '#F59E0B', '94': '#60A5FA', '95': '#A78BFA', '96': '#22D3EE', '97': '#EDEDED',
     };
     const parts = text.split(/(\x1b\[[0-9;]*m)/g);
     let currentColor = '';

@@ -19,8 +19,8 @@
 .editor-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #333333;
-  border-top-color: #E94560;
+  border: 2px solid #2A2A2A;
+  border-top-color: #6366F1;
   border-radius: 50%;
   animation: editor-spin 0.8s linear infinite;
 }
@@ -31,7 +31,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000000;
+  background: #0A0A0A;
   color: #EF4444;
   font-size: 13px;
   font-family: 'Inter', system-ui, sans-serif;
