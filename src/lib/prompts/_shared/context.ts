@@ -32,9 +32,9 @@ export async function buildProjectContext(): Promise<ProjectContext> {
   let platformioBoard: string | undefined;
   
   try {
-    const boards = await invoke<string[]>('list_boards', { query: '' });
+    const boards = await invoke<BoardInfo[]>('list_boards', { query: '' });
     if (boards.length > 0) {
-      platformioBoard = boards[0];
+      platformioBoard = boards[0].name;
       toolchain = 'platformio';
     }
   } catch {
@@ -62,8 +62,12 @@ export async function buildProjectContext(): Promise<ProjectContext> {
 
 async function checkForArduinoProject(path: string): Promise<boolean> {
   try {
-    const files = await invoke<string[]>('list_directory', { path });
-    return files.some(f => f.endsWith('.ino'));
+    interface FileEntry {
+      name: string;
+      is_file: boolean;
+    }
+    const files = await invoke<FileEntry[]>('list_directory', { path, root: path });
+    return files.some(f => f.is_file && f.name.endsWith('.ino'));
   } catch {
     return false;
   }
@@ -71,8 +75,13 @@ async function checkForArduinoProject(path: string): Promise<boolean> {
 
 async function checkForEspIdfProject(path: string): Promise<boolean> {
   try {
-    const files = await invoke<string[]>('list_directory', { path });
-    return files.includes('CMakeLists.txt') && files.includes('sdkconfig');
+    interface FileEntry {
+      name: string;
+      is_file: boolean;
+    }
+    const files = await invoke<FileEntry[]>('list_directory', { path, root: path });
+    const names = files.map(f => f.name);
+    return names.includes('CMakeLists.txt') && names.includes('sdkconfig');
   } catch {
     return false;
   }
