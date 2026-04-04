@@ -238,11 +238,6 @@ const TreeItem = React.memo(function TreeItem({
     }
   };
 
-  const handleDoubleClick = () => {
-    if (!node.isDir) return;
-    if (isRenaming) return;
-  };
-
   const handleDragStart = (e: React.DragEvent) => {
     if (isRenaming) {
       e.preventDefault();
@@ -287,7 +282,12 @@ const TreeItem = React.memo(function TreeItem({
         style={{ paddingLeft: `${level * 12 + 8}px` }}
         onClick={(e) => { handleSelect(e); handleClick(e); }}
         onContextMenu={(e) => onContextMenu(e, node.path, node)}
-        onDoubleClick={handleDoubleClick}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          if (node.isDir && !isRenaming) {
+            onToggle(node.path);
+          }
+        }}
         onMouseEnter={() => onHover(node.path)}
         onMouseLeave={() => onHover(null)}
         draggable={!isRenaming}
@@ -542,13 +542,10 @@ export function FileExplorer() {
       }
       if (e.key === 'Delete' && selectedPaths.length > 0) {
         e.preventDefault();
-        if (selectedPaths.length === 1) {
-          deleteItem(selectedPaths[0]);
-        } else {
-          for (const path of selectedPaths) {
-            deleteItem(path);
-          }
-          clearSelection();
+        const paths = [...selectedPaths];
+        clearSelection();
+        for (const path of paths) {
+          deleteItem(path);
         }
       }
       if (e.key === 'Escape') {
@@ -563,11 +560,13 @@ export function FileExplorer() {
   }, [selectedPaths, renamingPath, searchQuery, getNodeByPath, startRenaming, stopRenaming, setSearchQuery, clearSelection, closeContextMenu, deleteItem]);
 
   useEffect(() => {
-    const handleClickOutside = () => {
-      if (contextMenu.visible) closeContextMenu();
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenu.visible && !(e.target as HTMLElement).closest('.context-menu')) {
+        closeContextMenu();
+      }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [contextMenu.visible, closeContextMenu]);
 
   const handleToggle = useCallback((path: string) => {
@@ -742,11 +741,17 @@ export function FileExplorer() {
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault();
+      setIsDragOver(true);
+    }
   };
 
-  const handleDragLeave = () => setIsDragOver(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
 
   const handleDrop = async (e: React.DragEvent, targetPath?: string) => {
     e.preventDefault();
@@ -776,19 +781,29 @@ export function FileExplorer() {
 
     const files = e.dataTransfer?.files;
     if (files && files.length > 0 && rootPath) {
+      const dropTarget = targetPath || rootPath;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const destPath = `${rootPath}/${file.name}`.replace(/\\/g, '/');
+        const destPath = `${dropTarget}/${file.name}`.replace(/\\/g, '/');
         try {
           const { invoke } = await import('@tauri-apps/api/core');
-          const reader = new FileReader();
-          reader.onload = async () => {
-            if (reader.result) {
-              await invoke('write_file', { path: destPath, content: reader.result as string, root: rootPath });
-              refreshRoot();
-            }
-          };
-          reader.readAsText(file);
+          if (file.type.startsWith('text/') || /\.(json|ini|toml|yaml|yml|cfg|txt|md|c|cpp|h|hpp|ino|py|js|ts|html|css|xml|rs|lua|sh|bat|cmd|cmake|S|asm)$/i.test(file.name)) {
+            const reader = new FileReader();
+            reader.onload = async () => {
+              if (reader.result) {
+                const root = useFileStore.getState().rootPath;
+                await invoke('write_file', { path: destPath, content: reader.result as string, root });
+                refreshRoot();
+              }
+            };
+            reader.readAsText(file);
+          } else {
+            const root = useFileStore.getState().rootPath;
+            const arrayBuffer = await file.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            await invoke('write_file', { path: destPath, content: atob(base64), root });
+            refreshRoot();
+          }
         } catch (err) {
           console.error('Import failed:', err);
         }

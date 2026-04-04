@@ -162,9 +162,26 @@ export const useFileStore = create<FileState>()(
         if (path) {
           const parts = path.replace(/\\/g, '/').split('/');
           const name = parts[parts.length - 1] || parts[parts.length - 2];
-          set({ rootPath: path, projectName: name, selectedPaths: [], searchQuery: '', externallyModifiedPaths: [] });
+          set({
+            rootPath: path,
+            projectName: name,
+            files: [],
+            openTabs: [],
+            activeTabId: null,
+            fileContents: new Map(),
+            originalContents: new Map(),
+            selectedPaths: [],
+            searchQuery: '',
+            loadingPaths: [],
+            externallyModifiedPaths: [],
+            isPlatformIOProject: false,
+            detectedBoard: null,
+            contextMenu: { visible: false, x: 0, y: 0, targetPath: null, targetNode: null },
+            renamingPath: null,
+            hoveredPath: null,
+          });
         } else {
-          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null, selectedPaths: [], searchQuery: '', loadingPaths: [], externallyModifiedPaths: [] });
+          set({ rootPath: null, projectName: null, files: [], isPlatformIOProject: false, detectedBoard: null, selectedPaths: [], searchQuery: '', loadingPaths: [], externallyModifiedPaths: [], openTabs: [], activeTabId: null, fileContents: new Map(), originalContents: new Map() });
         }
       },
 
@@ -314,7 +331,13 @@ export const useFileStore = create<FileState>()(
           newOriginalContents.delete(tab.path);
         }
 
-        set({ openTabs: newTabs, activeTabId: newActiveId, fileContents: newFileContents, originalContents: newOriginalContents });
+        set({
+          openTabs: newTabs,
+          activeTabId: newActiveId,
+          fileContents: newFileContents,
+          originalContents: newOriginalContents,
+          selectedPaths: tab ? state.selectedPaths.filter(p => p !== tab.path) : state.selectedPaths,
+        });
       },
 
       closeOtherTabs: (keepId) => {
@@ -332,6 +355,7 @@ export const useFileStore = create<FileState>()(
             activeTabId: keepId,
             fileContents: newContents,
             originalContents: newOriginal,
+            selectedPaths: state.selectedPaths.includes(keepTab.path) ? [keepTab.path] : [],
           });
         }
       },
@@ -352,10 +376,14 @@ export const useFileStore = create<FileState>()(
             if (original !== undefined) newOriginal.set(tab.path, original);
           }
 
+          const newActiveId = keepTabs.find(t => t.id === state.activeTabId)?.id || keepTabs[keepTabs.length - 1].id;
+
           set({
             openTabs: keepTabs,
+            activeTabId: newActiveId,
             fileContents: newContents,
             originalContents: newOriginal,
+            selectedPaths: state.selectedPaths.filter(p => keepTabs.some(t => t.path === p)),
           });
         }
       },
@@ -399,7 +427,7 @@ export const useFileStore = create<FileState>()(
         const state = get();
         const newContents = new Map(state.fileContents);
         const original = state.originalContents.get(path);
-        const isModified = original !== undefined && content !== original;
+        const isModified = original === undefined ? content !== '' : content !== original;
 
         newContents.set(path, content);
 
@@ -420,8 +448,9 @@ export const useFileStore = create<FileState>()(
         const { invoke } = await import('@tauri-apps/api/core');
         await invoke('write_file', { path, content, root });
 
+        const currentContent = get().fileContents.get(path);
         const newOriginal = new Map(get().originalContents);
-        newOriginal.set(path, content);
+        newOriginal.set(path, currentContent !== undefined ? currentContent : content);
 
         set(state => ({
           originalContents: newOriginal,
@@ -432,10 +461,11 @@ export const useFileStore = create<FileState>()(
       },
 
       saveAllFiles: async () => {
-        const state = get();
-        for (const tab of state.openTabs) {
-          if (tab.modified) {
-            await get().saveFile(tab.path);
+        const tabsToSave = get().openTabs.filter(t => t.modified).map(t => t.path);
+        for (const path of tabsToSave) {
+          const currentModified = get().openTabs.find(t => t.path === path)?.modified;
+          if (currentModified) {
+            await get().saveFile(path);
           }
         }
       },
@@ -485,21 +515,21 @@ export const useFileStore = create<FileState>()(
       selectRange: (toPath) => {
         const state = get();
         const allNodes = collectAllNodes(state.files);
-        const lastSelected = state.selectedPaths[state.selectedPaths.length - 1];
-        if (!lastSelected) {
+        const anchorPath = state.selectedPaths.length > 0 ? state.selectedPaths[0] : null;
+        if (!anchorPath) {
           set({ selectedPaths: [toPath] });
           return;
         }
 
-        const lastIdx = allNodes.findIndex(n => n.path === lastSelected);
+        const anchorIdx = allNodes.findIndex(n => n.path === anchorPath);
         const toIdx = allNodes.findIndex(n => n.path === toPath);
-        if (lastIdx === -1 || toIdx === -1) return;
+        if (anchorIdx === -1 || toIdx === -1) return;
 
-        const [from, to] = lastIdx < toIdx ? [lastIdx, toIdx] : [toIdx, lastIdx];
+        const [from, to] = anchorIdx < toIdx ? [anchorIdx, toIdx] : [toIdx, anchorIdx];
         const range = allNodes.slice(from, to + 1);
         const rangePaths = range.map(n => n.path);
 
-        set({ selectedPaths: [...new Set([...state.selectedPaths, ...rangePaths])] });
+        set({ selectedPaths: rangePaths });
       },
 
       addRecentFile: (path, name) => {

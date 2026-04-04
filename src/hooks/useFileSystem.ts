@@ -33,7 +33,8 @@ export function useFileSystem() {
 
   const listDirectory = useCallback(async (path: string): Promise<FileNode[]> => {
     try {
-      const entries = await invoke<FileEntry[]>('list_directory', { path });
+      const root = useFileStore.getState().rootPath;
+      const entries = await invoke<FileEntry[]>('list_directory', { path, root });
       return entries.map(entry => ({
         id: entry.path,
         name: entry.name,
@@ -104,7 +105,8 @@ export function useFileSystem() {
 
   const openFileInEditor = useCallback(async (path: string) => {
     try {
-      const content = await invoke<string>('read_file', { path });
+      const root = useFileStore.getState().rootPath;
+      const content = await invoke<string>('read_file', { path, root });
       openFile(path, content);
       ragEngine.addProjectFileContent(path, content);
     } catch (err) {
@@ -115,7 +117,8 @@ export function useFileSystem() {
 
   const createNewFile = useCallback(async (parentPath: string, name: string) => {
     try {
-      const newPath = await invoke<string>('create_file', { parent: parentPath, name });
+      const root = useFileStore.getState().rootPath;
+      const newPath = await invoke<string>('create_file', { parent: parentPath, name, root });
       await refreshDirectory(parentPath);
       return newPath;
     } catch (err) {
@@ -127,7 +130,8 @@ export function useFileSystem() {
 
   const createNewFolder = useCallback(async (parentPath: string, name: string) => {
     try {
-      const newPath = await invoke<string>('create_folder', { parent: parentPath, name });
+      const root = useFileStore.getState().rootPath;
+      const newPath = await invoke<string>('create_folder', { parent: parentPath, name, root });
       await refreshDirectory(parentPath);
       return newPath;
     } catch (err) {
@@ -141,7 +145,7 @@ export function useFileSystem() {
     try {
       const root = useFileStore.getState().rootPath;
       await invoke('delete_path', { path, root });
-      const parentPath = await invoke<string | null>('get_parent_dir', { path });
+      const parentPath = await invoke<string | null>('get_parent_dir', { path, root });
       if (parentPath) {
         await refreshDirectory(parentPath);
       }
@@ -155,8 +159,9 @@ export function useFileSystem() {
 
   const renameItem = useCallback(async (oldPath: string, newName: string) => {
     try {
-      const newPath = await invoke<string>('rename_path', { oldPath, newName });
-      const parentPath = await invoke<string | null>('get_parent_dir', { oldPath });
+      const root = useFileStore.getState().rootPath;
+      const newPath = await invoke<string>('rename_path', { oldPath, newName, root });
+      const parentPath = await invoke<string | null>('get_parent_dir', { path: oldPath, root });
       if (parentPath) {
         await refreshDirectory(parentPath);
       }
@@ -216,7 +221,8 @@ export function useFileSystem() {
 
   const readFileContent = useCallback(async (path: string): Promise<string | null> => {
     try {
-      return await invoke<string>('read_file', { path });
+      const root = useFileStore.getState().rootPath;
+      return await invoke<string>('read_file', { path, root });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
