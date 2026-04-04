@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { FeedbackPanel } from './FeedbackPanel';
+import { ToolCallBlock } from './ToolCallBlock';
 import type { AIMessage } from '../../stores/aiStore';
 import type { AIMode } from '../../lib/ai-prompts';
 
@@ -101,9 +102,26 @@ export function MessageBubble({ message, onFeedback, onRetry }: MessageBubblePro
           <span className="msg-timestamp">{formatTimestamp(message.timestamp)}</span>
         </div>
 
-        <div className="msg-content">
-          {renderContent(message.content, message.mode, message.role)}
-        </div>
+        {message.toolCalls && message.toolCalls.length > 0 && (
+          <div className="msg-tool-calls">
+            {message.toolCalls.map((tc) => (
+              <ToolCallBlock
+                key={tc.id}
+                toolName={tc.name}
+                args={tc.args}
+                output={tc.output}
+                success={tc.success}
+                elapsedMs={tc.elapsedMs}
+              />
+            ))}
+          </div>
+        )}
+
+        {message.content && (
+          <div className="msg-content">
+            {renderContent(message.content, message.mode, message.role)}
+          </div>
+        )}
 
         {message.usage && !isUser && (
           <div className="msg-usage">

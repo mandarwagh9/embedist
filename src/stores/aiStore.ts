@@ -11,6 +11,15 @@ export interface AIProvider {
   baseUrl?: string;
 }
 
+export interface ToolCallRecord {
+  id: string;
+  name: string;
+  args: string;
+  output: string;
+  success: boolean;
+  elapsedMs?: number;
+}
+
 export interface AIMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -23,6 +32,7 @@ export interface AIMessage {
     completion_tokens: number;
     total_tokens: number;
   };
+  toolCalls?: ToolCallRecord[];
 }
 
 export interface CustomModel {

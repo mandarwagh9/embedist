@@ -242,6 +242,11 @@
   position: relative;
 }
 
+.ai-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
 .ai-input {
   flex: 1;
   min-height: 40px;

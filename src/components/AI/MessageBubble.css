@@ -65,6 +65,13 @@
   color: var(--text-primary);
 }
 
+.msg-tool-calls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
 .msg-content p {
   margin: 0 0 var(--space-sm) 0;
 }

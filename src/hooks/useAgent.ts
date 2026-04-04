@@ -290,6 +290,8 @@ export function useAgent() {
         }
 
         if (response.tool_calls && response.tool_calls.length > 0) {
+          const toolCallsForMessage: Array<{ id: string; name: string; args: string; output: string; success: boolean; elapsedMs?: number }> = [];
+
           for (const tc of response.tool_calls) {
             if (cancelRef.current) break;
 
@@ -301,6 +303,7 @@ export function useAgent() {
                 tool_call_id: tc.id,
                 content: `Tool "${tc.name}" is blocked. The user has configured to always block this tool.`,
               });
+              toolCallsForMessage.push({ id: tc.id, name: tc.name, args: tc.arguments, output: `Tool "${tc.name}" is blocked.`, success: false });
               continue;
             }
 
@@ -314,10 +317,21 @@ export function useAgent() {
               args = {};
             }
 
+            const startTime = Date.now();
             const result = await safeExecuteTool(projectRoot, tc.name, tc.id, args);
+            const elapsedMs = Date.now() - startTime;
 
             const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
             logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
+
+            toolCallsForMessage.push({
+              id: tc.id,
+              name: tc.name,
+              args: tc.arguments,
+              output: result.output,
+              success: result.success,
+              elapsedMs,
+            });
 
             if (result.success) {
               const fileName = typeof args.path === 'string' ? args.path.split(/[/\\]/).pop() : '';
@@ -343,6 +357,16 @@ export function useAgent() {
               content: result.success
                 ? `Tool "${tc.name}" succeeded:\n${result.output}`
                 : `Tool "${tc.name}" failed:\n${result.output}`,
+            });
+          }
+
+          if (toolCallsForMessage.length > 0) {
+            const msgId = `asst-tools-${Date.now()}-${iteration}`;
+            addMessage({ role: 'assistant', content: '', toolCalls: toolCallsForMessage });
+            conversationMessages.push({
+              id: msgId,
+              role: 'assistant',
+              content: '',
             });
           }
         } else {

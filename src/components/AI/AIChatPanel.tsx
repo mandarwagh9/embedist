@@ -13,8 +13,10 @@ import { MessageBubble } from './MessageBubble';
 import { PromptSuggestions } from './PromptSuggestions';
 import { StreamingIndicator } from './StreamingIndicator';
 import { ToolPermissionDialog } from '../Common/ToolPermissionDialog';
+import { FileReferencePicker } from './FileReferencePicker';
 import { SYSTEM_PROMPTS } from '../../lib/ai-prompts';
 import type { AIMode } from '../../lib/ai-prompts';
+import type { FileNode } from '../../types';
 import './AIChatPanel.css';
 
 const MODE_COLORS: Record<AIMode, string> = {
@@ -28,6 +30,8 @@ import './PromptSuggestions.css';
 import './StreamingIndicator.css';
 import './AgentToolbar.css';
 import './AgentActivityPanel.css';
+import './ToolCallBlock.css';
+import './FileReferencePicker.css';
 import './PlanPanel/PlanPhaseIndicator.css';
 
 const MODE_LABELS: Record<AIMode, string> = {
@@ -87,6 +91,9 @@ function AIChatPanelContent() {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [filePickerOpen, setFilePickerOpen] = useState(false);
+  const [filePickerQuery, setFilePickerQuery] = useState('');
+  const [filePickerAtPos, setFilePickerAtPos] = useState(0);
   const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [activityPanelCollapsed, setActivityPanelCollapsed] = useState(false);
@@ -158,6 +165,14 @@ function AIChatPanelContent() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (filePickerOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setFilePickerOpen(false);
+        return;
+      }
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -181,6 +196,35 @@ function AIChatPanelContent() {
       setHistoryIndex(-1);
       setInput('');
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+
+    const cursorPos = e.target.selectionStart || 0;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const atIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (atIndex !== -1 && (atIndex === 0 || textBeforeCursor[atIndex - 1] === ' ' || textBeforeCursor[atIndex - 1] === '\n')) {
+      const query = textBeforeCursor.slice(atIndex + 1);
+      if (!query.includes(' ')) {
+        setFilePickerQuery(query);
+        setFilePickerAtPos(atIndex);
+        setFilePickerOpen(true);
+        return;
+      }
+    }
+    setFilePickerOpen(false);
+  };
+
+  const handleFileSelect = (file: FileNode) => {
+    const before = input.slice(0, filePickerAtPos);
+    const after = input.slice(filePickerAtPos + filePickerQuery.length + 1);
+    const newText = `${before}@${file.name} ${after}`;
+    setInput(newText);
+    setFilePickerOpen(false);
+    inputRef.current?.focus();
   };
 
   const handleStop = () => {
@@ -457,22 +501,30 @@ function AIChatPanelContent() {
             </div>
           )}
           <div className="ai-input-row">
-            <textarea
-              ref={inputRef}
-              className="ai-input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                hasActiveProvider
-                  ? mode === 'agent' && agentStatus === 'running'
-                    ? 'Agent is running — cancel to type...'
-                    : `Ask about your ${mode === 'plan' ? 'project' : mode === 'debug' ? 'issue' : mode === 'agent' ? 'task' : 'code'}...`
-                  : 'Configure AI provider in Settings...'
-              }
-              rows={1}
-              disabled={isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
-            />
+            <div className="ai-input-wrapper">
+              <textarea
+                ref={inputRef}
+                className="ai-input"
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  hasActiveProvider
+                    ? mode === 'agent' && agentStatus === 'running'
+                      ? 'Agent is running — cancel to type...'
+                      : `Ask about your ${mode === 'plan' ? 'project' : mode === 'debug' ? 'issue' : mode === 'agent' ? 'task' : 'code'}...`
+                    : 'Configure AI provider in Settings...'
+                }
+                rows={1}
+                disabled={isLoading || !hasActiveProvider || (mode === 'agent' && agentStatus === 'running')}
+              />
+              <FileReferencePicker
+                open={filePickerOpen}
+                query={filePickerQuery}
+                onSelect={handleFileSelect}
+                onClose={() => setFilePickerOpen(false)}
+              />
+            </div>
             <button
               type="submit"
               className="ai-send"
