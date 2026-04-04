@@ -415,9 +415,10 @@ export const useFileStore = create<FileState>()(
       saveFile: async (path) => {
         const content = get().fileContents.get(path);
         if (content === undefined) return;
+        const root = get().rootPath;
 
         const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('write_file', { path, content });
+        await invoke('write_file', { path, content, root });
 
         const newOriginal = new Map(get().originalContents);
         newOriginal.set(path, content);
