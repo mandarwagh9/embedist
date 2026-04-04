@@ -70,20 +70,22 @@ function parseMarkdown(text: string): string {
   html = html.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>');
 
-  html = html.replace(/^- \[ \] (.+)$/gm, '<div class="md-checkbox unchecked"><span class="md-checkbox-box"></span>$1</div>');
   html = html.replace(/^- \[x\] (.+)$/gm, '<div class="md-checkbox checked"><span class="md-checkbox-box-checked"></span>$1</div>');
-  html = html.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
+  html = html.replace(/^- \[ \] (.+)$/gm, '<div class="md-checkbox unchecked"><span class="md-checkbox-box"></span>$1</div>');
   html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="md-list-item numbered"><span class="md-number">$1.</span>$2</li>');
+  html = html.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
 
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
 
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
 
-  html = html.replace(/^\| (.+) \|$/gm, (_m, row) => {
+  html = html.replace(/^\|(.+)\|$/gm, (_m, row) => {
     const cells = row.split('|').map((c: string) => c.trim());
-    const isHeader = cells.some((c: string) => c.match(/^-+$/));
-    if (isHeader) return '';
+    const isHeader = cells.every((c: string) => /^[-:]+$/.test(c));
+    if (isHeader) return '<!--table-separator-->';
     return `<tr>${cells.map((c: string) => `<td class="md-table-cell">${c}</td>`).join('')}</tr>`;
   });
 
@@ -91,29 +93,52 @@ function parseMarkdown(text: string): string {
   const processedLines: string[] = [];
   let inTable = false;
   let tableRows: string[] = [];
+  let tableHasHeader = false;
 
   for (const line of lines) {
+    if (line === '<!--table-separator-->') {
+      tableHasHeader = true;
+      continue;
+    }
     if (line.startsWith('<tr>')) {
       if (!inTable) {
         inTable = true;
         tableRows = [];
+        tableHasHeader = false;
       }
       tableRows.push(line);
     } else {
-      if (inTable) {
-        processedLines.push('<table class="md-table"><tbody>');
-        tableRows.forEach((r) => processedLines.push(r));
-        processedLines.push('</tbody></table>');
+      if (inTable && tableRows.length > 0) {
+        if (tableHasHeader) {
+          const headerRow = tableRows[0];
+          const bodyRows = tableRows.slice(1);
+          processedLines.push(`<table class="md-table"><thead>${headerRow}</thead><tbody>`);
+          bodyRows.forEach((r) => processedLines.push(r));
+          processedLines.push('</tbody></table>');
+        } else {
+          processedLines.push('<table class="md-table"><tbody>');
+          tableRows.forEach((r) => processedLines.push(r));
+          processedLines.push('</tbody></table>');
+        }
         tableRows = [];
         inTable = false;
+        tableHasHeader = false;
       }
       processedLines.push(line);
     }
   }
-  if (inTable) {
-    processedLines.push('<table class="md-table"><tbody>');
-    tableRows.forEach((r) => processedLines.push(r));
-    processedLines.push('</tbody></table>');
+  if (inTable && tableRows.length > 0) {
+    if (tableHasHeader) {
+      const headerRow = tableRows[0];
+      const bodyRows = tableRows.slice(1);
+      processedLines.push(`<table class="md-table"><thead>${headerRow}</thead><tbody>`);
+      bodyRows.forEach((r) => processedLines.push(r));
+      processedLines.push('</tbody></table>');
+    } else {
+      processedLines.push('<table class="md-table"><tbody>');
+      tableRows.forEach((r) => processedLines.push(r));
+      processedLines.push('</tbody></table>');
+    }
   }
 
   html = processedLines.join('\n');

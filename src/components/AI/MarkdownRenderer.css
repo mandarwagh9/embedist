@@ -170,16 +170,17 @@
   font-size: 12px;
 }
 
-.md-renderer .md-table-cell {
-  padding: 6px 10px;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-}
-
-.md-renderer .md-table tr:first-child .md-table-cell {
+.md-renderer .md-table thead td,
+.md-renderer .md-table thead th {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.md-renderer .md-table td {
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
 }
 
 .md-renderer p {

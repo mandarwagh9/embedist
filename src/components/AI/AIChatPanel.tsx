@@ -3,6 +3,7 @@ import { useAI } from '../../hooks/useAI';
 import { useAgent } from '../../hooks/useAgent';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAIStore } from '../../stores/aiStore';
+import { useFileStore } from '../../stores/fileStore';
 
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
@@ -145,10 +146,40 @@ function AIChatPanelContent() {
     e?.preventDefault();
     if (!input.trim() || isLoading || !hasActiveProvider) return;
 
-    const userMessage = input.trim();
+    const rawInput = input.trim();
+    const fileContents = useFileStore.getState().fileContents;
+    const currentFiles = useFileStore.getState().files;
+
+    let userMessage = rawInput;
+    const atRefRegex = /@(\S+)/g;
+    let match;
+    const referencedPaths = new Set<string>();
+
+    while ((match = atRefRegex.exec(rawInput)) !== null) {
+      const refName = match[1];
+      const findFile = (nodes: typeof currentFiles): typeof currentFiles[0] | null => {
+        for (const n of nodes) {
+          if (n.name === refName) return n;
+          if (n.children) {
+            const found = findFile(n.children);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      const file = findFile(currentFiles);
+      if (file && !referencedPaths.has(file.path)) {
+        referencedPaths.add(file.path);
+        const content = fileContents.get(file.path) || '';
+        userMessage = userMessage.replace(`@${refName}`, `\n\n--- ${file.path} ---\n\`\`\`\n${content}\n\`\`\`\n`);
+      } else {
+        userMessage = userMessage.replace(`@${refName}`, `*(file "${refName}" not found)*`);
+      }
+    }
+
     setInput('');
     setHistoryIndex(-1);
-    setCommandHistory(prev => [userMessage, ...prev].slice(0, 50));
+    setCommandHistory(prev => [rawInput, ...prev].slice(0, 50));
     setShowSuggestions(false);
 
     if (mode === 'agent') {
