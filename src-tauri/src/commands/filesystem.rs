@@ -4,6 +4,26 @@ use std::path::PathBuf;
 use tauri::command;
 use tokio::process::Command as AsyncCommand;
 
+fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
+    if allowed_root.is_empty() {
+        return Ok(PathBuf::from(path));
+    }
+    let canonical_root = PathBuf::from(allowed_root).canonicalize()
+        .map_err(|e| format!("Invalid project root: {}", e))?;
+    let p = PathBuf::from(path);
+    let canonical = if p.exists() {
+        p.canonicalize().map_err(|e| format!("Cannot resolve path: {}", e))?
+    } else {
+        let joined = canonical_root.join(&p);
+        joined.canonicalize().unwrap_or(joined)
+    };
+    if canonical.starts_with(&canonical_root) {
+        Ok(canonical)
+    } else {
+        Err(format!("Access denied: path is outside project root"))
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
     pub name: String,
@@ -23,59 +43,67 @@ pub struct DirectoryTree {
 }
 
 #[command]
-pub fn read_file(path: String) -> Result<String, String> {
-    fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
+pub fn read_file(path: String, root: String) -> Result<String, String> {
+    let p = validate_path(&path, &root)?;
+    fs::read_to_string(&p).map_err(|e| format!("Failed to read file: {}", e))
 }
 
 #[command]
-pub fn write_file(path: String, content: String) -> Result<(), String> {
-    fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))
+pub fn write_file(path: String, content: String, root: String) -> Result<(), String> {
+    let p = validate_path(&path, &root)?;
+    fs::write(&p, content).map_err(|e| format!("Failed to write file: {}", e))
 }
 
 #[command]
-pub fn create_file(parent: String, name: String) -> Result<String, String> {
-    let path = PathBuf::from(&parent).join(&name);
+pub fn create_file(parent: String, name: String, root: String) -> Result<String, String> {
+    let parent_path = validate_path(&parent, &root)?;
+    let path = parent_path.join(&name);
     fs::write(&path, "").map_err(|e| format!("Failed to create file: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[command]
-pub fn create_folder(parent: String, name: String) -> Result<String, String> {
-    let path = PathBuf::from(&parent).join(&name);
+pub fn create_folder(parent: String, name: String, root: String) -> Result<String, String> {
+    let parent_path = validate_path(&parent, &root)?;
+    let path = parent_path.join(&name);
     fs::create_dir_all(&path).map_err(|e| format!("Failed to create folder: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[command]
-pub fn delete_path(path: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
+pub fn delete_path(path: String, root: String) -> Result<(), String> {
+    let p = validate_path(&path, &root)?;
     if p.is_dir() {
-        fs::remove_dir_all(&path).map_err(|e| format!("Failed to delete folder: {}", e))
+        fs::remove_dir_all(&p).map_err(|e| format!("Failed to delete folder: {}", e))
     } else {
-        fs::remove_file(&path).map_err(|e| format!("Failed to delete file: {}", e))
+        fs::remove_file(&p).map_err(|e| format!("Failed to delete file: {}", e))
     }
 }
 
 #[command]
-pub fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
-    let old = PathBuf::from(&old_path);
+pub fn rename_path(old_path: String, new_name: String, root: String) -> Result<String, String> {
+    let old = validate_path(&old_path, &root)?;
     let parent = old.parent().ok_or("No parent directory")?;
     let new_path = parent.join(&new_name);
+    if !new_path.starts_with(PathBuf::from(&root).canonicalize().map_err(|e| format!("Invalid root: {}", e))?) {
+        return Err("Access denied: renamed path would escape project root".to_string());
+    }
     fs::rename(&old, &new_path).map_err(|e| format!("Failed to rename: {}", e))?;
     Ok(new_path.to_string_lossy().to_string())
 }
 
 #[command]
-pub fn move_path(old_path: String, new_path: String) -> Result<String, String> {
-    let old = PathBuf::from(&old_path);
-    let new = PathBuf::from(&new_path);
-    fs::rename(&old, &new).map_err(|e| format!("Failed to move: {}", e))?;
-    Ok(new.to_string_lossy().to_string())
+pub fn move_path(old_path: String, new_path_str: String, root: String) -> Result<String, String> {
+    let old = validate_path(&old_path, &root)?;
+    let new_path = validate_path(&new_path_str, &root)?;
+    fs::rename(&old, &new_path).map_err(|e| format!("Failed to move: {}", e))?;
+    Ok(new_path.to_string_lossy().to_string())
 }
 
 #[command]
-pub fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
-    let entries = fs::read_dir(&path).map_err(|e| format!("Failed to read directory: {}", e))?;
+pub fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>, String> {
+    let p = validate_path(&path, &root)?;
+    let entries = fs::read_dir(&p).map_err(|e| format!("Failed to read directory: {}", e))?;
     
     let mut files: Vec<FileEntry> = entries
         .filter_map(|entry| entry.ok())
@@ -109,7 +137,8 @@ pub fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
 }
 
 #[command]
-pub fn get_directory_tree(path: String, depth: Option<u32>) -> Result<DirectoryTree, String> {
+pub fn get_directory_tree(path: String, depth: Option<u32>, root: String) -> Result<DirectoryTree, String> {
+    validate_path(&path, &root)?;
     let max_depth = depth.unwrap_or(3);
     
     fn build_tree(path: &str, current_depth: u32, max_depth: u32) -> Result<DirectoryTree, String> {
@@ -157,19 +186,22 @@ pub fn get_directory_tree(path: String, depth: Option<u32>) -> Result<DirectoryT
 }
 
 #[command]
-pub fn file_exists(path: String) -> bool {
-    PathBuf::from(&path).exists()
+pub fn file_exists(path: String, root: String) -> bool {
+    validate_path(&path, &root).map(|p| p.exists()).unwrap_or(false)
 }
 
 #[command]
-pub fn is_platformio_project(path: String) -> bool {
-    let platformio_ini = PathBuf::from(&path).join("platformio.ini");
-    platformio_ini.exists()
+pub fn is_platformio_project(path: String, root: String) -> bool {
+    validate_path(&path, &root).map(|p| {
+        let platformio_ini = p.join("platformio.ini");
+        platformio_ini.exists()
+    }).unwrap_or(false)
 }
 
 #[command]
-pub fn read_platformio_board(path: String) -> Result<String, String> {
-    let platformio_ini = PathBuf::from(&path).join("platformio.ini");
+pub fn read_platformio_board(path: String, root: String) -> Result<String, String> {
+    let p = validate_path(&path, &root)?;
+    let platformio_ini = p.join("platformio.ini");
     let content = fs::read_to_string(&platformio_ini)
         .map_err(|e| format!("Failed to read platformio.ini: {}", e))?;
     
@@ -204,8 +236,13 @@ pub fn get_parent_dir(path: String) -> Option<String> {
 }
 
 #[command]
-pub fn save_plan_file(directory: String, name: String, content: String) -> Result<String, String> {
-    let path = PathBuf::from(&directory).join(&name);
+pub fn save_plan_file(directory: String, name: String, content: String, root: String) -> Result<String, String> {
+    let path = if root.is_empty() {
+        PathBuf::from(&name)
+    } else {
+        let parent = validate_path(&directory, &root)?;
+        parent.join(&name)
+    };
     fs::write(&path, content).map_err(|e| format!("Failed to save plan: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
@@ -349,7 +386,7 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
 }
 
 #[command]
-pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResult, String> {
+pub async fn run_shell(command: String, cwd: Option<String>, root: Option<String>) -> Result<ShellResult, String> {
     if command.contains(&['&', '|', ';', '\n', '\r', '$', '`', '(', ')', '{', '}', '<', '>', '!', '~', '*', '?', '[', ']'][..]) {
         return Err("Shell metacharacters are not allowed.".to_string());
     }
@@ -362,6 +399,9 @@ pub async fn run_shell(command: String, cwd: Option<String>) -> Result<ShellResu
     }
 
     if let Some(dir) = &cwd {
+        if let Some(r) = &root {
+            validate_path(dir, r)?;
+        }
         builder.current_dir(dir);
     }
 
