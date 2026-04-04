@@ -1,55 +1,39 @@
 .msg-bubble {
   display: flex;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  gap: 0;
+  margin-bottom: var(--space-sm);
   align-items: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
 }
 
-.msg-bubble.msg-user {
-  flex-direction: row-reverse;
+.msg-bubble:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.msg-avatar {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-surface);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.msg-bubble.msg-assistant .msg-avatar {
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-
-.msg-bubble.msg-user .msg-avatar {
-  background: var(--bg-surface-hover);
-  color: var(--text-secondary);
+.msg-border-accent {
+  width: 3px;
+  min-width: 3px;
+  height: auto;
+  align-self: stretch;
+  border-radius: 2px;
+  margin-right: var(--space-sm);
+  opacity: 0.7;
 }
 
 .msg-body {
   display: flex;
   flex-direction: column;
-  max-width: 82%;
+  width: 100%;
   min-width: 0;
-}
-
-.msg-bubble.msg-user .msg-body {
-  align-items: flex-end;
 }
 
 .msg-header {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  margin-bottom: 4px;
-  padding: 0 var(--space-xs);
+  margin-bottom: var(--space-xs);
 }
 
 .msg-role {
@@ -63,57 +47,54 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  padding: 1px 5px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
 }
 
 .msg-timestamp {
   font-size: 10px;
   color: var(--text-muted);
   margin-left: auto;
+  opacity: 0.6;
 }
 
 .msg-content {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.msg-bubble.msg-user .msg-content {
-  background: var(--bg-surface);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-primary);
 }
 
 .msg-content p {
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  color: var(--text-primary);
-  white-space: pre-wrap;
-  margin: 0;
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.msg-content p:last-child {
+  margin-bottom: 0;
 }
 
 .msg-actions {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  margin-top: 4px;
-  padding: 0 var(--space-xs);
-  opacity: 0;
+  margin-top: var(--space-xs);
+  opacity: 0.4;
   transition: opacity var(--transition-fast);
 }
 
-.msg-actions.visible {
+.msg-bubble:hover .msg-actions {
   opacity: 1;
 }
 
 .msg-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  justify-content: center;
+  padding: 3px 6px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
-  font-size: 11px;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -131,19 +112,21 @@
 .msg-feedback-inline {
   display: flex;
   align-items: center;
+  margin-left: var(--space-xs);
 }
 
 .msg-system {
   display: flex;
   justify-content: center;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
 }
 
 .msg-system-content {
   max-width: 90%;
   padding: var(--space-sm) var(--space-md);
-  background: transparent;
-  border: 1px dashed var(--border-default);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   text-align: center;
 }
@@ -151,12 +134,10 @@
 .msg-system-content p {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  font-style: italic;
   margin: 0;
 }
 
 .msg-system-content .md-renderer {
-  font-style: normal;
   text-align: left;
 }
 
@@ -167,19 +148,10 @@
   font-size: 11px;
   color: var(--text-muted);
   margin-top: var(--space-xs);
-  padding-top: var(--space-xs);
-  border-top: 1px solid var(--border);
+  opacity: 0.6;
 }
 
 .msg-usage-label {
-  font-weight: 500;
-}
-
-.msg-usage-value {
-  color: var(--accent);
   font-weight: 600;
-}
-
-.msg-usage-detail {
-  opacity: 0.7;
+  color: var(--accent);
 }

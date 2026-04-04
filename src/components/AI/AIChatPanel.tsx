@@ -4,7 +4,6 @@ import { useAgent } from '../../hooks/useAgent';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAIStore } from '../../stores/aiStore';
 
-const MODE_TAG_STYLE = { color: 'var(--accent)' } as const;
 import { ErrorBoundary } from '../Common/ErrorBoundary';
 import { ModeToggle } from './ModeToggle';
 import { PlanToolbar, PlanEditPanel, PlanPhaseIndicator, PlanExplorerPanel } from './PlanPanel';
@@ -17,6 +16,13 @@ import { ToolPermissionDialog } from '../Common/ToolPermissionDialog';
 import { SYSTEM_PROMPTS } from '../../lib/ai-prompts';
 import type { AIMode } from '../../lib/ai-prompts';
 import './AIChatPanel.css';
+
+const MODE_COLORS: Record<AIMode, string> = {
+  chat: 'var(--accent)',
+  plan: 'var(--info)',
+  debug: 'var(--warning)',
+  agent: '#A78BFA',
+};
 import './MessageBubble.css';
 import './PromptSuggestions.css';
 import './StreamingIndicator.css';
@@ -76,8 +82,11 @@ function AIChatPanelContent() {
     deepseek: 'DeepSeek',
     ollama: 'Ollama',
   };
+  const providerLabel = PROVIDER_NAMES[activeProvider] || activeProvider;
 
   const [input, setInput] = useState('');
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [transitionMsg, setTransitionMsg] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [activityPanelCollapsed, setActivityPanelCollapsed] = useState(false);
@@ -131,6 +140,8 @@ function AIChatPanelContent() {
 
     const userMessage = input.trim();
     setInput('');
+    setHistoryIndex(-1);
+    setCommandHistory(prev => [userMessage, ...prev].slice(0, 50));
     setShowSuggestions(false);
 
     if (mode === 'agent') {
@@ -150,6 +161,25 @@ function AIChatPanelContent() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+    }
+    if (e.key === 'ArrowUp' && !input) {
+      e.preventDefault();
+      if (commandHistory.length > 0) {
+        const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
+        setHistoryIndex(newIndex);
+        setInput(commandHistory[newIndex]);
+      }
+    }
+    if (e.key === 'ArrowDown' && historyIndex > 0) {
+      e.preventDefault();
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setInput(commandHistory[newIndex]);
+    }
+    if (e.key === 'ArrowDown' && historyIndex === 0) {
+      e.preventDefault();
+      setHistoryIndex(-1);
+      setInput('');
     }
   };
 
@@ -370,17 +400,11 @@ function AIChatPanelContent() {
             ))}
             {isStreaming && streamingContent && (
               <div className="msg-bubble msg-assistant">
-                <div className="msg-avatar">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-                    <path d="M2 17L12 22L22 17" />
-                    <path d="M2 12L12 17L22 12" />
-                  </svg>
-                </div>
+                <div className="msg-border-accent" style={{ background: MODE_COLORS[mode] }} />
                 <div className="msg-body">
                   <div className="msg-header">
                     <span className="msg-role">Assistant</span>
-                    <span className="msg-mode-tag" style={MODE_TAG_STYLE}>{MODE_LABELS[mode]}</span>
+                    <span className="msg-mode-tag" style={{ color: MODE_COLORS[mode] }}>{MODE_LABELS[mode]}</span>
                   </div>
                   <div className="msg-content streaming-msg-content">
                     <StreamingIndicator
@@ -394,20 +418,19 @@ function AIChatPanelContent() {
             )}
             {isLoading && !isStreaming && (
               <div className="msg-bubble msg-assistant">
-                <div className="msg-avatar">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-                  </svg>
-                </div>
+                <div className="msg-border-accent" style={{ background: MODE_COLORS[mode] }} />
                 <div className="msg-body">
                   <div className="msg-header">
                     <span className="msg-role">Assistant</span>
                   </div>
                   <div className="msg-content">
                     <div className="ai-loading">
-                      <span></span>
-                      <span></span>
-                      <span></span>
+                      <div className="ai-loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      <span>Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -420,6 +443,19 @@ function AIChatPanelContent() {
 
       {showInput && (
         <form className="ai-input-area" onSubmit={handleSubmit}>
+          {messages.length > 0 && (
+            <div className="ai-context-bar">
+              <span className="ai-context-bar-icon">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 16v-4M12 8h.01"/>
+                </svg>
+              </span>
+              <span className="ai-context-bar-text">
+                {messages.length} message{messages.length !== 1 ? 's' : ''} · mode: <strong>{MODE_LABELS[mode]}</strong> · provider: <strong>{providerLabel}</strong>
+              </span>
+            </div>
+          )}
           <div className="ai-input-row">
             <textarea
               ref={inputRef}
@@ -453,7 +489,6 @@ function AIChatPanelContent() {
               )}
             </button>
           </div>
-          <span className="ai-input-hint">Enter to send, Shift+Enter for new line</span>
         </form>
       )}
     </div>

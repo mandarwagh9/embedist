@@ -14,14 +14,7 @@ const MODE_COLORS: Record<AIMode, string> = {
   chat: 'var(--accent)',
   plan: 'var(--info)',
   debug: 'var(--warning)',
-  agent: '#9b59b6',
-};
-
-const MODE_LABELS: Record<AIMode, string> = {
-  chat: 'Chat',
-  plan: 'Plan',
-  debug: 'Debug',
-  agent: 'Agent',
+  agent: '#A78BFA',
 };
 
 function formatTimestamp(ts: number): string {
@@ -58,7 +51,6 @@ function renderContent(content: string, _mode: AIMode, role: string): JSX.Elemen
 }
 
 export function MessageBubble({ message, onFeedback, onRetry }: MessageBubbleProps) {
-  const [hovered, setHovered] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -76,7 +68,6 @@ export function MessageBubble({ message, onFeedback, onRetry }: MessageBubblePro
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const roleLabel = message.role === 'user' ? 'You' : 'Assistant';
   const isSystem = message.role === 'system';
 
   if (isSystem) {
@@ -93,33 +84,20 @@ export function MessageBubble({ message, onFeedback, onRetry }: MessageBubblePro
     );
   }
 
+  const isUser = message.role === 'user';
+
   return (
-    <div
-      className={`msg-bubble msg-${message.role}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div className="msg-avatar">
-        {message.role === 'user' ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-            <path d="M2 17L12 22L22 17" />
-            <path d="M2 12L12 17L22 12" />
-          </svg>
-        )}
-      </div>
+    <div className={`msg-bubble msg-${message.role}`}>
+      <div className="msg-border-accent" style={{ background: isUser ? 'var(--text-muted)' : MODE_COLORS[message.mode] }} />
 
       <div className="msg-body">
         <div className="msg-header">
-          <span className="msg-role">{roleLabel}</span>
-          <span className="msg-mode-tag" style={{ color: MODE_COLORS[message.mode] }}>
-            {MODE_LABELS[message.mode]}
-          </span>
+          <span className="msg-role">{isUser ? 'You' : 'Assistant'}</span>
+          {!isUser && (
+            <span className="msg-mode-tag" style={{ color: MODE_COLORS[message.mode] }}>
+              {message.mode}
+            </span>
+          )}
           <span className="msg-timestamp">{formatTimestamp(message.timestamp)}</span>
         </div>
 
@@ -127,79 +105,45 @@ export function MessageBubble({ message, onFeedback, onRetry }: MessageBubblePro
           {renderContent(message.content, message.mode, message.role)}
         </div>
 
-        {message.usage && message.role === 'assistant' && (
+        {message.usage && !isUser && (
           <div className="msg-usage">
-            <span className="msg-usage-label">Tokens:</span>
-            <span className="msg-usage-value">{message.usage.total_tokens}</span>
-            <span className="msg-usage-detail">(prompt: {message.usage.prompt_tokens}, completion: {message.usage.completion_tokens})</span>
+            <span className="msg-usage-label">{message.usage.total_tokens}</span>
+            <span className="msg-usage-detail">tokens</span>
           </div>
         )}
 
-        <div className={`msg-actions ${hovered ? 'visible' : ''}`}>
-          {message.role === 'assistant' && (
-            <>
-              <button
-                className={`msg-action-btn ${copied ? 'copied' : ''}`}
-                onClick={handleCopy}
-                title="Copy message"
-              >
-                {copied ? (
-                  <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" />
-                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                    </svg>
-                    Copy
-                  </>
-                )}
-              </button>
-              {onRetry && (
-                <button className="msg-action-btn" onClick={onRetry} title="Regenerate response">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M23 4v6h-6M1 20v-6h6" />
-                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-                  </svg>
-                  Retry
-                </button>
-              )}
-              <div className="msg-feedback-inline">
-                <FeedbackPanel
-                  feedback={message.feedback}
-                  onFeedback={(fb) => onFeedback(message.id, fb)}
-                />
-              </div>
-            </>
-          )}
-          {message.role === 'user' && (
-            <button
-              className={`msg-action-btn ${copied ? 'copied' : ''}`}
-              onClick={handleCopy}
-              title="Copy message"
-            >
-              {copied ? (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Copied
-                </>
-              ) : (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" />
-                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                  </svg>
-                  Copy
-                </>
-              )}
+        <div className="msg-actions">
+          <button
+            className={`msg-action-btn ${copied ? 'copied' : ''}`}
+            onClick={handleCopy}
+            title="Copy"
+          >
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+              </svg>
+            )}
+          </button>
+          {!isUser && onRetry && (
+            <button className="msg-action-btn" onClick={onRetry} title="Regenerate">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M23 4v6h-6M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
             </button>
+          )}
+          {!isUser && (
+            <div className="msg-feedback-inline">
+              <FeedbackPanel
+                feedback={message.feedback}
+                onFeedback={(fb) => onFeedback(message.id, fb)}
+              />
+            </div>
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface StreamingIndicatorProps {
   content: string;
@@ -10,17 +11,26 @@ export function StreamingIndicator({ content, isStreaming, onStop }: StreamingIn
   const [displayedContent, setDisplayedContent] = useState('');
 
   useEffect(() => {
-    if (isStreaming) {
-      setDisplayedContent(content);
-    } else {
-      setDisplayedContent(content);
-    }
+    setDisplayedContent(content);
   }, [content, isStreaming]);
+
+  if (!isStreaming && !displayedContent) return null;
 
   return (
     <div className="streaming-indicator">
       <div className="streaming-content">
-        {displayedContent}
+        {displayedContent ? (
+          <MarkdownRenderer content={displayedContent} />
+        ) : (
+          <div className="streaming-thinking">
+            <div className="thinking-dots">
+              <span className="thinking-dot" />
+              <span className="thinking-dot" />
+              <span className="thinking-dot" />
+            </div>
+            <span>Thinking...</span>
+          </div>
+        )}
         {isStreaming && <span className="streaming-cursor" />}
       </div>
       {isStreaming && onStop && (

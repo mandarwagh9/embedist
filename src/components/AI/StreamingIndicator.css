@@ -6,23 +6,52 @@
   font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--text-primary);
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
 .streaming-cursor {
   display: inline-block;
   width: 2px;
-  height: 14px;
+  height: 16px;
   background: var(--accent);
   margin-left: 2px;
   vertical-align: text-bottom;
-  animation: cursor-blink 1s step-end infinite;
+  animation: cursor-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+@keyframes cursor-pulse {
+  0%, 100% { opacity: 1; transform: scaleY(1); }
+  50% { opacity: 0.4; transform: scaleY(0.85); }
+}
+
+.streaming-thinking {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  padding: var(--space-sm) 0;
+}
+
+.thinking-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.thinking-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: thinking-bounce 1.4s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes thinking-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 .streaming-stop {
