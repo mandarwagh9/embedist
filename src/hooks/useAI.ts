@@ -192,6 +192,8 @@ export function useAI() {
       const toolCallsToExecute = parsedToolCalls.length > 0 ? parsedToolCalls : (response.tool_calls || []);
 
       if (toolCallsToExecute.length > 0) {
+        const debugToolCalls: Array<{ id: string; name: string; args: string; output: string; success: boolean; elapsedMs?: number }> = [];
+
         for (const tc of toolCallsToExecute) {
           let args: Record<string, unknown> = {};
           try {
@@ -204,7 +206,19 @@ export function useAI() {
             args = {};
           }
 
+          const startTime = Date.now();
           const result = await executeDebugTool(tc.id, tc.name, args);
+          const elapsedMs = Date.now() - startTime;
+
+          debugToolCalls.push({
+            id: tc.id,
+            name: tc.name,
+            args: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
+            output: result.output,
+            success: result.success,
+            elapsedMs,
+          });
+
           const toolResultMsg: APIMessage = {
             id: `tool-${tc.id}`,
             role: 'tool',
@@ -228,6 +242,9 @@ export function useAI() {
         
         response.content = followUpResponse.content;
         response.usage = followUpResponse.usage;
+
+        addMessage({ role: 'assistant', content: response.content, usage: response.usage, toolCalls: debugToolCalls });
+        return response;
       }
 
       addMessage({ role: 'assistant', content: response.content, usage: response.usage });

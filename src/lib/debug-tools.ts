@@ -57,7 +57,7 @@ registerDebugTool('read_file', {
 }, async (args) => {
   const path = args.path as string;
   if (!path) return 'Please provide a file path.';
-  const content = await invoke<string>('read_file', { path });
+  const content = await invoke<string>('read_file', { path, root: useFileStore.getState().rootPath });
   return content;
 });
 
@@ -113,7 +113,7 @@ registerDebugTool('list_directory', {
   const path = args.path as string || useFileStore.getState().rootPath;
   if (!path) return 'No project open. Please provide a path.';
   
-  const files = await invoke<FileEntry[]>('list_directory', { path });
+  const files = await invoke<FileEntry[]>('list_directory', { path, root: useFileStore.getState().rootPath });
   return files.map(f => f.is_dir ? `${f.name}/` : f.name).join('\n');
 });
 
@@ -143,11 +143,12 @@ registerDebugTool('get_directory_tree', {
   
   const tree = await invoke<TreeNode>('get_directory_tree', { 
     path, 
-    depth: (args.depth as number) || 3 
+    depth: (args.depth as number) || 3,
+    root: useFileStore.getState().rootPath,
   });
   
   function formatTree(node: TreeNode, indent: string = ''): string {
-    let result = `${indent}${node.is_dir ? '📁 ' : '📄 '}${node.name}\n`;
+    let result = `${indent}${node.is_dir ? '[DIR] ' : '[FILE] '}${node.name}\n`;
     if (node.children && node.children.length > 0) {
       for (const child of node.children) {
         result += formatTree(child, indent + '  ');
@@ -179,7 +180,8 @@ registerDebugTool('run_shell', {
   
   const result = await invoke<{stdout: string, stderr: string, return_code: number}>('run_shell', { 
     command: args.command as string, 
-    cwd
+    cwd,
+    root: useFileStore.getState().rootPath,
   });
   if (result.return_code !== 0) {
     return `Exit code: ${result.return_code}\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`;
