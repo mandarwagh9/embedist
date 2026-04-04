@@ -122,8 +122,8 @@ fn find_pio_in_filesystem() -> Option<String> {
 }
 
 fn get_pio_command() -> String {
-    if find_pio_in_filesystem().is_some() {
-        return find_pio_in_filesystem().unwrap();
+    if let Some(path) = find_pio_in_filesystem() {
+        return path;
     }
     "pio".to_string()
 }
@@ -215,7 +215,7 @@ pub async fn stop_build(state: tauri::State<'_, BuildState>) -> Result<bool, Str
         #[cfg(windows)]
         {
             let _ = SyncCommand::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
+                .args(["/F", "/T", "/PID", &pid.to_string()])
                 .spawn()
                 .map_err(|e| format!("Failed to spawn taskkill: {}", e))?
                 .wait()
@@ -269,7 +269,7 @@ pub async fn run_platformio_command(
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
-    for line in stdout.lines() {
+    for line in stdout.lines().chain(stderr.lines()) {
         if line.contains("error:") || line.contains("Error:") || line.contains("ERROR:") {
             errors.push(line.trim().to_string());
         }
@@ -325,48 +325,65 @@ pub fn parse_build_errors(output: String) -> Vec<serde_json::Value> {
 
     for line in output.lines() {
         if line.contains("error:") || line.contains("Error:") || line.contains("ERROR:") {
-            let parts: Vec<&str> = line.split(':').collect();
-
-            if parts.len() >= 3 {
-                let file = parts.first().copied().unwrap_or_default();
-                let line_num = parts.get(1).unwrap_or(&"0");
-                let message = parts.get(2..).unwrap_or(&[]).join(":");
-
-                errors.push(serde_json::json!({
-                    "type": "error",
-                    "file": file,
-                    "line": line_num,
-                    "message": message.trim(),
-                }));
+            let error_type = if line.contains("warning:") || line.contains("Warning:") { "warning" } else { "error" };
+            if let Some(parsed) = parse_compiler_error_line(line, error_type) {
+                errors.push(parsed);
             } else {
                 errors.push(serde_json::json!({
-                    "type": "error",
+                    "type": error_type,
                     "file": "",
                     "line": 0,
                     "message": line.trim(),
                 }));
             }
-        }
-
-        if line.contains("warning:") || line.contains("Warning:") {
-            let parts: Vec<&str> = line.split(':').collect();
-
-            if parts.len() >= 3 {
-                let file = parts.first().copied().unwrap_or_default();
-                let line_num = parts.get(1).unwrap_or(&"0");
-                let message = parts.get(2..).unwrap_or(&[]).join(":");
-
-                errors.push(serde_json::json!({
-                    "type": "warning",
-                    "file": file,
-                    "line": line_num,
-                    "message": message.trim(),
-                }));
+        } else if line.contains("warning:") || line.contains("Warning:") {
+            if let Some(parsed) = parse_compiler_error_line(line, "warning") {
+                errors.push(parsed);
             }
         }
     }
 
     errors
+}
+
+fn parse_compiler_error_line(line: &str, error_type: &str) -> Option<serde_json::Value> {
+    let colon_pos = line.find("error:").or_else(|| line.find("Error:")).or_else(|| line.find("ERROR:"))
+        .or_else(|| line.find("warning:")).or_else(|| line.find("Warning:"));
+
+    let colon_pos = colon_pos?;
+    let prefix = &line[..colon_pos].trim_end_matches(':');
+
+    let parts: Vec<&str> = prefix.rsplitn(3, ':').collect();
+
+    if parts.len() >= 3 {
+        let line_num = parts[0];
+        let col_or_file = parts[1];
+        let file = parts[2];
+
+        if line_num.parse::<u32>().is_ok() && (col_or_file.parse::<u32>().is_ok() || !col_or_file.is_empty()) {
+            let message = line[colon_pos..].trim_start_matches(|c: char| c.is_alphabetic() || c == ':').trim().to_string();
+            return Some(serde_json::json!({
+                "type": error_type,
+                "file": file.trim(),
+                "line": line_num,
+                "message": message,
+            }));
+        }
+    } else if parts.len() == 2 {
+        let line_num = parts[0];
+        let file = parts[1];
+        if line_num.parse::<u32>().is_ok() {
+            let message = line[colon_pos..].trim_start_matches(|c: char| c.is_alphabetic() || c == ':').trim().to_string();
+            return Some(serde_json::json!({
+                "type": error_type,
+                "file": file.trim(),
+                "line": line_num,
+                "message": message,
+            }));
+        }
+    }
+
+    None
 }
 
 #[command]
