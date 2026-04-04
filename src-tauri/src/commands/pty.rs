@@ -1,7 +1,12 @@
+use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::io::{BufReader, Read, Write};
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU32, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
+
+static SESSION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Default)]
 pub struct PtyState {
@@ -27,43 +32,38 @@ pub async fn pty_spawn(
     state: State<'_, PtyState>,
     app: AppHandle,
 ) -> Result<u32, String> {
-    use std::process::Command;
-    use std::io::Read;
-
     let mut cmd = Command::new(&command);
-    cmd.args(&args);
+    cmd.args(&args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .env("TERM", "xterm-256color");
 
     if let Some(c) = cwd {
         cmd.current_dir(c);
     }
 
-    cmd.env("TERM", "xterm-256color");
-
     let child = cmd
         .spawn()
         .map_err(|e| format!("Failed to spawn shell: {}", e))?;
 
-    let id = {
-        let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
-        let id = sessions.len() as u32 + 1;
+    let id = SESSION_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+
+    {
+        let mut sessions = state.sessions.lock();
         sessions.insert(id, PtySession { child });
-        id
-    };
+    }
 
     let app_handle = app.clone();
-    let pty_id = id;
 
     std::thread::spawn(move || {
         let state = app_handle.state::<PtyState>();
-        let mut sessions = match state.sessions.lock() {
-            Ok(s) => s,
-            Err(_) => return,
-        };
+        let mut sessions = state.sessions.lock();
 
-        if let Some(session) = sessions.get_mut(&pty_id) {
+        if let Some(session) = sessions.get_mut(&id) {
             if let Some(stdout) = session.child.stdout.take() {
-                let mut reader = std::io::BufReader::new(stdout);
-                let mut buffer = [0u8; 1024];
+                let mut reader = BufReader::new(stdout);
+                let mut buffer = [0u8; 4096];
                 loop {
                     match reader.read(&mut buffer) {
                         Ok(0) => break,
@@ -83,10 +83,9 @@ pub async fn pty_spawn(
 
 #[tauri::command]
 pub async fn pty_write(id: u32, data: String, state: State<'_, PtyState>) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+    let mut sessions = state.sessions.lock();
 
     if let Some(session) = sessions.get_mut(&id) {
-        use std::io::Write;
         if let Some(stdin) = session.child.stdin.as_mut() {
             stdin
                 .write_all(data.as_bytes())
@@ -107,10 +106,11 @@ pub async fn pty_resize(_id: u32, _cols: u16, _rows: u16, _state: State<'_, PtyS
 
 #[tauri::command]
 pub async fn pty_kill(id: u32, state: State<'_, PtyState>) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().map_err(|e| e.to_string())?;
+    let mut sessions = state.sessions.lock();
 
     if let Some(mut session) = sessions.remove(&id) {
-        session.child.kill().map_err(|e| format!("Failed to kill PTY: {}", e))?;
+        let _ = session.child.kill();
+        let _ = session.child.wait();
     }
 
     Ok(())
