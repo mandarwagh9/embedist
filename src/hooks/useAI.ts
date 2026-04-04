@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAIStore, AIMessage } from '../stores/aiStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -74,14 +74,6 @@ export function useAI() {
   const aiParameters = useSettingsStore((state) => state.aiParameters);
 
   const isLoading = useAIStore((state) => state.isLoading);
-
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg.role === 'assistant' && lastMsg.content.startsWith('Error:')) {
-      useAIStore.getState().clearMessages();
-    }
-  }, [mode, messages]);
 
   const getActiveEndpoint = useCallback(() => {
     const customEndpoint = customEndpoints.find(ep => ep.id === activeProvider && ep.baseUrl && ep.apiKey);

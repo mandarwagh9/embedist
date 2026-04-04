@@ -276,7 +276,7 @@ export const useAIStore = create<AIState>()(
       setPendingPermission: (permission) => set({ pendingPermission: permission, showPermissionDialog: permission !== null }),
       setShowPermissionDialog: (show) => set({ showPermissionDialog: show }),
       addActivityLog: (entry) => set((state) => ({
-        agentActivityLog: [...state.agentActivityLog, entry],
+        agentActivityLog: [...state.agentActivityLog, entry].slice(-200),
       })),
       clearActivityLog: () => set({ agentActivityLog: [] }),
     }),

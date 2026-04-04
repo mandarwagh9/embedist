@@ -63,6 +63,9 @@ const syncProviders = async () => {
 
 export function useAIProviderSync() {
   const hasHydrated = useSettingsStore((state) => state.hasHydrated);
+  const providers = useSettingsStore((state) => state.providers);
+  const activeProvider = useAIStore((state) => state.activeProvider);
+  const customEndpoints = useSettingsStore((state) => state.customEndpoints);
   const initialized = useRef(false);
   const prevProvidersRef = useRef<string>('');
   const prevCustomRef = useRef<string>('');
@@ -76,14 +79,8 @@ export function useAIProviderSync() {
     }
   }, [hasHydrated]);
 
-  const settingsState = useSettingsStore();
-  const aiState = useAIStore();
-
-  const currentProvidersKey = JSON.stringify({
-    providers: settingsState.providers,
-    activeProvider: aiState.activeProvider,
-  });
-  const currentCustomKey = JSON.stringify(settingsState.customEndpoints);
+  const currentProvidersKey = JSON.stringify({ providers, activeProvider });
+  const currentCustomKey = JSON.stringify(customEndpoints);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -91,13 +88,9 @@ export function useAIProviderSync() {
       prevProvidersRef.current = currentProvidersKey;
       syncProviders();
     }
-  }, [hasHydrated, currentProvidersKey]);
-
-  useEffect(() => {
-    if (!hasHydrated) return;
     if (prevCustomRef.current !== currentCustomKey) {
       prevCustomRef.current = currentCustomKey;
       syncProviders();
     }
-  }, [hasHydrated, currentCustomKey]);
+  }, [hasHydrated, currentProvidersKey, currentCustomKey]);
 }

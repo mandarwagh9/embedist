@@ -49,7 +49,10 @@ export function useBuild() {
   const [selectedPort, setSelectedPort] = useState<string | null>(null);
 
   const appendOutput = useCallback((line: string) => {
-    setBuildOutput((prev) => [...prev, line]);
+    setBuildOutput((prev) => {
+      const next = [...prev, line];
+      return next.length > 5000 ? next.slice(-5000) : next;
+    });
   }, []);
 
   const clearOutput = useCallback(() => {
