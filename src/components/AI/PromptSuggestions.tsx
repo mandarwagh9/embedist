@@ -13,8 +13,8 @@ interface PromptSuggestionsProps {
 
 const CHAT_SUGGESTIONS: PromptSuggestion[] = [
   {
-    title: 'Explain code',
-    prompt: 'Explain how the current code in the editor works',
+    title: 'Embedded basics',
+    prompt: 'What is the difference between Harvard and Von Neumann architecture?',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <circle cx="12" cy="12" r="10" />
@@ -23,8 +23,8 @@ const CHAT_SUGGESTIONS: PromptSuggestion[] = [
     ),
   },
   {
-    title: 'Refactor',
-    prompt: 'Suggest improvements to refactor the current code',
+    title: 'Protocol help',
+    prompt: 'Explain how I2C communication works and when to use it',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
@@ -32,8 +32,8 @@ const CHAT_SUGGESTIONS: PromptSuggestion[] = [
     ),
   },
   {
-    title: 'Add tests',
-    prompt: 'Write unit tests for the current code',
+    title: 'Best practices',
+    prompt: 'What are best practices for writing firmware for ESP32?',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M9 12l2 2 4-4" />

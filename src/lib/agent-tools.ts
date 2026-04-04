@@ -85,6 +85,7 @@ registerTool('write_file', {
 }, async (args) => {
   const root = useFileStore.getState().rootPath;
   await invoke('write_file', { path: args.path as string, content: args.content as string, root });
+  useFileStore.getState().setFileContent(args.path as string, args.content as string);
   return `Written ${args.path}`;
 });
 
@@ -105,6 +106,7 @@ registerTool('create_file', {
 }, async (args) => {
   const root = useFileStore.getState().rootPath;
   const path = await invoke<string>('create_file', { parent: args.parent as string, name: args.name as string, root });
+  useFileStore.getState().setFileContent(path, '');
   return path;
 });
 
