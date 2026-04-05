@@ -69,6 +69,7 @@ pub fn run() {
             commands::pty_kill,
             commands::start_watch,
             commands::stop_watch,
+            commands::erase_flash,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

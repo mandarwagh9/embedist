@@ -7,6 +7,7 @@ import { ragEngine } from '../lib/rag';
 import { buildPlanContext } from './usePlanContext';
 import { getPromptConfig } from '../lib/prompts';
 import { getDebugToolDefinitions, executeDebugTool, type DebugToolCall } from '../lib/debug-tools';
+import { getPlanToolDefinitions, executePlanTool } from '../lib/plan-tools';
 import type { AIMode } from '../lib/ai-prompts';
 
 interface ToolCall {
@@ -157,8 +158,8 @@ export function useAI() {
       ];
 
       const customEndpoint = getActiveEndpoint();
-      const useTools = mode === 'debug';
-      const toolDefs = useTools ? getDebugToolDefinitions() : undefined;
+      const useTools = mode === 'debug' || mode === 'plan';
+      const toolDefs = useTools ? (mode === 'plan' ? getPlanToolDefinitions() : getDebugToolDefinitions()) : undefined;
 
       let response: AIResponse;
 
@@ -191,7 +192,7 @@ export function useAI() {
       const toolCallsToExecute = parsedToolCalls.length > 0 ? parsedToolCalls : (response.tool_calls || []);
 
       if (toolCallsToExecute.length > 0) {
-        const debugToolCalls: Array<{ id: string; name: string; args: string; output: string; success: boolean; elapsedMs?: number }> = [];
+        const planToolCalls: Array<{ id: string; name: string; args: string; output: string; success: boolean; elapsedMs?: number }> = [];
 
         for (const tc of toolCallsToExecute) {
           let args: Record<string, unknown> = {};
@@ -206,10 +207,12 @@ export function useAI() {
           }
 
           const startTime = Date.now();
-          const result = await executeDebugTool(tc.id, tc.name, args);
+          const result = mode === 'plan'
+            ? await executePlanTool(tc.id, tc.name, args)
+            : await executeDebugTool(tc.id, tc.name, args);
           const elapsedMs = Date.now() - startTime;
 
-          debugToolCalls.push({
+          planToolCalls.push({
             id: tc.id,
             name: tc.name,
             args: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
@@ -242,7 +245,7 @@ export function useAI() {
         response.content = followUpResponse.content;
         response.usage = followUpResponse.usage;
 
-        addMessage({ role: 'assistant', content: response.content, usage: response.usage, toolCalls: debugToolCalls });
+        addMessage({ role: 'assistant', content: response.content, usage: response.usage, toolCalls: planToolCalls });
         return response;
       }
 

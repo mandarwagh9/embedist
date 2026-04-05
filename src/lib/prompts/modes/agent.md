@@ -109,6 +109,13 @@ You operate in a single-threaded loop:
 - If build fails: read the FULL error output, identify root cause, fix, rebuild
 - **Never** interleave write → build → write → build (too slow, wastes iterations)
 
+### Phase 4: Flash (Clean Upload)
+- When uploading to ESP8266/ESP32 boards, the system AUTOMATICALLY erases flash before upload
+- This prevents conflicts with old firmware (WiFi configs, pin states, partition data)
+- You do NOT need to manually erase — just run the upload command
+- For Arduino boards, no erase is needed (they don't have persistent flash conflicts)
+- After upload, the board will boot with ONLY the new firmware — no old code remains
+
 ---
 
 ## Build Error Resolution

@@ -341,6 +341,32 @@ pub async fn upload_firmware(
     port: Option<String>,
     app: tauri::AppHandle,
 ) -> Result<BuildResult, String> {
+    // First, read platformio.ini to detect ESP boards
+    let pio_ini_path = std::path::Path::new(&project_path).join("platformio.ini");
+    let pio_ini_content = std::fs::read_to_string(&pio_ini_path).unwrap_or_default();
+    let is_esp_board = pio_ini_content.contains("esp8266") || pio_ini_content.contains("esp32")
+        || pio_ini_content.contains("espressif8266") || pio_ini_content.contains("espressif32");
+
+    // For ESP boards, erase flash before upload to prevent conflicts with old firmware
+    if is_esp_board {
+        let _ = app.emit("build-output", "[UPLOAD] Erasing flash before upload (ESP board detected)...".to_string());
+        let erase_args = vec![
+            "run".to_string(),
+            "--target".to_string(),
+            "erase".to_string(),
+            "-d".to_string(),
+            project_path.clone(),
+        ];
+        let erase_result = run_platformio_command(state.clone(), erase_args, app.clone()).await;
+        if let Ok(result) = erase_result {
+            if !result.success {
+                let _ = app.emit("build-output", format!("[UPLOAD] Flash erase failed, continuing with upload: {}", result.stderr));
+            } else {
+                let _ = app.emit("build-output", "[UPLOAD] Flash erased successfully".to_string());
+            }
+        }
+    }
+
     let mut args = vec![
         "run".to_string(),
         "--target".to_string(),
@@ -352,6 +378,22 @@ pub async fn upload_firmware(
         args.push("--upload-port".to_string());
         args.push(p);
     }
+    run_platformio_command(state, args, app).await
+}
+
+#[command]
+pub async fn erase_flash(
+    state: tauri::State<'_, BuildState>,
+    project_path: String,
+    app: tauri::AppHandle,
+) -> Result<BuildResult, String> {
+    let args = vec![
+        "run".to_string(),
+        "--target".to_string(),
+        "erase".to_string(),
+        "-d".to_string(),
+        project_path,
+    ];
     run_platformio_command(state, args, app).await
 }
 
