@@ -33,7 +33,8 @@ function flattenTree(nodes: FileNode[]): string {
 
 async function readKeyFile(path: string, maxLines = 50): Promise<{ name: string; path: string; preview: string } | null> {
   try {
-    const content = await invoke<string>('read_file', { path });
+    const root = useFileStore.getState().rootPath;
+    const content = await invoke<string>('read_file', { path, root });
     const lines = content.split('\n');
     const preview = lines.slice(0, maxLines).join('\n');
     const truncated = lines.length > maxLines ? `\n... (${lines.length - maxLines} more lines)` : '';

@@ -154,7 +154,6 @@ export function useAI() {
       const allMessages: APIMessage[] = [
         { id: 'system-prompt', role: 'system', content: systemPrompt, mode },
         ...currentMessages,
-        { id: `temp-${Date.now()}`, role: 'user', content, mode },
       ];
 
       const customEndpoint = getActiveEndpoint();

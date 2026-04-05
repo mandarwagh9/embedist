@@ -262,12 +262,13 @@ export function useAgent() {
         let response: AIResponse | null = null;
         let lastError = '';
         for (let attempt = 0; attempt < 3; attempt++) {
+          if (cancelRef.current) break;
           try {
             response = await callAI(conversationMessages, true);
             break;
           } catch (err) {
             lastError = err instanceof Error ? err.message : String(err);
-            if (attempt < 2) {
+            if (attempt < 2 && !cancelRef.current) {
               logActivity('info', `Retrying API call (attempt ${attempt + 2}/3)`, lastError);
               await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }

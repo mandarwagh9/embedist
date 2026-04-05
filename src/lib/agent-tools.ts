@@ -300,10 +300,15 @@ export async function executeTool(callId: string, name: string, args: Record<str
       arguments: argStr,
     });
 
+    const timeout = setTimeout(() => {
+      useAIStore.getState().setPermissionDecision('deny');
+    }, 30000);
+
     await new Promise<void>((resolve) => {
       const check = () => {
         const pending = useAIStore.getState().pendingPermission;
         if (pending === null) {
+          clearTimeout(timeout);
           resolve();
         } else {
           setTimeout(check, 100);
@@ -313,6 +318,8 @@ export async function executeTool(callId: string, name: string, args: Record<str
     });
 
     const decision = useAIStore.getState().lastPermissionDecision;
+    useAIStore.getState().setPermissionDecision(null);
+
     if (decision === 'deny') {
       return { callId, toolCallId: callId, success: false, output: `Tool "${name}" was denied by user.` };
     }

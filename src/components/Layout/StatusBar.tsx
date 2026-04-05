@@ -8,9 +8,8 @@ export function StatusBar() {
   const { serialConnected, serialPort, serialBaudRate, cursorLine, cursorColumn } = useUIStore();
   const { open: openSettings } = useSettingsStore();
   const { detectedBoard, projectName, isPlatformIOProject } = useFileStore();
-  const { providers, activeProvider } = useAIStore();
-
-  const activeProviderName = providers.find(p => p.id === activeProvider)?.name || 'No Provider';
+  const activeProvider = useAIStore((s) => s.activeProvider);
+  const activeProviderLabel = activeProvider ? activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1) : 'No Provider';
 
   return (
     <div className="statusbar">
@@ -60,7 +59,7 @@ export function StatusBar() {
         </div>
         
         <div className="statusbar-item">
-          <span>{activeProviderName}</span>
+          <span>{activeProviderLabel}</span>
         </div>
       </div>
     </div>
