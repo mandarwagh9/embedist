@@ -51,9 +51,12 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
   }, [detectedBoard, selectedBoard, setSelectedBoard]);
 
   useEffect(() => {
-    getPlatformInfo();
-    listBoards();
-    listPorts();
+    const timer = setTimeout(() => {
+      getPlatformInfo();
+      listBoards();
+      listPorts();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [getPlatformInfo, listBoards, listPorts]);
 
   useEffect(() => {

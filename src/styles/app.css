@@ -112,3 +112,32 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.app-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  transition: opacity 0.3s ease;
+}
+
+.app-loading-spinner {
+  animation: appSpin 1.5s linear infinite;
+  color: var(--accent);
+}
+
+@keyframes appSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.app-loading-text {
+  margin-top: 16px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}

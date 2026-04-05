@@ -82,11 +82,17 @@ function getLanguageFromPath(path: string): string {
 
 function App() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     setToastDispatcher((type, message, options) => {
       setToasts(prev => [...prev, { id: `toast-${Date.now()}`, type, message, ...options }]);
     });
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setAppReady(true), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -358,6 +364,18 @@ void loop() {
 
   return (
     <div className="app">
+      {!appReady && (
+        <div className="app-loading-overlay">
+          <div className="app-loading-spinner">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+              <path d="M2 17L12 22L22 17" />
+              <path d="M2 12L12 17L22 12" />
+            </svg>
+          </div>
+          <p className="app-loading-text">Loading Embedist...</p>
+        </div>
+      )}
       <TitleBar />
       <MenuBar />
 

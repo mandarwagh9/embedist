@@ -507,11 +507,14 @@ export function FileExplorer() {
 
   useEffect(() => {
     if (rootPath) {
-      const loadRoot = async () => {
-        const entries = await listDirectory(rootPath);
-        setFiles(entries);
-      };
-      loadRoot();
+      const timer = setTimeout(() => {
+        const loadRoot = async () => {
+          const entries = await listDirectory(rootPath);
+          setFiles(entries);
+        };
+        loadRoot();
+      }, 200);
+      return () => clearTimeout(timer);
     }
   }, [rootPath]);
 
