@@ -54,7 +54,9 @@ export function useFileSystem() {
 
   const loadChildren = useCallback(async (node: FileNode): Promise<FileNode[]> => {
     if (!node.isDir) return [];
-    return listDirectory(node.path);
+    const children = await listDirectory(node.path);
+    useFileStore.getState().setNodeChildren(node.path, children);
+    return children;
   }, [listDirectory]);
 
   const refreshDirectory = useCallback(async (path: string) => {

@@ -401,21 +401,6 @@ const TreeItem = React.memo(function TreeItem({
           ))}
         </div>
       )}
-
-      {node.isDir && node.expanded && isLoading && (
-        <div className="tree-children">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="tree-item">
-              <div className="tree-item-row" style={{ paddingLeft: `${(level + 1) * 12 + 8}px` }}>
-                <span className="tree-skeleton">
-                  <span className="tree-skeleton-icon" />
-                  <span className="tree-skeleton-name" />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 });
@@ -577,10 +562,8 @@ export function FileExplorer() {
     const node = getNodeByPath(path);
     if (node?.isDir && node.children && node.children.length === 0) {
       addLoadingPath(path);
-      loadChildren(node).then(children => {
-        useFileStore.getState().setNodeChildren(path, children);
+      loadChildren(node).then(() => {
         useFileStore.getState().removeLoadingPath(path);
-        useFileStore.getState().toggleExpanded(path);
       }).catch(() => {
         useFileStore.getState().removeLoadingPath(path);
       });
@@ -935,10 +918,8 @@ export function FileExplorer() {
             if (!node) return;
             if (node.isDir && node.children && node.children.length === 0) {
               addLoadingPath(nodePath);
-              loadChildren(node).then(children => {
-                useFileStore.getState().setNodeChildren(nodePath, children);
+              loadChildren(node).then(() => {
                 useFileStore.getState().removeLoadingPath(nodePath);
-                useFileStore.getState().toggleExpanded(nodePath);
               }).catch(() => {
                 useFileStore.getState().removeLoadingPath(nodePath);
               });
