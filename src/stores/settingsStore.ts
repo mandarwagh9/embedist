@@ -198,14 +198,17 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     { 
       name: 'embedist-settings',
-      partialize: (state) => {
-        const { providers, customEndpoints, ...rest } = state;
-        const safeProviders = Object.fromEntries(
-          Object.entries(providers).map(([key, val]) => [key, { ...val, apiKey: '' }])
-        );
-        const safeEndpoints = customEndpoints.map(e => ({ ...e, apiKey: '' }));
-        return { ...rest, providers: safeProviders, customEndpoints: safeEndpoints };
-      },
+      partialize: (state) => ({
+        providers: state.providers,
+        customEndpoints: state.customEndpoints,
+        editor: state.editor,
+        serial: state.serial,
+        build: state.build,
+        defaultImplementationMode: state.defaultImplementationMode,
+        theme: state.theme,
+        aiParameters: state.aiParameters,
+        toolPermissions: state.toolPermissions,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
