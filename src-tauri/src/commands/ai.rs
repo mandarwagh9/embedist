@@ -189,12 +189,12 @@ pub async fn chat_completion(
         match active.as_str() {
             "openai" => chat_openai(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await,
             "anthropic" => chat_anthropic(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await,
-            "deepseek" => chat_deepseek(&api_key, &model_name, &messages, tools.as_ref()).await,
+            "deepseek" => chat_deepseek(&api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p).await,
             "ollama" => {
                 let url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
-                chat_ollama(&url, &model_name, &messages).await
+                chat_ollama(&url, &model_name, &messages, temperature, max_tokens, top_p).await
             }
-            "google" => chat_google(&api_key, &model_name, &messages).await,
+            "google" => chat_google(&api_key, &model_name, &messages, temperature, max_tokens, top_p).await,
             _ if active.starts_with("custom-") => {
                 let url = base_url.ok_or("Custom endpoint requires a base URL")?;
                 chat_custom(&url, &api_key, &model_name, &messages, tools.as_ref(), temperature, max_tokens, top_p, chat_template_kwargs.as_ref()).await
@@ -392,13 +392,22 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
     })
 }
 
-async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>) -> Result<AIResponse, String> {
+async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
     let mut body = serde_json::json!({
         "model": model,
         "messages": messages,
         "stream": false,
     });
-    
+
+    if let Some(t) = temperature {
+        body["temperature"] = serde_json::json!(t);
+    }
+    if let Some(mt) = max_tokens {
+        body["max_tokens"] = serde_json::json!(mt);
+    }
+    if let Some(tp) = top_p {
+        body["top_p"] = serde_json::json!(tp);
+    }
     if let Some(t) = tools {
         body["tools"] = serde_json::json!(t);
     }
@@ -447,7 +456,7 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools
     })
 }
 
-async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage], temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         serde_json::json!({
             "role": m.role,
@@ -455,11 +464,25 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Res
         })
     }).collect();
     
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
         "messages": formatted_messages,
         "stream": false,
     });
+
+    let mut options = serde_json::json!({});
+    if let Some(t) = temperature {
+        options["temperature"] = serde_json::json!(t);
+    }
+    if let Some(mt) = max_tokens {
+        options["num_predict"] = serde_json::json!(mt);
+    }
+    if let Some(tp) = top_p {
+        options["top_p"] = serde_json::json!(tp);
+    }
+    if !options.is_null() && !options.as_object().map_or(true, |o| o.is_empty()) {
+        body["options"] = options;
+    }
     
     let url = format!("{}/api/chat", base_url);
     
@@ -492,7 +515,7 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage]) -> Res
     })
 }
 
-async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Result<AIResponse, String> {
+async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage], temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>) -> Result<AIResponse, String> {
     let contents: Vec<serde_json::Value> = messages.iter()
         .filter(|m| m.role != "system")
         .map(|m| {
@@ -521,14 +544,29 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
             }]
         });
     }
+
+    let mut generation_config = serde_json::json!({});
+    if let Some(t) = temperature {
+        generation_config["temperature"] = serde_json::json!(t);
+    }
+    if let Some(mt) = max_tokens {
+        generation_config["maxOutputTokens"] = serde_json::json!(mt);
+    }
+    if let Some(tp) = top_p {
+        generation_config["topP"] = serde_json::json!(tp);
+    }
+    if !generation_config.as_object().map_or(true, |o| o.is_empty()) {
+        body["generationConfig"] = generation_config;
+    }
     
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-        model, api_key
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+        model
     );
     
     let response = HTTP_CLIENT
         .post(&url)
+        .header("x-goog-api-key", api_key)
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
@@ -560,64 +598,15 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage]) -> Resu
 async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, top_p: Option<f64>, chat_template_kwargs: Option<&std::collections::HashMap<String, serde_json::Value>>) -> Result<AIResponse, String> {
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         let mut msg = serde_json::Map::new();
-        match m.role.as_str() {
-            "system" => {
-                msg.insert("role".to_string(), serde_json::json!("system"));
-                if !m.content.is_empty() {
-                    msg.insert("content".to_string(), serde_json::json!([{
-                        "type": "text",
-                        "text": m.content
-                    }]));
-                } else {
-                    msg.insert("content".to_string(), serde_json::json!([]));
-                }
-            }
-            "user" => {
-                msg.insert("role".to_string(), serde_json::json!("user"));
-                if !m.content.is_empty() {
-                    msg.insert("content".to_string(), serde_json::json!([{
-                        "type": "text",
-                        "text": m.content
-                    }]));
-                } else {
-                    msg.insert("content".to_string(), serde_json::json!([]));
-                }
-            }
-            "assistant" => {
-                msg.insert("role".to_string(), serde_json::json!("assistant"));
-                if !m.content.is_empty() {
-                    msg.insert("content".to_string(), serde_json::json!([{
-                        "type": "text",
-                        "text": m.content
-                    }]));
-                } else {
-                    msg.insert("content".to_string(), serde_json::json!([]));
-                }
-            }
-            "tool" => {
-                msg.insert("role".to_string(), serde_json::json!("tool"));
-                let tool_id = m.id.as_ref()
-                    .and_then(|id| id.strip_prefix("tool-"))
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| m.id.clone().unwrap_or_default());
-                msg.insert("tool_call_id".to_string(), serde_json::json!(tool_id));
-                if !m.content.is_empty() {
-                    msg.insert("content".to_string(), serde_json::json!([{
-                        "type": "text",
-                        "text": m.content
-                    }]));
-                } else {
-                    msg.insert("content".to_string(), serde_json::json!([]));
-                }
-            }
-            _ => {
-                msg.insert("role".to_string(), serde_json::json!(m.role));
-                msg.insert("content".to_string(), serde_json::json!([{
-                    "type": "text",
-                    "text": m.content
-                }]));
-            }
+        msg.insert("role".to_string(), serde_json::json!(m.role));
+        if m.role == "tool" {
+            let tool_id = m.id.as_ref()
+                .and_then(|id| id.strip_prefix("tool-"))
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| m.id.clone().unwrap_or_default());
+            msg.insert("tool_call_id".to_string(), serde_json::json!(tool_id));
         }
+        msg.insert("content".to_string(), serde_json::json!(m.content));
         serde_json::Value::Object(msg)
     }).collect();
 

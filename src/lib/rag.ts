@@ -46,16 +46,35 @@ function initDocuments(): void {
   if (isInitialized) return;
   
   try {
-    const espPins = esp32Pins as { board: string; variants: string[]; specifications: Record<string, unknown>; memory: Record<string, string> };
-    const specs = espPins.specifications;
-    const memory = espPins.memory;
+    const espPins = esp32Pins as Record<string, unknown>;
+    const specs = (espPins.specifications || {}) as Record<string, string>;
+    const memory = (espPins.memory || {}) as Record<string, string>;
+    const variants = (espPins.variants || []) as string[];
+
+    const esp32ErrorsList = (esp32Errors as unknown as Array<{ error: string; cause: string; solution: string }>);
+
+    const arduinoPinsData = arduinoPins as Record<string, unknown>;
+    const arduinoBoards = (arduinoPinsData.boards || []) as Array<{ name: string; pins: number; analog: number; pwm: number }>;
+
+    const arduinoErrorsList = (arduinoErrors as unknown as Array<{ error: string; cause: string; solution: string }>);
+
+    const commonPatternsList = commonPatterns as unknown as Array<{ id: string; pattern: string; category: string; cause: string; solution: string }>;
+
+    const sensorsDataObj = sensorsData as Record<string, unknown>;
+    const sensorsList = (sensorsDataObj.sensors || []) as Array<{ name: string; interface: string; pins: string; library: string; description: string; common_issues: string[] }>;
+
+    const boardComparisonObj = boardComparison as Record<string, unknown>;
+    const boardList = (boardComparisonObj.boards || []) as Array<{ name: string; category: string; cpu: string; freq: string; ram: string; flash: string; wifi: string; bluetooth: string; gpio: number; price: string; best_for: string }>;
+
+    const peripheralsObj = peripheralsData as Record<string, unknown>;
+    const peripheralsList = (peripheralsObj.peripherals || []) as Array<{ name: string; interface: string; description: string; esp32_example: string; arduino_example: string; common_pitfalls: string[] }>;
 
     documents = [
       {
         id: 'esp32-board-info',
         category: 'hardware',
         title: `ESP32 Board Overview`,
-        content: `ESP32 Board Overview. CPU: ${specs.cpu}, Frequency: ${specs.frequency}, Voltage: ${specs.voltage}. Memory: Flash ${memory.flash}, RAM ${memory.ram}, PSRAM ${memory.psram}. Connectivity: WiFi ${specs.wifi}, Bluetooth ${specs.bluetooth}. Peripherals: ${specs.gpio} GPIO, ${specs.uart} UART, ${specs.spi} SPI, ${specs.i2c} I2C, ${specs.adc_channels} ADC, ${specs.dac_channels} DAC channels. Variants: ${espPins.variants.join(', ')}.`,
+        content: `ESP32 Board Overview. CPU: ${specs.cpu || 'unknown'}, Frequency: ${specs.frequency || 'unknown'}, Voltage: ${specs.voltage || 'unknown'}. Memory: Flash ${memory.flash || 'unknown'}, RAM ${memory.ram || 'unknown'}, PSRAM ${memory.psram || 'unknown'}. Connectivity: WiFi ${specs.wifi || 'unknown'}, Bluetooth ${specs.bluetooth || 'unknown'}. Peripherals: ${specs.gpio || 'unknown'} GPIO, ${specs.uart || 'unknown'} UART, ${specs.spi || 'unknown'} SPI, ${specs.i2c || 'unknown'} I2C, ${specs.adc_channels || 'unknown'} ADC, ${specs.dac_channels || 'unknown'} DAC channels. Variants: ${variants.join(', ') || 'unknown'}.`,
         metadata: { type: 'board', board: 'esp32' },
       },
       {
@@ -100,14 +119,14 @@ function initDocuments(): void {
         content: `ESP32 has 10 touch pins: T0=GPIO4, T1=GPIO0, T2=GPIO2, T3=GPIO15, T4=GPIO13, T5=GPIO12, T6=GPIO14, T7=GPIO27, T8=GPIO33, T9=GPIO32. Touch threshold typically ~40. Use touchRead(pin) in Arduino.`,
         metadata: { type: 'pin', board: 'esp32', interface: 'touch' },
       },
-      ...(esp32Errors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
+      ...esp32ErrorsList.map((e, i) => ({
         id: `esp32-error-${i}`,
         category: 'error',
-        title: `ESP32 Error: ${e.error.substring(0, 50)}`,
-        content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
+        title: `ESP32 Error: ${e.error?.substring(0, 50) || 'Unknown'}`,
+        content: `Error: ${e.error || 'Unknown'}. Cause: ${e.cause || 'Unknown'}. Solution: ${e.solution || 'Unknown'}`,
         metadata: { type: 'error', board: 'esp32' },
       })),
-      ...(arduinoPins as unknown as { boards: Array<{ name: string; pins: number; analog: number; pwm: number }> }).boards.flatMap((b) =>
+      ...arduinoBoards.flatMap((b) =>
         b.pins ? [{
           id: `arduino-${b.name.toLowerCase().replace(/\s+/g, '-')}`,
           category: 'hardware',
@@ -116,39 +135,39 @@ function initDocuments(): void {
           metadata: { type: 'board', board: 'arduino', name: b.name },
         }] : []
       ),
-      ...(arduinoErrors as unknown as { errors: Array<{ error: string; cause: string; solution: string }> }).errors.map((e, i) => ({
+      ...arduinoErrorsList.map((e, i) => ({
         id: `arduino-error-${i}`,
         category: 'error',
-        title: `Arduino Error: ${e.error.substring(0, 50)}`,
-        content: `Error: ${e.error}. Cause: ${e.cause}. Solution: ${e.solution}`,
+        title: `Arduino Error: ${e.error?.substring(0, 50) || 'Unknown'}`,
+        content: `Error: ${e.error || 'Unknown'}. Cause: ${e.cause || 'Unknown'}. Solution: ${e.solution || 'Unknown'}`,
         metadata: { type: 'error', board: 'arduino' },
       })),
-      ...(commonPatterns as unknown as Array<{ id: string; pattern: string; category: string; cause: string; solution: string }>).map((p, i) => ({
+      ...commonPatternsList.map((p, i) => ({
         id: `common-pattern-${i}`,
         category: 'code',
         title: `${p.pattern} (${p.category})`,
         content: `Pattern: ${p.pattern}. Category: ${p.category}. Cause: ${p.cause}. Solution: ${p.solution}`,
         metadata: { type: 'pattern', category: p.category },
       })),
-      ...(sensorsData as { sensors: Array<{ name: string; interface: string; pins: string; library: string; description: string; common_issues: string[] }> }).sensors.map((s, i) => ({
+      ...sensorsList.map((s, i) => ({
         id: `sensor-${i}`,
         category: 'hardware',
         title: s.name,
-        content: `${s.name} sensor. Interface: ${s.interface}. Pins: ${s.pins}. Library: ${s.library}. Description: ${s.description}. Common issues: ${s.common_issues.join('. ')}`,
+        content: `${s.name} sensor. Interface: ${s.interface}. Pins: ${s.pins}. Library: ${s.library}. Description: ${s.description}. Common issues: ${(s.common_issues || []).join('. ')}`,
         metadata: { type: 'sensor', name: s.name, interface: s.interface },
       })),
-      ...(boardComparison as { boards: Array<{ name: string; category: string; cpu: string; freq: string; ram: string; flash: string; wifi: string; bluetooth: string; gpio: number; price: string; best_for: string }> }).boards.map((b, i) => ({
+      ...boardList.map((b, i) => ({
         id: `board-comp-${i}`,
         category: 'hardware',
         title: `${b.name} Comparison`,
         content: `${b.name}. Category: ${b.category}. CPU: ${b.cpu} at ${b.freq}. RAM: ${b.ram}. Flash: ${b.flash}. WiFi: ${b.wifi}. Bluetooth: ${b.bluetooth}. GPIO: ${b.gpio}. Price: ${b.price}. Best for: ${b.best_for}.`,
         metadata: { type: 'board', name: b.name, category: b.category },
       })),
-      ...(peripheralsData as { peripherals: Array<{ name: string; interface: string; description: string; esp32_example: string; arduino_example: string; common_pitfalls: string[] }> }).peripherals.map((p, i) => ({
+      ...peripheralsList.map((p, i) => ({
         id: `peripheral-${i}`,
         category: 'code',
         title: `${p.name} (${p.interface})`,
-        content: `${p.name} via ${p.interface}. ${p.description}. ESP32 Example: ${p.esp32_example}. Arduino Example: ${p.arduino_example}. Common pitfalls: ${p.common_pitfalls.join('. ')}`,
+        content: `${p.name} via ${p.interface}. ${p.description}. ESP32 Example: ${p.esp32_example}. Arduino Example: ${p.arduino_example}. Common pitfalls: ${(p.common_pitfalls || []).join('. ')}`,
         metadata: { type: 'peripheral', name: p.name, interface: p.interface },
       })),
     ];
@@ -169,6 +188,7 @@ function tokenize(text: string): string[] {
 function computeTF(tokens: string[]): Map<string, number> {
   const tf = new Map<string, number>();
   const total = tokens.length;
+  if (total === 0) return tf;
   for (const token of tokens) {
     tf.set(token, (tf.get(token) || 0) + 1);
   }
