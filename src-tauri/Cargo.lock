@@ -802,6 +802,7 @@ dependencies = [
  "tauri-plugin-pty",
  "tauri-plugin-shell",
  "tokio",
+ "winreg 0.55.0",
 ]
 
 [[package]]

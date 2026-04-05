@@ -3,15 +3,23 @@ import type * as Monaco from 'monaco-editor';
 
 let monacoInstance: typeof Monaco | null = null;
 let loadPromise: Promise<typeof Monaco> | null = null;
+let loadFailed = false;
 
 function loadMonaco(): Promise<typeof Monaco> {
   if (monacoInstance) return Promise.resolve(monacoInstance);
-  if (loadPromise) return loadPromise;
+  if (loadPromise && !loadFailed) return loadPromise;
 
-  loadPromise = import('monaco-editor').then((m) => {
-    monacoInstance = m;
-    return m;
-  });
+  loadFailed = false;
+  loadPromise = import('monaco-editor')
+    .then((m) => {
+      monacoInstance = m;
+      return m;
+    })
+    .catch((err) => {
+      loadFailed = true;
+      loadPromise = null;
+      throw err;
+    });
 
   return loadPromise;
 }

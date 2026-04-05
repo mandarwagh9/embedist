@@ -148,9 +148,9 @@ export function MenuBar() {
   
   const handleFullscreen = useCallback(async () => {
     try {
-      const window = getCurrentWindow();
-      const isFullscreen = await window.isFullscreen();
-      await window.setFullscreen(!isFullscreen);
+      const tauriWindow = getCurrentWindow();
+      const isFullscreen = await tauriWindow.isFullscreen();
+      await tauriWindow.setFullscreen(!isFullscreen);
     } catch (err) {
       console.error('Fullscreen error:', err);
     }
@@ -219,7 +219,7 @@ export function MenuBar() {
         { label: 'Save', shortcut: 'Ctrl+S', disabled: !activeTabId, onClick: handleSave },
         { label: 'Save All', shortcut: 'Ctrl+Alt+S', disabled: openTabs.length === 0, onClick: saveAllFiles },
         { divider: true, label: '' },
-        { label: 'Exit', shortcut: 'Alt+F4', onClick: () => window.close() },
+        { label: 'Exit', shortcut: 'Alt+F4', onClick: () => getCurrentWindow().close() },
       ],
     },
     edit: {

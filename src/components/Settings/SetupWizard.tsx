@@ -47,7 +47,8 @@ export function SetupWizard() {
       setInstallProgress('PlatformIO installed successfully!');
       await checkPlatformIO();
     } catch (err) {
-      setInstallProgress(`Error: ${err}`);
+      const message = err instanceof Error ? err.message : String(err);
+      setInstallProgress(`Error: ${message}`);
     } finally {
       setInstalling(false);
     }
@@ -55,19 +56,27 @@ export function SetupWizard() {
 
   const handleInstallPlatforms = async () => {
     setInstalling(true);
+    let allSuccess = true;
     
     for (const platform of selectedPlatforms) {
       setInstallProgress(`Installing ${platform}...`);
       try {
         await invoke('install_platform', { platform });
       } catch (err) {
-        console.error(`Failed to install ${platform}:`, err);
+        const message = err instanceof Error ? err.message : String(err);
+        setInstallProgress(`Failed to install ${platform}: ${message}`);
+        allSuccess = false;
+        break;
       }
     }
     
-    setInstallProgress('All selected platforms installed!');
+    if (allSuccess) {
+      setInstallProgress('All selected platforms installed!');
+      setHasCompletedSetup(true);
+    } else {
+      setInstallProgress('Some platforms failed to install. You can retry later.');
+    }
     setInstalling(false);
-    setHasCompletedSetup(true);
   };
 
   const togglePlatform = (id: string) => {
@@ -127,6 +136,13 @@ export function SetupWizard() {
                 Continue
               </button>
             )}
+
+            <button 
+              className="setup-btn skip"
+              onClick={() => setHasCompletedSetup(true)}
+            >
+              Skip for now
+            </button>
           </div>
         )}
 
@@ -159,6 +175,12 @@ export function SetupWizard() {
                 disabled={installing}
               >
                 {installing ? 'Installing...' : 'Install & Continue'}
+              </button>
+              <button 
+                className="setup-btn skip"
+                onClick={() => setStep(3)}
+              >
+                Skip
               </button>
             </div>
           </div>

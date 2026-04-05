@@ -29,6 +29,10 @@ once_cell = "1"
 parking_lot = "0.12"
 dirs = "6"
 notify = "7"
+winreg = { version = "0.55", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
 
 [profile.release]
 panic = "abort"
