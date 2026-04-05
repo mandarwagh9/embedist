@@ -21,7 +21,15 @@ fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
         let joined = canonical_root.join(&p);
         joined.canonicalize().unwrap_or(joined)
     };
-    if canonical.starts_with(&canonical_root) {
+
+    // On Windows, canonicalize() may return \\?\ prefixed paths.
+    // Normalize both paths for comparison by converting to string and stripping \\?\ prefix.
+    let root_str = canonical_root.to_string_lossy().to_string();
+    let canon_str = canonical.to_string_lossy().to_string();
+    let root_normalized = root_str.strip_prefix(r"\\?\").unwrap_or(&root_str);
+    let canon_normalized = canon_str.strip_prefix(r"\\?\").unwrap_or(&canon_str);
+
+    if canon_normalized.starts_with(root_normalized) {
         Ok(canonical)
     } else {
         Err(format!("Access denied: path is outside project root"))
