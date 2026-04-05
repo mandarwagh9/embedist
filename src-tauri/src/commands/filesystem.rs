@@ -2,12 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::command;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::process::Command as AsyncCommand;
 use parking_lot::Mutex;
-use std::collections::HashSet;
 use std::sync::Arc;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher, EventKind};
 
 fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
     if allowed_root.is_empty() {
@@ -390,22 +389,21 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct WatchState {
-    watcher: Option<Arc<Mutex<RecommendedWatcher>>>,
-    watched_path: Option<String>,
+    watcher: Mutex<Option<Arc<Mutex<RecommendedWatcher>>>>,
+    watched_path: Mutex<Option<String>>,
 }
 
 impl Default for WatchState {
     fn default() -> Self {
         Self {
-            watcher: None,
-            watched_path: None,
+            watcher: Mutex::new(None),
+            watched_path: Mutex::new(None),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileChangeEvent {
     pub path: String,
     pub change_type: String,
@@ -429,24 +427,22 @@ pub fn start_watch(app: tauri::AppHandle, path: String, _root: String) -> Result
 
     let watcher = Arc::new(Mutex::new(watcher));
 
-    app.state::<WatchState>().0.lock().watcher = Some(watcher.clone());
-    app.state::<WatchState>().0.lock().watched_path = Some(path.clone());
+    let watch_state = app.state::<WatchState>();
+    watch_state.watcher.lock().replace(watcher.clone());
+    watch_state.watched_path.lock().replace(path.clone());
 
     std::thread::spawn(move || {
         for event in rx {
             match event {
                 Ok(notify::Event { kind, paths, .. }) => {
-                    for file_path in paths {
-                        let change_type = if kind.contains(notify::EventKind::Create) {
-                            "created"
-                        } else if kind.contains(notify::EventKind::Remove) {
-                            "deleted"
-                        } else if kind.contains(notify::EventKind::Modify(_)) {
-                            "modified"
-                        } else {
-                            continue;
-                        };
+                    let change_type = match kind {
+                        EventKind::Create(_) => "created",
+                        EventKind::Remove(_) => "deleted",
+                        EventKind::Modify(_) => "modified",
+                        _ => continue,
+                    };
 
+                    for file_path in paths {
                         let _ = app_clone.emit("file-changed", FileChangeEvent {
                             path: file_path.to_string_lossy().to_string(),
                             change_type: change_type.to_string(),
@@ -466,9 +462,8 @@ pub fn start_watch(app: tauri::AppHandle, path: String, _root: String) -> Result
 #[command]
 pub fn stop_watch(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<WatchState>();
-    let mut guard = state.0.lock();
-    guard.watcher = None;
-    guard.watched_path = None;
+    state.watcher.lock().take();
+    state.watched_path.lock().take();
     Ok(())
 }
 
