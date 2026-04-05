@@ -813,7 +813,7 @@ checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 
 [[package]]
 name = "embedist"
-version = "0.19.0"
+version = "0.33.0"
 dependencies = [
  "dirs",
  "env_logger",

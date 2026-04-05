@@ -52,13 +52,31 @@ pub struct ToolCall {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCallArg {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub call_type: String,
+    pub function: ToolCallFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCallFunction {
+    pub name: String,
+    pub arguments: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AIMessage {
     pub role: String,
-    pub content: String,
+    pub content: Option<String>,
     #[serde(default)]
     pub id: Option<String>,
     #[serde(default)]
     pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ToolCallArg>,
+    #[serde(default, rename = "tool_call_id", skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -280,7 +298,7 @@ async fn chat_openai(api_key: &str, model: &str, messages: &[AIMessage], tools: 
 async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tools: Option<&Vec<ToolDefinition>>, temperature: Option<f64>, max_tokens: Option<u32>, _top_p: Option<f64>) -> Result<AIResponse, String> {
     let system = messages.iter()
         .filter(|m| m.role == "system")
-        .map(|m| m.content.clone())
+        .filter_map(|m| m.content.clone())
         .collect::<Vec<_>>()
         .join("\n");
     
@@ -297,7 +315,7 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
             let content_blocks = serde_json::json!([{
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
-                "content": m.content
+                "content": m.content.clone().unwrap_or_default()
             }]);
             formatted_messages.push(serde_json::json!({
                 "role": "user",
@@ -305,10 +323,11 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
             }));
         } else {
             let role = if m.role == "assistant" { "assistant" } else { "user" };
-            let content_blocks: Vec<serde_json::Value> = if m.content.is_empty() {
+            let content_text = m.content.clone().unwrap_or_default();
+            let content_blocks: Vec<serde_json::Value> = if content_text.is_empty() {
                 Vec::new()
             } else {
-                vec![serde_json::json!({"type": "text", "text": m.content})]
+                vec![serde_json::json!({"type": "text", "text": content_text})]
             };
             formatted_messages.push(serde_json::json!({
                 "role": role,
@@ -460,7 +479,7 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage], temper
     let formatted_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
         serde_json::json!({
             "role": m.role,
-            "content": m.content
+            "content": m.content.clone().unwrap_or_default()
         })
     }).collect();
     
@@ -522,14 +541,14 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage], tempera
             serde_json::json!({
                 "role": if m.role == "assistant" { "model" } else { "user" },
                 "parts": [{
-                    "text": m.content
+                    "text": m.content.clone().unwrap_or_default()
                 }]
             })
         }).collect();
     
     let system_instruction = messages.iter()
         .filter(|m| m.role == "system")
-        .map(|m| m.content.clone())
+        .filter_map(|m| m.content.clone())
         .collect::<Vec<_>>()
         .join("\n");
     
@@ -606,7 +625,10 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
                 .unwrap_or_else(|| m.id.clone().unwrap_or_default());
             msg.insert("tool_call_id".to_string(), serde_json::json!(tool_id));
         }
-        msg.insert("content".to_string(), serde_json::json!(m.content));
+        if !m.tool_calls.is_empty() {
+            msg.insert("tool_calls".to_string(), serde_json::json!(m.tool_calls));
+        }
+        msg.insert("content".to_string(), serde_json::json!(m.content.clone().unwrap_or_default()));
         serde_json::Value::Object(msg)
     }).collect();
 

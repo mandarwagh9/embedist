@@ -20,6 +20,21 @@ interface AIResponse {
   tool_calls: ToolCall[];
 }
 
+interface ConversationMessage {
+  id: string;
+  role: string;
+  content: string;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+}
+
 interface ActivityEntry {
   id: string;
   timestamp: number;
@@ -87,7 +102,7 @@ export function useAgent() {
   }, [activeProvider, providerConfigs, getActiveEndpoint]);
 
   const callAI = useCallback(async (
-    msgs: Array<{ id: string; role: string; content: string }>,
+    msgs: ConversationMessage[],
     tools?: boolean
   ): Promise<AIResponse | null> => {
     const modelConfig = getActiveModel();
@@ -229,7 +244,7 @@ export function useAgent() {
       const systemPrompt = await buildSystemPrompt();
       const projectRoot = useFileStore.getState().rootPath || '';
 
-      const conversationMessages: Array<{ id: string; role: string; content: string; tool_call_id?: string }> = [
+      const conversationMessages: ConversationMessage[] = [
         { id: 'system', role: 'system', content: systemPrompt },
       ];
 
@@ -373,6 +388,14 @@ export function useAgent() {
               id: msgId,
               role: 'assistant',
               content: '',
+              tool_calls: toolCallsForMessage.map(tc => ({
+                id: tc.id,
+                type: 'function',
+                function: {
+                  name: tc.name,
+                  arguments: tc.args,
+                },
+              })),
             });
           }
         } else {
