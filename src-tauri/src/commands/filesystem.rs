@@ -32,7 +32,7 @@ fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
     if canon_normalized.starts_with(root_normalized) {
         Ok(canonical)
     } else {
-        Err(format!("Access denied: path is outside project root"))
+        Err("Access denied: path is outside project root".to_string())
     }
 }
 

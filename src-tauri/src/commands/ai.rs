@@ -480,7 +480,7 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage], temper
     if let Some(tp) = top_p {
         options["top_p"] = serde_json::json!(tp);
     }
-    if !options.is_null() && !options.as_object().map_or(true, |o| o.is_empty()) {
+    if !options.is_null() && !options.as_object().is_none_or(|o| o.is_empty()) {
         body["options"] = options;
     }
     
@@ -555,7 +555,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage], tempera
     if let Some(tp) = top_p {
         generation_config["topP"] = serde_json::json!(tp);
     }
-    if !generation_config.as_object().map_or(true, |o| o.is_empty()) {
+    if !generation_config.as_object().is_none_or(|o| o.is_empty()) {
         body["generationConfig"] = generation_config;
     }
     
@@ -708,31 +708,44 @@ pub async fn web_search(query: String) -> Result<Vec<WebSearchResult>, String> {
     let html = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
     
     let mut results = Vec::new();
-    let re = regex::Regex::new(
-        r#"<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>"#
-    ).map_err(|e| format!("Regex error: {}", e))?;
     
-    for cap in re.captures_iter(&html) {
-        let raw_url: &str = cap.get(1).map(|m| m.as_str()).unwrap_or("");
-        let title = strip_html(cap.get(2).map(|m: regex::Match| m.as_str()).unwrap_or(""));
-        let snippet = strip_html(cap.get(3).map(|m: regex::Match| m.as_str()).unwrap_or(""));
-        
-        let url = if raw_url.starts_with("//") {
-            format!("https:{}", raw_url)
-        } else if raw_url.starts_with("http") {
-            raw_url.to_string()
-        } else {
-            continue;
-        };
-        
-        if !title.is_empty() {
-            results.push(WebSearchResult {
-                title,
-                url,
-                snippet: snippet.chars().take(300).collect(),
-            });
-        }
-        
+    // Extract all result__a links (title + URL)
+    let title_re = regex::Regex::new(
+        r#"<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>"#
+    ).unwrap();
+    
+    // Extract all result__snippet links
+    let snippet_re = regex::Regex::new(
+        r#"<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>"#
+    ).unwrap();
+    
+    let titles: Vec<(String, String)> = title_re.captures_iter(&html)
+        .filter_map(|cap| {
+            let raw_url = cap.get(1)?.as_str().to_string();
+            let title = strip_html(cap.get(2)?.as_str());
+            if title.is_empty() { return None; }
+            let url = if raw_url.starts_with("//") {
+                format!("https:{}", raw_url)
+            } else if raw_url.starts_with("http") {
+                raw_url
+            } else {
+                return None;
+            };
+            Some((title, url))
+        })
+        .collect();
+    
+    let snippets: Vec<String> = snippet_re.captures_iter(&html)
+        .filter_map(|cap| cap.get(1).map(|m| strip_html(m.as_str())))
+        .collect();
+    
+    for (i, (title, url)) in titles.into_iter().enumerate() {
+        let snippet = snippets.get(i).cloned().unwrap_or_default();
+        results.push(WebSearchResult {
+            title,
+            url,
+            snippet: snippet.chars().take(300).collect(),
+        });
         if results.len() >= 10 { break; }
     }
     
