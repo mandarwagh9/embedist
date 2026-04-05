@@ -118,10 +118,13 @@ export function useAgent() {
     const modeConfig = getPromptConfig('agent');
     let prompt = modeConfig.system;
 
-    const { rootPath } = useFileStore.getState();
+    const { rootPath, detectedBoard } = useFileStore.getState();
     if (rootPath) {
       const context = await buildPlanContext('');
       prompt += `\n\n## Current Project Context\n${context}`;
+      if (detectedBoard) {
+        prompt += `\n**Detected Board**: ${detectedBoard}\n`;
+      }
     } else {
       prompt += `\n\n## Current Project Context\n\n**WARNING: No project is open. Do NOT write files unless the user specifies a directory path.**`;
     }
@@ -244,7 +247,7 @@ export function useAgent() {
       conversationMessages.push({
         id: `user-${Date.now()}`,
         role: 'user',
-        content: task,
+        content: `Task: ${task}\n\nIMPORTANT: Before writing any code, read platformio.ini to identify the board type, platform, and libraries. Then read the existing source files to understand the current code structure.`,
       });
 
       let iteration = 0;
@@ -347,17 +350,19 @@ export function useAgent() {
               }
             } else {
               if (tc.name === 'build_project') {
-                toast('error', 'Build failed');
+                toast('error', 'Build failed — check the error output');
               }
             }
+
+            const toolResultContent = result.success
+              ? `Tool "${tc.name}" succeeded:\n${result.output}`
+              : `Tool "${tc.name}" failed:\n${result.output}\n\nFix the errors and try again.`;
 
             conversationMessages.push({
               id: `tool-${tc.id}`,
               role: 'tool',
               tool_call_id: tc.id,
-              content: result.success
-                ? `Tool "${tc.name}" succeeded:\n${result.output}`
-                : `Tool "${tc.name}" failed:\n${result.output}`,
+              content: toolResultContent,
             });
           }
 
