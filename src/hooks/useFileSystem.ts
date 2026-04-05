@@ -58,8 +58,14 @@ export function useFileSystem() {
   }, [listDirectory]);
 
   const refreshDirectory = useCallback(async (path: string) => {
-    const entries = await listDirectory(path);
-    setNodeChildren(path, entries);
+    try {
+      const entries = await listDirectory(path);
+      setNodeChildren(path, entries);
+    } catch {
+      const { files, setFiles } = useFileStore.getState();
+      const filtered = files.filter(f => f.path !== path && !f.path.startsWith(path + '/'));
+      setFiles(filtered);
+    }
   }, [listDirectory, setNodeChildren]);
 
   const openFolder = useCallback(async () => {
@@ -74,19 +80,6 @@ export function useFileSystem() {
       });
 
       if (selected && typeof selected === 'string') {
-        const isPIO = await invoke<boolean>('is_platformio_project', { path: selected, root: selected });
-        setIsPlatformIOProject(isPIO);
-
-        let board: string | null = null;
-        if (isPIO) {
-          try {
-            board = await invoke<string>('read_platformio_board', { path: selected, root: selected });
-            setDetectedBoard(board);
-          } catch {
-            board = null;
-          }
-        }
-
         setRootPath(selected);
 
         const entries = await listDirectory(selected);
@@ -94,6 +87,17 @@ export function useFileSystem() {
         
         const name = selected.replace(/\\/g, '/').split('/').pop() || 'project';
         ragEngine.indexProject(entries, name);
+
+        invoke<boolean>('is_platformio_project', { path: selected, root: selected })
+          .then((isPIO) => {
+            setIsPlatformIOProject(isPIO);
+            if (isPIO) {
+              invoke<string>('read_platformio_board', { path: selected, root: selected })
+                .then((board) => setDetectedBoard(board))
+                .catch(() => {});
+            }
+          })
+          .catch(() => {});
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -145,6 +149,16 @@ export function useFileSystem() {
     try {
       const root = useFileStore.getState().rootPath;
       await invoke('delete_path', { path, root });
+      const state = useFileStore.getState();
+      const tabToDelete = state.openTabs.find(t => t.path === path);
+      if (tabToDelete) {
+        state.closeTab(tabToDelete.id);
+      }
+      const newContents = new Map(state.fileContents);
+      const newOriginal = new Map(state.originalContents);
+      newContents.delete(path);
+      newOriginal.delete(path);
+      useFileStore.setState({ fileContents: newContents, originalContents: newOriginal });
       const parentPath = await invoke<string | null>('get_parent_dir', { path, root });
       if (parentPath) {
         await refreshDirectory(parentPath);
@@ -161,6 +175,21 @@ export function useFileSystem() {
     try {
       const root = useFileStore.getState().rootPath;
       const newPath = await invoke<string>('rename_path', { oldPath, newName, root });
+      const { openTabs, fileContents, originalContents, closeTab, openFile } = useFileStore.getState();
+      const oldTab = openTabs.find(t => t.path === oldPath);
+      if (oldTab) {
+        const content = fileContents.get(oldPath);
+        const original = originalContents.get(oldPath);
+        closeTab(oldPath);
+        if (content !== undefined) {
+          openFile(newPath, content);
+          if (original !== undefined) {
+            useFileStore.setState((state) => ({
+              originalContents: new Map(state.originalContents).set(newPath, original),
+            }));
+          }
+        }
+      }
       const parentPath = await invoke<string | null>('get_parent_dir', { path: oldPath, root });
       if (parentPath) {
         await refreshDirectory(parentPath);
@@ -180,10 +209,15 @@ export function useFileSystem() {
     } catch {
       const textarea = document.createElement('textarea');
       textarea.value = path;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
+      try {
+        document.execCommand('copy');
+      } finally {
+        document.body.removeChild(textarea);
+      }
       return true;
     }
   }, []);

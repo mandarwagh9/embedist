@@ -17,26 +17,35 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
   const editorRef = useRef<EditorType.IStandaloneCodeEditor | null>(null);
   const isSettingValueRef = useRef(false);
   const lastKnownValueRef = useRef<string | undefined>(undefined);
+  const onChangeRef = useRef(onChange);
+  const setCursorPositionRef = useRef(useUIStore.getState().setCursorPosition);
   const { editor: editorSettings } = useSettingsStore();
-  const { setCursorPosition } = useUIStore();
   const { monaco, isReady, error } = useMonacoEditor();
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    setCursorPositionRef.current = useUIStore.getState().setCursorPosition;
+  }, []);
 
   const handleEditorMount = useCallback((ed: EditorType.IStandaloneCodeEditor, _m: typeof import('monaco-editor')) => {
     editorRef.current = ed;
     lastKnownValueRef.current = ed.getValue();
 
     ed.onDidChangeCursorPosition((e) => {
-      setCursorPosition(e.position.lineNumber, e.position.column);
+      setCursorPositionRef.current(e.position.lineNumber, e.position.column);
     });
 
     ed.onDidChangeModelContent(() => {
       if (!isSettingValueRef.current) {
         const newValue = ed.getValue();
         lastKnownValueRef.current = newValue;
-        onChange(newValue);
+        onChangeRef.current(newValue);
       }
     });
-  }, [onChange, setCursorPosition]);
+  }, []);
 
   useEffect(() => {
     if (!monaco || !containerRef.current) return;
@@ -218,7 +227,7 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       cursorSmoothCaretAnimation: editorSettings.cursorSmoothCaretAnimation ? 'on' : 'off',
       smoothScrolling: editorSettings.smoothScrolling,
     });
-  }, [editorSettings]);
+  }, [editorSettings.fontSize, editorSettings.fontFamily, editorSettings.tabSize, editorSettings.wordWrap, editorSettings.minimap, editorSettings.cursorSmoothCaretAnimation, editorSettings.smoothScrolling]);
 
   useEffect(() => {
     if (!monaco || !editorRef.current) return;

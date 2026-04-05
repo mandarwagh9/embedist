@@ -268,7 +268,9 @@ export const useFileStore = create<FileState>()(
           };
           if (content !== undefined) {
             updates.fileContents = new Map(state.fileContents).set(path, content);
-            updates.originalContents = new Map(state.originalContents).set(path, content);
+            if (!state.originalContents.has(path)) {
+              updates.originalContents = new Map(state.originalContents).set(path, content);
+            }
           }
           set(updates);
           const parts = path.replace(/\\/g, '/').split('/');
@@ -446,7 +448,11 @@ export const useFileStore = create<FileState>()(
         const root = get().rootPath;
 
         const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('write_file', { path, content, root });
+        try {
+          await invoke('write_file', { path, content, root });
+        } catch (err) {
+          throw err;
+        }
 
         const currentContent = get().fileContents.get(path);
         const newOriginal = new Map(get().originalContents);
@@ -462,11 +468,12 @@ export const useFileStore = create<FileState>()(
 
       saveAllFiles: async () => {
         const tabsToSave = get().openTabs.filter(t => t.modified).map(t => t.path);
-        for (const path of tabsToSave) {
-          const currentModified = get().openTabs.find(t => t.path === path)?.modified;
-          if (currentModified) {
-            await get().saveFile(path);
-          }
+        const results = await Promise.allSettled(
+          tabsToSave.map(path => get().saveFile(path))
+        );
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.error(`${failures.length} file(s) failed to save`);
         }
       },
 
