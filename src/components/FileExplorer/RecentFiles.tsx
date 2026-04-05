@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useFileStore } from '../../stores/fileStore';
 
 interface RecentFilesProps {
@@ -5,9 +6,30 @@ interface RecentFilesProps {
   onClose: () => void;
 }
 
+function formatRelativeTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
+
 export function RecentFiles({ onFileSelect, onClose }: RecentFilesProps) {
   const recentFiles = useFileStore(s => s.recentFiles);
   const clearRecentFiles = useFileStore(s => s.clearRecentFiles);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (recentFiles.length === 0) return null;
 
@@ -58,6 +80,7 @@ export function RecentFiles({ onFileSelect, onClose }: RecentFilesProps) {
               <span className="recent-file-name">{file.name}</span>
               <span className="recent-file-path">{getFolder(file.path)}</span>
             </span>
+            <span className="recent-file-time">{formatRelativeTime(file.timestamp)}</span>
           </button>
         ))}
       </div>

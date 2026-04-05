@@ -126,9 +126,47 @@ a:hover {
   color: var(--text-primary);
 }
 
-button {
+  button {
   cursor: pointer;
   border: none;
   background: none;
   color: inherit;
+}
+
+[data-theme='light'] {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F5F5F5;
+  --bg-tertiary: #EEEEEE;
+  --bg-surface: #E8E8E8;
+  --bg-surface-hover: #E0E0E0;
+
+  --border-default: #E0E0E0;
+  --border-active: #CCCCCC;
+  --border-subtle: #EBEBEB;
+
+  --text-primary: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --text-inverse: #FFFFFF;
+
+  --accent: #4F46E5;
+  --accent-hover: #6366F1;
+  --accent-muted: rgba(79, 70, 229, 0.12);
+
+  --success: #16A34A;
+  --error: #DC2626;
+  --warning: #D97706;
+  --info: #2563EB;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: var(--border-active);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

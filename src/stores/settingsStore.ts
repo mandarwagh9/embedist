@@ -55,6 +55,7 @@ interface SettingsState {
     uploadSpeed: number;
   };
   defaultImplementationMode: 'chat' | 'agent';
+  theme: 'dark' | 'light';
   aiParameters: {
     temperature: number;
     maxTokens: number;
@@ -73,6 +74,7 @@ interface SettingsState {
   updateSerial: (config: Partial<SettingsState['serial']>) => void;
   updateBuild: (config: Partial<SettingsState['build']>) => void;
   setDefaultImplementationMode: (mode: 'chat' | 'agent') => void;
+  setTheme: (theme: 'dark' | 'light') => void;
   updateAiParameters: (config: Partial<SettingsState['aiParameters']>) => void;
   toolPermissions: Record<string, 'allow' | 'ask' | 'block'>;
   setToolPermission: (tool: string, permission: 'allow' | 'ask' | 'block') => void;
@@ -121,6 +123,7 @@ export const useSettingsStore = create<SettingsState>()(
         uploadSpeed: 921600,
       },
       defaultImplementationMode: 'agent',
+      theme: 'dark',
       aiParameters: {
         temperature: 0.7,
         maxTokens: 4096,
@@ -182,6 +185,8 @@ export const useSettingsStore = create<SettingsState>()(
       })),
 
       setDefaultImplementationMode: (mode) => set({ defaultImplementationMode: mode }),
+
+      setTheme: (theme) => set({ theme }),
 
       updateAiParameters: (config) => set((state) => ({
         aiParameters: { ...state.aiParameters, ...config },

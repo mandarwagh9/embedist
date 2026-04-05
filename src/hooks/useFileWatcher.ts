@@ -1,15 +1,23 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { useFileStore } from '../stores/fileStore';
+
+interface FileChangeEvent {
+  path: string;
+  change_type: 'created' | 'deleted' | 'modified';
+}
 
 export function useFileWatcher() {
   const rootPath = useFileStore((state) => state.rootPath);
   const setFileContent = useFileStore((state) => state.setFileContent);
   const clearExternalModification = useFileStore((state) => state.clearExternalModification);
+  const openTabs = useFileStore((state) => state.openTabs);
+  const openTabPathsRef = useRef(new Set(openTabs.map(t => t.path)));
 
   const refreshFile = useCallback(async (filePath: string) => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const content = await invoke<string>('read_file', { path: filePath });
+      const content = await invoke<string>('read_file', { path: filePath, root: useFileStore.getState().rootPath });
       setFileContent(filePath, content);
       clearExternalModification(filePath);
     } catch (err) {
@@ -18,35 +26,47 @@ export function useFileWatcher() {
   }, [setFileContent, clearExternalModification]);
 
   useEffect(() => {
+    openTabPathsRef.current = new Set(openTabs.map(t => t.path));
+  }, [openTabs]);
+
+  useEffect(() => {
     if (!rootPath) return;
 
-    let watchInterval: ReturnType<typeof setInterval> | null = null;
+    let unlisten: (() => void) | null = null;
+    let started = true;
 
-    const checkForChanges = async () => {
-      const { openTabs } = useFileStore.getState();
-      
-      for (const tab of openTabs) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          const currentContent = await invoke<string>('read_file', { path: tab.path });
-          const storedContent = useFileStore.getState().fileContents.get(tab.path);
-          
-          if (storedContent !== undefined && currentContent !== storedContent) {
-            setFileContent(tab.path, currentContent);
-          }
-        } catch {
-        }
+    const startWatch = async () => {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('start_watch', { path: rootPath, root: rootPath });
+      } catch (err) {
+        console.error('Failed to start file watcher:', err);
       }
     };
 
-    watchInterval = setInterval(checkForChanges, 3000);
+    const setupListener = async () => {
+      unlisten = await listen<FileChangeEvent>('file-changed', (event) => {
+        if (!started) return;
+        const { path, change_type } = event.payload;
+        const normalizedPath = path.replace(/\\/g, '/');
+        if (!openTabPathsRef.current.has(normalizedPath)) return;
+        if (change_type === 'modified') {
+          refreshFile(normalizedPath);
+        }
+      });
+    };
+
+    startWatch();
+    setupListener();
 
     return () => {
-      if (watchInterval) {
-        clearInterval(watchInterval);
-      }
+      started = false;
+      if (unlisten) unlisten();
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('stop_watch').catch(() => {});
+      });
     };
-  }, [rootPath, setFileContent]);
+  }, [rootPath, refreshFile]);
 
   return { refreshFile };
 }

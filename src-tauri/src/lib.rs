@@ -18,6 +18,7 @@ pub fn run() {
         .manage(commands::AIState::default())
         .manage(commands::BuildState::default())
         .manage(commands::PtyState::default())
+        .manage(commands::WatchState::default())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("Embedist - AI-Native Embedded Development").ok();
@@ -66,6 +67,8 @@ pub fn run() {
             commands::pty_write,
             commands::pty_resize,
             commands::pty_kill,
+            commands::start_watch,
+            commands::stop_watch,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

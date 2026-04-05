@@ -48,6 +48,21 @@
   -webkit-app-region: no-drag;
 }
 
+.titlebar-theme {
+  width: 36px;
+  height: var(--titlebar-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.titlebar-theme:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
 .titlebar-button {
   width: 46px;
   height: var(--titlebar-height);

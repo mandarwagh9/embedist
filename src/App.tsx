@@ -106,7 +106,11 @@ function App() {
     navigateToSerial,
     navigateToBuild,
   } = useUIStore();
-  const { open: openSettings, editor: editorSettings } = useSettingsStore();
+  const { open: openSettings, editor: editorSettings, theme } = useSettingsStore();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
   const {
     rootPath,
     openTabs,

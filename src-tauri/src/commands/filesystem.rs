@@ -2,7 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::command;
+use tauri::Emitter;
 use tokio::process::Command as AsyncCommand;
+use parking_lot::Mutex;
+use std::collections::HashSet;
+use std::sync::Arc;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
 fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
     if allowed_root.is_empty() {
@@ -382,6 +387,88 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
         return Err("Unsupported platform".to_string());
     }
 
+    Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WatchState {
+    watcher: Option<Arc<Mutex<RecommendedWatcher>>>,
+    watched_path: Option<String>,
+}
+
+impl Default for WatchState {
+    fn default() -> Self {
+        Self {
+            watcher: None,
+            watched_path: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileChangeEvent {
+    pub path: String,
+    pub change_type: String,
+}
+
+#[command]
+pub fn start_watch(app: tauri::AppHandle, path: String, _root: String) -> Result<(), String> {
+    let watch_path = PathBuf::from(&path);
+    if !watch_path.exists() {
+        return Err("Watch path does not exist".to_string());
+    }
+
+    let app_clone = app.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let mut watcher = RecommendedWatcher::new(tx, notify::Config::default())
+        .map_err(|e| format!("Failed to create watcher: {}", e))?;
+
+    watcher.watch(&watch_path, RecursiveMode::Recursive)
+        .map_err(|e| format!("Failed to watch path: {}", e))?;
+
+    let watcher = Arc::new(Mutex::new(watcher));
+
+    app.state::<WatchState>().0.lock().watcher = Some(watcher.clone());
+    app.state::<WatchState>().0.lock().watched_path = Some(path.clone());
+
+    std::thread::spawn(move || {
+        for event in rx {
+            match event {
+                Ok(notify::Event { kind, paths, .. }) => {
+                    for file_path in paths {
+                        let change_type = if kind.contains(notify::EventKind::Create) {
+                            "created"
+                        } else if kind.contains(notify::EventKind::Remove) {
+                            "deleted"
+                        } else if kind.contains(notify::EventKind::Modify(_)) {
+                            "modified"
+                        } else {
+                            continue;
+                        };
+
+                        let _ = app_clone.emit("file-changed", FileChangeEvent {
+                            path: file_path.to_string_lossy().to_string(),
+                            change_type: change_type.to_string(),
+                        });
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Watch error: {}", e);
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[command]
+pub fn stop_watch(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<WatchState>();
+    let mut guard = state.0.lock();
+    guard.watcher = None;
+    guard.watched_path = None;
     Ok(())
 }
 
