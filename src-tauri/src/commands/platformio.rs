@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Command as SyncCommand;
+use std::process::{Command as SyncCommand, Stdio};
 use tauri::command;
+use tauri::Emitter;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::Mutex as AsyncMutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -240,15 +242,18 @@ pub async fn stop_build(state: tauri::State<'_, BuildState>) -> Result<bool, Str
 pub async fn run_platformio_command(
     state: tauri::State<'_, BuildState>,
     args: Vec<String>,
+    app: tauri::AppHandle,
 ) -> Result<BuildResult, String> {
     use std::time::Instant;
 
     let start = Instant::now();
     let pio_cmd = get_pio_command();
     let mut cmd = tokio::process::Command::new(&pio_cmd);
-    cmd.args(&args);
+    cmd.args(&args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
-    let child = cmd.spawn().map_err(|e| format!("Failed to spawn pio: {}", e))?;
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn pio: {}", e))?;
     let pid = child.id().unwrap_or(0);
 
     {
@@ -256,20 +261,45 @@ pub async fn run_platformio_command(
         *guard = Some(pid);
     }
 
-    let output = child.wait_with_output().await.map_err(|e| format!("Failed to wait on pio: {}", e))?;
+    let stdout = child.stdout.take().expect("stdout not piped");
+    let stderr = child.stderr.take().expect("stderr not piped");
+
+    let mut stdout_reader = BufReader::new(stdout).lines();
+    let mut stderr_reader = BufReader::new(stderr).lines();
+
+    let app_clone = app.clone();
+    let stdout_task = tokio::spawn(async move {
+        let mut lines: Vec<String> = Vec::new();
+        while let Ok(Some(line)) = stdout_reader.next_line().await {
+            let _ = app_clone.emit("build-output", line.clone());
+            lines.push(line);
+        }
+        lines
+    });
+
+    let app_clone = app.clone();
+    let stderr_task = tokio::spawn(async move {
+        let mut lines: Vec<String> = Vec::new();
+        while let Ok(Some(line)) = stderr_reader.next_line().await {
+            let _ = app_clone.emit("build-output", line.clone());
+            lines.push(line);
+        }
+        lines
+    });
+
+    let status = child.wait().await.map_err(|e| format!("Failed to wait on pio: {}", e))?;
 
     {
         let mut guard = state.child_id.lock().await;
         *guard = None;
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let duration = start.elapsed();
+    let stdout_result = stdout_task.await.unwrap_or_default();
+    let stderr_result = stderr_task.await.unwrap_or_default();
 
-    let mut errors = Vec::new();
-    let mut warnings = Vec::new();
-    for line in stdout.lines().chain(stderr.lines()) {
+    let mut errors: Vec<String> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
+    for line in stdout_result.iter().chain(stderr_result.iter()) {
         if line.contains("error:") || line.contains("Error:") || line.contains("ERROR:") {
             errors.push(line.trim().to_string());
         }
@@ -278,14 +308,18 @@ pub async fn run_platformio_command(
         }
     }
 
+    let duration = start.elapsed();
+    let full_output = stdout_result.join("\n");
+    let full_stderr = stderr_result.join("\n");
+
     Ok(BuildResult {
-        success: output.status.success(),
-        stdout: stdout.clone(),
-        stderr: stderr.clone(),
-        return_code: output.status.code().unwrap_or(-1),
+        success: status.success(),
+        stdout: full_output.clone(),
+        stderr: full_stderr,
+        return_code: status.code().unwrap_or(-1),
         duration_ms: duration.as_millis() as u64,
         cancelled: false,
-        output: stdout,
+        output: full_output,
         errors,
         warnings,
     })
@@ -295,8 +329,9 @@ pub async fn run_platformio_command(
 pub async fn build_project(
     state: tauri::State<'_, BuildState>,
     project_path: String,
+    app: tauri::AppHandle,
 ) -> Result<BuildResult, String> {
-    run_platformio_command(state, vec!["run".to_string(), "-d".to_string(), project_path]).await
+    run_platformio_command(state, vec!["run".to_string(), "-d".to_string(), project_path], app).await
 }
 
 #[command]
@@ -304,6 +339,7 @@ pub async fn upload_firmware(
     state: tauri::State<'_, BuildState>,
     project_path: String,
     port: Option<String>,
+    app: tauri::AppHandle,
 ) -> Result<BuildResult, String> {
     let mut args = vec![
         "run".to_string(),
@@ -316,7 +352,7 @@ pub async fn upload_firmware(
         args.push("--upload-port".to_string());
         args.push(p);
     }
-    run_platformio_command(state, args).await
+    run_platformio_command(state, args, app).await
 }
 
 #[command]

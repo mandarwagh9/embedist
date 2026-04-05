@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 interface PlatformInfo {
   os: string;
@@ -47,6 +48,7 @@ export function useBuild() {
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const [availablePorts, setAvailablePorts] = useState<SerialPortInfo[]>([]);
   const [selectedPort, setSelectedPort] = useState<string | null>(null);
+  const isBuildingRef = useRef(false);
 
   const appendOutput = useCallback((line: string) => {
     setBuildOutput((prev) => {
@@ -54,6 +56,17 @@ export function useBuild() {
       return next.length > 5000 ? next.slice(-5000) : next;
     });
   }, []);
+
+  useEffect(() => {
+    const unlisten = listen<string>('build-output', (event) => {
+      if (isBuildingRef.current) {
+        appendOutput(event.payload);
+      }
+    });
+    return () => {
+      unlisten.then(fn => fn());
+    };
+  }, [appendOutput]);
 
   const clearOutput = useCallback(() => {
     setBuildOutput([]);
@@ -114,19 +127,13 @@ export function useBuild() {
 
   const build = useCallback(async (projectPath?: string) => {
     setIsBuilding(true);
+    isBuildingRef.current = true;
     clearOutput();
     const startTime = Date.now();
 
     try {
       appendOutput('[BUILD] Starting build...');
       const result = await invoke<BuildResult>('build_project', { projectPath });
-
-      result.output.split('\n').forEach((line) => {
-        if (line.trim()) appendOutput(line);
-      });
-
-      result.errors.forEach((err) => appendOutput(`[ERROR] ${err}`));
-      result.warnings.forEach((warn) => appendOutput(`[WARN] ${warn}`));
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       if (result.success) {
@@ -144,6 +151,7 @@ export function useBuild() {
       return null;
     } finally {
       setIsBuilding(false);
+      isBuildingRef.current = false;
     }
   }, [appendOutput, clearOutput]);
 
@@ -161,6 +169,7 @@ export function useBuild() {
 
   const upload = useCallback(async (projectPath?: string) => {
     setIsUploading(true);
+    isBuildingRef.current = true;
     clearOutput();
 
     try {
@@ -172,10 +181,6 @@ export function useBuild() {
       const result = await invoke<BuildResult>('upload_firmware', {
         projectPath,
         port: selectedPort || null,
-      });
-
-      result.output.split('\n').forEach((line) => {
-        if (line.trim()) appendOutput(line);
       });
 
       if (result.success) {
@@ -192,6 +197,7 @@ export function useBuild() {
       return null;
     } finally {
       setIsUploading(false);
+      isBuildingRef.current = false;
     }
   }, [appendOutput, clearOutput, selectedBoard]);
 
