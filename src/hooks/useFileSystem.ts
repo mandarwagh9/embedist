@@ -201,10 +201,11 @@ export function useFileSystem() {
   }, []);
 
   const refreshRoot = useCallback(async () => {
-    if (!rootPath) return;
-    const entries = await listDirectory(rootPath);
+    const { rootPath: rp, files: currentFiles } = useFileStore.getState();
+    if (!rp) return;
+    const entries = await listDirectory(rp);
     const merged = entries.map(entry => {
-      const existing = files.find(f => f.path === entry.path);
+      const existing = currentFiles.find(f => f.path === entry.path);
       if (existing) {
         return {
           ...entry,
@@ -215,9 +216,9 @@ export function useFileSystem() {
       return entry;
     });
     setFiles(merged);
-    const name = rootPath.replace(/\\/g, '/').split('/').pop() || 'project';
+    const name = rp.replace(/\\/g, '/').split('/').pop() || 'project';
     ragEngine.indexProject(merged, name);
-  }, [rootPath, listDirectory, setFiles, files]);
+  }, [listDirectory, setFiles]);
 
   const readFileContent = useCallback(async (path: string): Promise<string | null> => {
     try {

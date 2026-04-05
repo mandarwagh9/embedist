@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useFileStore } from '../stores/fileStore';
+import { useFileSystem } from './useFileSystem';
 
 interface FileChangeEvent {
   path: string;
@@ -13,6 +14,7 @@ export function useFileWatcher() {
   const clearExternalModification = useFileStore((state) => state.clearExternalModification);
   const openTabs = useFileStore((state) => state.openTabs);
   const openTabPathsRef = useRef(new Set(openTabs.map(t => t.path)));
+  const { refreshRoot } = useFileSystem();
 
   const refreshFile = useCallback(async (filePath: string) => {
     try {
@@ -49,15 +51,15 @@ export function useFileWatcher() {
         if (!started) return;
         const { path, change_type } = event.payload;
         const normalizedPath = path.replace(/\\/g, '/');
-        if (!openTabPathsRef.current.has(normalizedPath)) return;
-        if (change_type === 'modified') {
+        if (change_type === 'modified' && openTabPathsRef.current.has(normalizedPath)) {
           refreshFile(normalizedPath);
+        } else if (change_type === 'created' || change_type === 'deleted') {
+          refreshRoot();
         }
       });
     };
 
-    startWatch();
-    setupListener();
+    startWatch().then(() => setupListener());
 
     return () => {
       started = false;
@@ -66,7 +68,7 @@ export function useFileWatcher() {
         invoke('stop_watch').catch(() => {});
       });
     };
-  }, [rootPath, refreshFile]);
+  }, [rootPath, refreshFile, refreshRoot]);
 
   return { refreshFile };
 }

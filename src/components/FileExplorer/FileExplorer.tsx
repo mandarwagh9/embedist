@@ -161,6 +161,7 @@ const TreeItem = React.memo(function TreeItem({
   onRename,
   onHover,
   onCancelRename,
+  onRefresh,
   searchQuery,
   openTabs,
   loadingPaths,
@@ -180,6 +181,7 @@ const TreeItem = React.memo(function TreeItem({
   searchQuery: string;
   openTabs: { path: string; modified: boolean }[];
   loadingPaths: string[];
+  onRefresh: () => void;
 }) {
   const [renameValue, setRenameValue] = useState(node.name);
   const renameRef = useRef<HTMLInputElement>(null);
@@ -254,23 +256,23 @@ const TreeItem = React.memo(function TreeItem({
     }
   };
 
-  const handleItemDrop = (e: React.DragEvent) => {
+  const handleItemDrop = async (e: React.DragEvent) => {
     if (node.isDir) {
       e.preventDefault();
       e.stopPropagation();
       const draggedPath = e.dataTransfer.getData('text/plain');
-      if (draggedPath && draggedPath !== node.path) {
+      if (draggedPath && draggedPath !== node.path && draggedPath !== '') {
         const fileName = draggedPath.split(/[/\\]/).pop() || '';
         const destPath = `${node.path}/${fileName}`.replace(/\\/g, '/');
-        (async () => {
-          try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            const root = useFileStore.getState().rootPath;
-            await invoke('move_path', { oldPath: draggedPath, newPath: destPath, root });
-          } catch (err) {
-            console.error('Move failed:', err);
-          }
-        })();
+        if (destPath.startsWith(draggedPath + '/')) return;
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const root = useFileStore.getState().rootPath;
+          await invoke('move_path', { oldPath: draggedPath, newPath: destPath, root });
+          onRefresh();
+        } catch (err) {
+          console.error('Move failed:', err);
+        }
       }
     }
   };
@@ -391,6 +393,7 @@ const TreeItem = React.memo(function TreeItem({
               onRename={onRename}
               onHover={onHover}
               onCancelRename={onCancelRename}
+              onRefresh={onRefresh}
               searchQuery={searchQuery}
               openTabs={openTabs}
               loadingPaths={loadingPaths}
@@ -518,7 +521,7 @@ export function FileExplorer() {
   }, [files, searchQuery]);
 
   useEffect(() => {
-    if (rootPath && files.length === 0) {
+    if (rootPath) {
       const loadRoot = async () => {
         const entries = await listDirectory(rootPath);
         setFiles(entries);
@@ -528,7 +531,7 @@ export function FileExplorer() {
   }, [rootPath]);
 
   useEffect(() => {
-    const handleGlobalKey = (e: KeyboardEvent) => {
+    const handleGlobalKey = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
         e.preventDefault();
         setCommandPaletteVisible(true);
@@ -542,10 +545,11 @@ export function FileExplorer() {
       }
       if (e.key === 'Delete' && selectedPaths.length > 0) {
         e.preventDefault();
+        if (!confirm(`Delete ${selectedPaths.length} item${selectedPaths.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
         const paths = [...selectedPaths];
         clearSelection();
         for (const path of paths) {
-          deleteItem(path);
+          await deleteItem(path);
         }
       }
       if (e.key === 'Escape') {
@@ -595,8 +599,13 @@ export function FileExplorer() {
   }, []);
 
   const handleRename = useCallback(async (path: string, newName: string) => {
-    await renameItem(path, newName);
-    stopRenaming();
+    try {
+      await renameItem(path, newName);
+    } catch (err) {
+      console.error('Rename failed:', err);
+    } finally {
+      stopRenaming();
+    }
   }, [renameItem, stopRenaming]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, path: string, node: FileNode) => {
@@ -670,6 +679,7 @@ export function FileExplorer() {
         category: 'Danger',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
         onClick: async () => {
+          if (!confirm(`Delete ${selectedPaths.length} items? This cannot be undone.`)) return;
           for (const p of selectedPaths) {
             await deleteItem(p);
           }
@@ -685,6 +695,7 @@ export function FileExplorer() {
         category: 'Danger',
         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>,
         onClick: async () => {
+          if (!confirm(`Delete "${target.name}"? This cannot be undone.`)) return;
           await deleteItem(contextMenu.targetPath!);
           clearSelection();
         },
@@ -959,6 +970,7 @@ export function FileExplorer() {
               onRename={handleRename}
               onHover={setHoveredPath}
               onCancelRename={stopRenaming}
+              onRefresh={refreshRoot}
               searchQuery={searchQuery}
               openTabs={openTabs}
               loadingPaths={loadingPaths}

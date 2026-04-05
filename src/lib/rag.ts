@@ -286,9 +286,11 @@ class RAGEngine {
   addProjectFileContent(path: string, content: string): void {
     if (!projectDocuments) return;
     
-    const doc = projectDocuments.find((d) => d.metadata.path === path);
-    if (doc) {
-      doc.content = content;
+    const idx = projectDocuments.findIndex((d) => d.metadata.path === path);
+    if (idx !== -1) {
+      projectDocuments = projectDocuments.map((d, i) =>
+        i === idx ? { ...d, content } : d
+      );
       this.reindexProject();
     }
   }
