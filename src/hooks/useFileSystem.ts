@@ -74,13 +74,13 @@ export function useFileSystem() {
       });
 
       if (selected && typeof selected === 'string') {
-        const isPIO = await invoke<boolean>('is_platformio_project', { path: selected });
+        const isPIO = await invoke<boolean>('is_platformio_project', { path: selected, root: selected });
         setIsPlatformIOProject(isPIO);
 
         let board: string | null = null;
         if (isPIO) {
           try {
-            board = await invoke<string>('read_platformio_board', { path: selected });
+            board = await invoke<string>('read_platformio_board', { path: selected, root: selected });
             setDetectedBoard(board);
           } catch {
             board = null;
