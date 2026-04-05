@@ -70,6 +70,7 @@ pub fn run() {
             commands::start_watch,
             commands::stop_watch,
             commands::erase_flash,
+            commands::web_search,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

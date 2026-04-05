@@ -685,3 +685,70 @@ async fn chat_custom(base_url: &str, api_key: &str, model: &str, messages: &[AIM
         tool_calls,
     })
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebSearchResult {
+    pub title: String,
+    pub url: String,
+    pub snippet: String,
+}
+
+#[command]
+pub async fn web_search(query: String) -> Result<Vec<WebSearchResult>, String> {
+    let encoded = urlencoding::encode(&query);
+    let url = format!("https://html.duckduckgo.com/html/?q={}", encoded);
+    
+    let response = HTTP_CLIENT
+        .get(&url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .send()
+        .await
+        .map_err(|e| format!("Search request failed: {}", e))?;
+    
+    let html = response.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    
+    let mut results = Vec::new();
+    let re = regex::Regex::new(
+        r#"<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>"#
+    ).map_err(|e| format!("Regex error: {}", e))?;
+    
+    for cap in re.captures_iter(&html) {
+        let raw_url: &str = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+        let title = strip_html(cap.get(2).map(|m: regex::Match| m.as_str()).unwrap_or(""));
+        let snippet = strip_html(cap.get(3).map(|m: regex::Match| m.as_str()).unwrap_or(""));
+        
+        let url = if raw_url.starts_with("//") {
+            format!("https:{}", raw_url)
+        } else if raw_url.starts_with("http") {
+            raw_url.to_string()
+        } else {
+            continue;
+        };
+        
+        if !title.is_empty() {
+            results.push(WebSearchResult {
+                title,
+                url,
+                snippet: snippet.chars().take(300).collect(),
+            });
+        }
+        
+        if results.len() >= 10 { break; }
+    }
+    
+    Ok(results)
+}
+
+fn strip_html(html: &str) -> String {
+    let re = regex::Regex::new(r"<[^>]*>").unwrap();
+    re.replace_all(html, "")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#x27;", "'")
+        .replace("&nbsp;", " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
