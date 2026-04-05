@@ -10,7 +10,7 @@ export function AISettings() {
   const [customForm, setCustomForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '' });
   const [editingEndpoint, setEditingEndpoint] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '', thinking: false });
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
 
   const providerList = [
     { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'] },
@@ -22,10 +22,19 @@ export function AISettings() {
 
   const handleAddCustom = async () => {
     if (customForm.name && customForm.baseUrl && customForm.model) {
-      const endpointId = `custom-${Date.now()}`;
+      if (!/^https?:\/\/.+/.test(customForm.baseUrl)) {
+        alert('Base URL must start with http:// or https://');
+        return;
+      }
+      if (customEndpoints.some(e => e.name.toLowerCase() === customForm.name.toLowerCase())) {
+        alert('An endpoint with this name already exists');
+        return;
+      }
+      
+      const newId = `custom-${crypto.randomUUID()}`;
       
       addCustomEndpoint({
-        id: endpointId,
+        id: newId,
         name: customForm.name,
         baseUrl: customForm.baseUrl,
         apiKey: customForm.apiKey,
@@ -35,7 +44,7 @@ export function AISettings() {
       try {
         await invoke('add_ai_provider', {
           config: {
-            id: endpointId,
+            id: newId,
             name: customForm.name,
             api_key: customForm.apiKey || '',
             base_url: customForm.baseUrl,
@@ -43,8 +52,8 @@ export function AISettings() {
           }
         });
         
-        await invoke('set_active_provider', { providerId: endpointId });
-        setActiveProvider(endpointId);
+        await invoke('set_active_provider', { providerId: newId });
+        setActiveProvider(newId);
       } catch (err) {
         console.error('Failed to register custom endpoint with backend:', err);
       }
@@ -66,7 +75,7 @@ export function AISettings() {
   const handleEditCustom = async (endpointId: string) => {
     if (editForm.name && editForm.baseUrl && editForm.model) {
       const current = customEndpoints.find(e => e.id === endpointId);
-      const newApiKey = editForm.apiKey || current?.apiKey || '';
+      const newApiKey = editForm.apiKey === '__KEEP__' ? (current?.apiKey || '') : editForm.apiKey;
       
       updateCustomEndpoint(endpointId, {
         name: editForm.name,
@@ -186,20 +195,21 @@ export function AISettings() {
                     <div className="provider-endpoint-url">{endpoint.baseUrl}</div>
                     <div className="provider-endpoint-model">Model: {endpoint.model}</div>
                     <div className="provider-endpoint-apikey">
-                      API Key: {endpoint.apiKey ? (showApiKey ? endpoint.apiKey : '••••••••') : 'Not set'}
+                      <span>API Key: {endpoint.apiKey ? (showApiKeys[endpoint.id] ? endpoint.apiKey : '••••••••') : 'Not set'}</span>
                       {endpoint.apiKey && (
                         <button
-                          className="settings-btn link small"
+                          className="settings-btn ghost small"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setShowApiKey(!showApiKey);
+                            setShowApiKeys(prev => ({ ...prev, [endpoint.id]: !prev[endpoint.id] }));
                           }}
                         >
-                          {showApiKey ? 'Hide' : 'Show'}
+                          {showApiKeys[endpoint.id] ? 'Hide' : 'Show'}
                         </button>
                       )}
                     </div>
-                    <div className="provider-card-actions">
+                  </div>
+                  <div className="provider-card-actions">
                       <button
                         className="settings-btn secondary small"
                         onClick={(e) => {
@@ -208,7 +218,7 @@ export function AISettings() {
                           setEditForm({
                             name: endpoint.name,
                             baseUrl: endpoint.baseUrl,
-                            apiKey: endpoint.apiKey,
+                            apiKey: endpoint.apiKey || '__KEEP__',
                             model: endpoint.model,
                             thinking: endpoint.thinking || false,
                           });
@@ -226,7 +236,6 @@ export function AISettings() {
                         Remove
                       </button>
                     </div>
-                  </div>
                 </div>
               ))}
             </>

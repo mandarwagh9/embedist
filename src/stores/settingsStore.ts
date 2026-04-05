@@ -158,7 +158,7 @@ export const useSettingsStore = create<SettingsState>()(
       addCustomEndpoint: (endpoint) => set((state) => ({
         customEndpoints: [
           ...state.customEndpoints,
-          { ...endpoint, id: `custom-${Date.now()}` },
+          { ...endpoint, id: endpoint.id || `custom-${crypto.randomUUID()}` },
         ],
       })),
 
@@ -198,6 +198,14 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     { 
       name: 'embedist-settings',
+      partialize: (state) => {
+        const { providers, customEndpoints, ...rest } = state;
+        const safeProviders = Object.fromEntries(
+          Object.entries(providers).map(([key, val]) => [key, { ...val, apiKey: '' }])
+        );
+        const safeEndpoints = customEndpoints.map(e => ({ ...e, apiKey: '' }));
+        return { ...rest, providers: safeProviders, customEndpoints: safeEndpoints };
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
