@@ -187,12 +187,14 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       
       const model = ed.getModel();
       if (model) {
+        ed.pushUndoStop();
         const fullRange = model.getFullModelRange();
         ed.executeEdits('external-change', [{
           range: fullRange,
           text: value,
           forceMoveMarkers: true,
         }]);
+        ed.pushUndoStop();
       } else {
         ed.setValue(value);
       }
@@ -238,6 +240,7 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
     return (
       <div className="editor-error">
         <span>Editor failed to load</span>
+        <button className="editor-retry-btn" onClick={() => window.location.reload()}>Retry</button>
       </div>
     );
   }
@@ -246,6 +249,7 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
     return (
       <div className="editor-loading">
         <div className="editor-spinner" />
+        <span>Loading editor...</span>
       </div>
     );
   }

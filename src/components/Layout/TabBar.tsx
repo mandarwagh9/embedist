@@ -22,18 +22,20 @@ export function TabBar() {
     setContextMenu({ x: e.clientX, y: e.clientY, tabId });
   }, []);
 
+  const confirmClose = useCallback((tabTitle: string): boolean => {
+    return window.confirm(`"${tabTitle}" has unsaved changes. Close anyway?`);
+  }, []);
+
   const handleMiddleClick = useCallback((e: React.MouseEvent, tabId: string) => {
     if (e.button === 1) {
       e.preventDefault();
       const tab = openTabs.find(t => t.id === tabId);
-      if (tab?.modified) {
-        if (!window.confirm(`"${tab.title}" has unsaved changes. Close anyway?`)) {
-          return;
-        }
+      if (tab?.modified && !confirmClose(tab.title)) {
+        return;
       }
       closeTab(tabId);
     }
-  }, [openTabs, closeTab]);
+  }, [openTabs, closeTab, confirmClose]);
 
   if (openTabs.length === 0) {
     return null;
@@ -45,10 +47,8 @@ export function TabBar() {
       shortcut: 'Ctrl+W',
       onClick: () => {
         const tab = openTabs.find(t => t.id === contextMenu.tabId);
-        if (tab?.modified) {
-          if (!window.confirm(`"${tab.title}" has unsaved changes. Close anyway?`)) {
-            return;
-          }
+        if (tab?.modified && !confirmClose(tab.title)) {
+          return;
         }
         closeTab(contextMenu.tabId);
       },

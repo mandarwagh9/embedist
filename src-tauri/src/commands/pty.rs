@@ -154,23 +154,6 @@ pub async fn pty_resize(id: u32, cols: u16, rows: u16, state: State<'_, PtyState
         let _ = sess.child.stdin.as_ref().map(|_| ());
     }
 
-    #[cfg(not(windows))]
-    {
-        use std::os::unix::process::CommandExt;
-        let _ = unsafe {
-            libc::ioctl(
-                sess.child.stdout.as_ref().map(|s| s.as_raw_fd()).unwrap_or(-1),
-                libc::TIOCSWINSZ as _,
-                &libc::winsize {
-                    ws_row: rows,
-                    ws_col: cols,
-                    ws_xpixel: 0,
-                    ws_ypixel: 0,
-                },
-            )
-        };
-    }
-
     Ok(())
 }
 

@@ -74,7 +74,7 @@ export function SetupWizard() {
       setInstallProgress('All selected platforms installed!');
       setHasCompletedSetup(true);
     } else {
-      setInstallProgress('Some platforms failed to install. You can retry later.');
+      setInstallProgress('Some platforms failed to install. You can retry later or skip to continue.');
     }
     setInstalling(false);
   };

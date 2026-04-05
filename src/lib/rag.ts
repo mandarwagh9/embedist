@@ -356,11 +356,12 @@ class RAGEngine {
     initDocuments();
     
     if (initError) {
-      throw initError;
+      console.error('[RAGEngine] Init error:', initError);
+      return;
     }
     
     if (documents === null || !isInitialized) {
-      throw new Error('RAG documents not initialized');
+      return;
     }
     
     if (this.documentTokens.size === 0) {

@@ -440,6 +440,8 @@ function fuzzyScore(query: string, target: string): number {
 }
 
 export function FileExplorer() {
+  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
+
   const {
     rootPath,
     projectName,
@@ -454,8 +456,6 @@ export function FileExplorer() {
     clearSelection,
     startRenaming,
     stopRenaming,
-    hoveredPath,
-    setHoveredPath,
     setSearchQuery,
     getNodeByPath,
     loadingPaths,
