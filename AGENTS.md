@@ -1,7 +1,7 @@
 # AGENTS.md - Embedist Development Guide
 
 **Project**: AI-native embedded development environment (Tauri 2 + React + TypeScript + Rust)  
-**Platform**: Windows only | **Git**: `embedist/embedist/` | **Version**: v0.19.0
+**Platform**: Windows only | **Git**: `embedist/embedist/` | **Version**: v0.34.0
 
 ---
 
@@ -119,8 +119,8 @@ await sendMessage(messages);
 ---
 
 ## Known Issues
+- Windows PTY terminal resize is a no-op due to ConPTY limitations
 - Drag-drop files in FileExplorer is a stub
-- Recent Files, file rename/delete, theme settings not implemented
 - `SerialConfig` in serial.rs has dead_code warning
 
 ---

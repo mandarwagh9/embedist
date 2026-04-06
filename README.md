@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Version](https://img.shields.io/badge/version-v0.17.0-blue)](https://github.com/mandarwagh9/embedist/releases)
+[![Version](https://img.shields.io/badge/version-v0.34.0-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
 </div>
@@ -56,15 +56,16 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 - ⚡ **Fast & Lightweight** — Tauri 2 Rust backend, ~5.7 MB executable, native performance
 - 🧠 **NVIDIA NIM Support** — Thinking mode for advanced reasoning models (e.g., Kimi-K2.5)
 - 🔧 **Edit Custom Endpoints** — Modify existing custom AI endpoints
-- 🔐 **Secure API Keys** — Show/hide toggle for API key visibility
+- 🔐 **Persistent API Keys** — Custom endpoint API keys survive app restarts
 - 🚀 **Setup Wizard** — First-run guided setup for PlatformIO installation
+- 🖥️ **Startup Loading State** — Branded spinner on launch, deferred heavy operations to prevent "not responding"
 
 ## Downloads
 
-### Latest Release: v0.17.0
+### Latest Release: v0.34.0
 
-[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.17.0/embedist.exe)
-[![Download Installer](https://img.shields.io/badge/Download-Installer-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.17.0/Embedist_0.17.0_x64-setup.exe)
+[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.34.0/embedist.exe)
+[![Download Installer](https://img.shields.io/badge/Download-Installer-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.34.0/Embedist_0.34.0_x64-setup.exe)
 
 Download the executable and run it directly — no installation required.
 
@@ -220,11 +221,24 @@ embedist/
 ## Known Issues
 
 - Settings toggle for "default implementation mode" is not exposed in the Settings UI
-- Editor settings (font size, word wrap, minimap) are saved but not yet wired to the Monaco editor instance
+- Windows PTY terminal resize is a no-op due to ConPTY limitations
+- Drag-drop files in FileExplorer is a stub
 
 ---
 
 ## Changelog
+
+### [v0.34.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.34.0) — 2026-04-06
+- **Fix**: App "not responding" on startup — added branded loading overlay, deferred BuildPanel and FileExplorer initialization
+- **Fix**: File explorer double-click folder open — removed redundant `toggleExpanded` call after `setNodeChildren`
+- **Fix**: Empty folder flicker — removed duplicate skeleton loading blocks
+- **Fix**: Dark mode Recent Files visibility — added background color
+- **Fix**: API keys now persist across app restarts — removed apiKey stripping from Zustand partialize
+- **Fix**: Agent mode loses context after API failures — `tool_calls` now properly included in conversation messages
+- **Fix**: `web_search` tool invocation error — updated DuckDuckGo HTML parsing regex for Plan mode
+
+### [v0.33.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.33.0) — 2026-04-06
+- **Fix**: `web_search` tool invocation error — fixed DuckDuckGo HTML parsing regex that was failing to extract search results in Plan mode
 
 ### [v0.17.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.17.0) — 2026-03-27
 - **New**: Edit custom endpoints UI — modify existing AI endpoint configurations
