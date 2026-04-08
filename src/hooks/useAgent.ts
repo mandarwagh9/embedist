@@ -24,6 +24,11 @@ interface ConversationMessage {
   id: string;
   role: string;
   content: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
   tool_call_id?: string;
   tool_calls?: Array<{
     id: string;
@@ -226,8 +231,8 @@ export function useAgent() {
         logActivity('error', 'PlatformIO not found', 'PlatformIO is not installed or not in PATH. Please install PlatformIO and ensure "pio" command is available in your system PATH.');
         return;
       }
-    } catch {
-      logActivity('error', 'PlatformIO check failed', 'Could not verify PlatformIO installation. Build commands may fail.');
+    } catch (err) {
+      logActivity('error', 'PlatformIO check failed', `Could not verify PlatformIO installation. Build commands may fail. Error: ${err}`);
     }
 
     isRunningRef.current = true;
@@ -300,11 +305,12 @@ export function useAgent() {
         }
 
         if (response.content && response.content.trim()) {
-          addMessage({ role: 'assistant', content: response.content });
+          addMessage({ role: 'assistant', content: response.content, usage: response.usage });
           conversationMessages.push({
             id: `asst-${Date.now()}-${iteration}`,
             role: 'assistant',
             content: response.content,
+            usage: response.usage,
           });
         }
 
@@ -332,7 +338,8 @@ export function useAgent() {
             let args: Record<string, unknown> = {};
             try {
               args = JSON.parse(tc.arguments);
-            } catch {
+            } catch (err) {
+              console.error('Failed to parse tool arguments:', err);
               args = {};
             }
 
