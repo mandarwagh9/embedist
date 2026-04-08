@@ -40,7 +40,8 @@ async function readKeyFile(path: string, maxLines = 50): Promise<{ name: string;
     const truncated = lines.length > maxLines ? `\n... (${lines.length - maxLines} more lines)` : '';
     const name = path.replace(/\\/g, '/').split('/').pop() || path;
     return { name, path, preview: preview + truncated };
-  } catch {
+  } catch (err) {
+    console.warn('Failed to read file for plan context:', err);
     return null;
   }
 }

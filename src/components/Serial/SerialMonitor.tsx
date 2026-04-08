@@ -113,7 +113,9 @@ export function SerialMonitor() {
         }
         await portRef.current.close();
         portRef.current = null;
-      } catch {}
+      } catch (err) {
+        console.warn('Error closing port:', err);
+      }
     }
 
     if (!navigator.serial) {
@@ -228,7 +230,8 @@ export function SerialMonitor() {
       const writer = portRef.current.writable.getWriter();
       await writer.write(new TextEncoder().encode(data));
       writer.releaseLock();
-    } catch {
+    } catch (err) {
+      console.error('Serial send error:', err);
       addLog('Send failed', 'error');
     }
     addLog(`> ${sanitized}`, 'input');

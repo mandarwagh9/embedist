@@ -59,7 +59,9 @@ export function useFileWatcher() {
       });
     };
 
-    startWatch().then(() => setupListener());
+    startWatch()
+      .then(() => setupListener())
+      .catch((err) => console.error('Failed to setup file watcher:', err));
 
     return () => {
       started = false;

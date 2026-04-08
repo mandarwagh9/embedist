@@ -63,7 +63,8 @@ export function useFileSystem() {
     try {
       const entries = await listDirectory(path);
       setNodeChildren(path, entries);
-    } catch {
+    } catch (err) {
+      console.warn('Failed to refresh directory:', err);
       const { files, setFiles } = useFileStore.getState();
       const filtered = files.filter(f => f.path !== path && !f.path.startsWith(path + '/'));
       setFiles(filtered);
@@ -208,7 +209,8 @@ export function useFileSystem() {
     try {
       await navigator.clipboard.writeText(path);
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('Clipboard API failed, falling back to textarea:', err);
       const textarea = document.createElement('textarea');
       textarea.value = path;
       textarea.style.position = 'fixed';
