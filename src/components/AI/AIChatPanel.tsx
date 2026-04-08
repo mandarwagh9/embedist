@@ -77,7 +77,7 @@ function AIChatPanelContent() {
     cancelAgentTask,
   } = useAgent();
 
-  const NON_TOOL_PROVIDERS = ['deepseek', 'ollama', 'google'];
+  const NON_TOOL_PROVIDERS = ['ollama', 'google'];
   const showToolWarning = mode === 'agent' && hasActiveProvider && NON_TOOL_PROVIDERS.includes(activeProvider);
 
   const PROVIDER_NAMES: Record<string, string> = {
