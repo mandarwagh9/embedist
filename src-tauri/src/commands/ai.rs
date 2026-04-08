@@ -403,10 +403,17 @@ async fn chat_anthropic(api_key: &str, model: &str, messages: &[AIMessage], tool
         }
     }
     
+    let usage = data["usage"].as_object().map(|u| TokenUsage {
+        prompt_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        completion_tokens: u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        total_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32 
+            + u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+    });
+    
     Ok(AIResponse {
         content,
         model: model.to_string(),
-        usage: None,
+        usage,
         tool_calls,
     })
 }
@@ -467,10 +474,16 @@ async fn chat_deepseek(api_key: &str, model: &str, messages: &[AIMessage], tools
         })
         .unwrap_or_default();
     
+    let usage = data["usage"].as_object().map(|u| TokenUsage {
+        prompt_tokens: u.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        completion_tokens: u.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        total_tokens: u.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+    });
+    
     Ok(AIResponse {
         content,
         model: model.to_string(),
-        usage: None,
+        usage,
         tool_calls,
     })
 }
@@ -499,7 +512,7 @@ async fn chat_ollama(base_url: &str, model: &str, messages: &[AIMessage], temper
     if let Some(tp) = top_p {
         options["top_p"] = serde_json::json!(tp);
     }
-    if !options.is_null() && !options.as_object().is_none_or(|o| o.is_empty()) {
+    if !options.is_null() && options.as_object().is_some_and(|o| !o.is_empty()) {
         body["options"] = options;
     }
     
@@ -574,7 +587,7 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage], tempera
     if let Some(tp) = top_p {
         generation_config["topP"] = serde_json::json!(tp);
     }
-    if !generation_config.as_object().is_none_or(|o| o.is_empty()) {
+    if generation_config.as_object().is_some_and(|o| !o.is_empty()) {
         body["generationConfig"] = generation_config;
     }
     
@@ -605,10 +618,16 @@ async fn chat_google(api_key: &str, model: &str, messages: &[AIMessage], tempera
         .unwrap_or("")
         .to_string();
     
+    let usage = data["usageMetadata"].as_object().map(|u| TokenUsage {
+        prompt_tokens: u.get("promptTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        completion_tokens: u.get("candidatesTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        total_tokens: u.get("totalTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+    });
+    
     Ok(AIResponse {
         content,
         model: model.to_string(),
-        usage: None,
+        usage,
         tool_calls: vec![],
     })
 }
