@@ -136,7 +136,8 @@ export function useAI() {
           if (planContext) {
             systemPrompt += `\n\n## Current Project Context\n${planContext}`;
           }
-        } catch {
+        } catch (err) {
+          console.warn('Failed to build plan context:', err);
         }
       } else if (mode === 'chat') {
         const approvedPlan = getApprovedPlanFromMessages(currentMessages);
@@ -202,7 +203,8 @@ export function useAI() {
             } else {
               args = tc.arguments as Record<string, unknown>;
             }
-          } catch {
+          } catch (err) {
+            console.warn('Failed to parse tool arguments:', err);
             args = {};
           }
 
