@@ -1,7 +1,7 @@
 # AGENTS.md - Embedist Development Guide
 
 **Project**: AI-native embedded development environment (Tauri 2 + React + TypeScript + Rust)  
-**Platform**: Windows only | **Git**: `embedist/embedist/` | **Version**: v0.34.0
+**Platform**: Windows only | **Git**: `embedist/embedist/` | **Version**: v0.35.0
 
 ---
 
@@ -142,7 +142,7 @@ src-tauri/src/
 | **Agent** | All file/build/shell tools | Autonomous code implementation | OpenAI, Anthropic, Custom (tool calling) |
 
 ### Tool-Calling Providers
-Only OpenAI, Anthropic, and compatible custom endpoints support tool calling. DeepSeek/Ollama/Google are text-only — Agent mode will show a warning banner.
+Only OpenAI, Anthropic, DeepSeek, and compatible custom endpoints support tool calling. Ollama/Google are text-only — Agent mode will show a warning banner.
 
 ---
 
@@ -194,30 +194,35 @@ await sendMessage(messages);
 ## Release Process
 
 ```bash
-# 1. Ensure clean build
-npm run build && cargo clippy
+# 1. Ensure clean build - MUST pass both
+npm run build
+cargo clippy
 
-# 2. Bump version (package.json, Cargo.toml, tauri.conf.json)
-#    Example: v0.34.0 → v0.35.0
+# 2. Bump version in all 3 files:
+#    - package.json
+#    - src-tauri/Cargo.toml
+#    - src-tauri/tauri.conf.json
+#    Example: v0.35.0 → v0.36.0
 
 # 3. Build release
 npm run tauri build
 
 # 4. Commit version bump
-git add -A && git commit -m "chore: bump version to v0.35.0"
+git add -A && git commit -m "chore: bump version to v0.36.0"
 
 # 5. Push
 git push origin main
 
 # 6. Create and push tag
-git tag v0.35.0 && git push origin v0.35.0
+git tag v0.36.0 && git push origin v0.36.0
 
-# 7. Create GitHub release with artifacts
-gh release create v0.35.0 --title "v0.35.0" --notes "..." \
-  src-tauri/target/release/bundle/nsis/Embedist_0.35.0_x64-setup.exe
+# 7. Create GitHub release
+gh release create v0.36.0 --title "v0.36.0" --notes "..." \
+  src-tauri/target/release/bundle/nsis/Embedist_0.36.0_x64-setup.exe
 
-# 8. Upload portable EXE
-gh release upload v0.35.0 src-tauri/target/release/embedist.exe --clobber
+# 8. Upload both artifacts
+gh release upload v0.36.0 src-tauri/target/release/embedist.exe --clobber
+gh release upload v0.36.0 src-tauri/target/release/bundle/nsis/Embedist_0.36.0_x64-setup.exe --clobber
 ```
 
 ---
@@ -228,8 +233,30 @@ gh release upload v0.35.0 src-tauri/target/release/embedist.exe --clobber
 |-------|--------|------------|
 | Windows PTY resize is no-op | Terminal can't resize | Use external terminal |
 | FileExplorer drag-drop | Stub feature | Use context menu |
-| `SerialConfig` dead_code warning | Rust lint warning | Ignore or remove |
-| Agent with non-tool provider | Shows warning banner | Use OpenAI/Anthropic |
+| Agent with Ollama/Google | Shows warning banner | Use OpenAI/Anthropic/DeepSeek |
+
+---
+
+## Critical Rust Patterns
+
+### BuildState Clone (v0.35.0+)
+Use `Arc<tokio::sync::Mutex>` for shared state that must be Clone:
+```rust
+#[derive(Clone)]
+pub struct BuildState {
+    pub child_id: Arc<tokio::sync::Mutex<Option<u32>>>,
+}
+```
+
+### Avoiding Nightly-Only Methods
+Never use `is_none_or()` — use `is_some_and()` instead (stable Rust):
+```rust
+// WRONG - won't compile on stable
+if !options.as_object().is_none_or(|o| o.is_empty())
+
+// CORRECT
+if options.as_object().is_some_and(|o| !o.is_empty())
+```
 
 ---
 
