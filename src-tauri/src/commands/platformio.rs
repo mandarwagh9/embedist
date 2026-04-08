@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::{Command as SyncCommand, Stdio};
+use std::sync::Arc;
 use tauri::command;
 use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -37,14 +38,15 @@ pub struct PlatformInfo {
     pub installed: bool,
 }
 
+#[derive(Clone)]
 pub struct BuildState {
-    pub child_id: AsyncMutex<Option<u32>>,
+    pub child_id: Arc<AsyncMutex<Option<u32>>>,
 }
 
 impl Default for BuildState {
     fn default() -> Self {
         Self {
-            child_id: AsyncMutex::new(None),
+            child_id: Arc::new(AsyncMutex::new(None)),
         }
     }
 }
@@ -174,7 +176,14 @@ pub fn list_connected_boards() -> Result<Vec<BoardInfo>, String> {
         let boards: Vec<BoardInfo> = serde_json::from_str(&stdout).unwrap_or_default();
         Ok(boards)
     } else {
-        Ok(vec![])
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("not installed") || stderr.contains("command not found") {
+            Err("PlatformIO is not installed or not found in PATH. Please install PlatformIO: pip install platformio".to_string())
+        } else if stderr.is_empty() {
+            Ok(vec![])
+        } else {
+            Err(format!("Failed to list boards: {}", stderr))
+        }
     }
 }
 
@@ -338,6 +347,7 @@ pub async fn build_project(
 pub async fn upload_firmware(
     state: tauri::State<'_, BuildState>,
     project_path: String,
+    board: Option<String>,
     port: Option<String>,
     app: tauri::AppHandle,
 ) -> Result<BuildResult, String> {
@@ -374,6 +384,10 @@ pub async fn upload_firmware(
         "-d".to_string(),
         project_path,
     ];
+    if let Some(b) = board {
+        args.push("--environment".to_string());
+        args.push(b);
+    }
     if let Some(p) = port {
         args.push("--upload-port".to_string());
         args.push(p);

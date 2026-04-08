@@ -180,6 +180,7 @@ export function useBuild() {
       
       const result = await invoke<BuildResult>('upload_firmware', {
         projectPath,
+        board: selectedBoard,
         port: selectedPort || null,
       });
 
