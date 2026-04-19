@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useFileStore } from '../stores/fileStore';
+import { useAIStore } from '../stores/aiStore';
 import { ragEngine } from '../lib/rag';
 import type { FileNode } from '../stores/fileStore';
 
@@ -21,7 +22,7 @@ function flattenTree(nodes: FileNode[]): string {
   for (const node of nodes) {
     const icon = node.isDir ? '[DIR]' : '[FILE]';
     lines.push(`${icon} ${node.name}`);
-    if (node.children && node.expanded) {
+    if (node.children) {
       const subLines = flattenTree(node.children);
       for (const sl of subLines.split('\n')) {
         lines.push('  ' + sl);
@@ -58,6 +59,7 @@ export function getPlanContextData(): {
 
 export async function buildPlanContext(query: string): Promise<string> {
   const { rootPath, projectName, files, isPlatformIOProject, detectedBoard } = getPlanContextData();
+  const { selectedFiles } = useAIStore.getState();
 
   if (!rootPath) {
     return 'No project is currently open.';
@@ -113,6 +115,17 @@ Structure: ${counts.files} files, ${counts.dirs} directories${boardInfo}${boardD
   const keyPaths = collectKeyFiles(files);
   const keyFileResults = await Promise.all(keyPaths.map(p => readKeyFile(p)));
   const keyFiles = keyFileResults.filter((r): r is NonNullable<typeof r> => r !== null).slice(0, 8);
+
+  if (selectedFiles.length > 0) {
+    const selectedPreviews = await Promise.all(selectedFiles.slice(0, 6).map(p => readKeyFile(p, 80)));
+    const validSelected = selectedPreviews.filter((r): r is NonNullable<typeof r> => r !== null);
+    if (validSelected.length > 0) {
+      parts.push('\n## User-Selected Files\n');
+      for (const file of validSelected) {
+        parts.push(`\n### ${file.name} (${file.path})\n\`\`\`\n${file.preview}\n\`\`\``);
+      }
+    }
+  }
 
   if (keyFiles.length > 0) {
     parts.push('\n## Key Files\n');

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import './ToolPermissionDialog.css';
 
@@ -121,6 +121,12 @@ export function ToolPermissionDialog({
   const [remember, setRemember] = useState(false);
   const toolPermissions = useSettingsStore((s) => s.toolPermissions);
   const setToolPermission = useSettingsStore((s) => s.setToolPermission);
+
+  useEffect(() => {
+    if (!open) {
+      setRemember(false);
+    }
+  }, [open]);
 
   if (!open) return null;
 

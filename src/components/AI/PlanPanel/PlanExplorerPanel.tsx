@@ -28,7 +28,7 @@ export function PlanExplorerPanel() {
     if (!rootPath) return;
     setLoading(true);
     try {
-      const result = await invoke<TreeNode>('get_directory_tree', { path: rootPath, depth: 2 });
+      const result = await invoke<TreeNode>('get_directory_tree', { path: rootPath, depth: 2, root: rootPath });
       setTree(result);
     } catch (err) {
       console.error('Failed to load tree:', err);
@@ -48,7 +48,7 @@ export function PlanExplorerPanel() {
 
     if (!expandedDirs.has(path)) {
       try {
-        const children = await invoke<TreeNode[]>('list_directory', { path });
+        const children = await invoke<TreeNode[]>('list_directory', { path, root: rootPath });
         setTree((prev) => updateTreeWithChildren(prev, path, children));
       } catch (err) {
         console.error('Failed to load directory:', err);
@@ -69,7 +69,7 @@ export function PlanExplorerPanel() {
 
   const handleAnalyze = () => {
     if (selectedFiles.length === 0) return;
-    setPlanExplorerMode('planning');
+    setPlanExplorerMode('idle');
   };
 
   const handleClose = () => {
