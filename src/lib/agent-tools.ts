@@ -267,11 +267,16 @@ registerTool('run_shell', {
     },
   },
 }, async (args) => {
+  const root = useFileStore.getState().rootPath;
   const result = await invoke<{
     stdout: string;
     stderr: string;
     return_code: number;
-  }>('run_shell', { command: args.command as string, cwd: (args.cwd as string) ?? null });
+  }>('run_shell', {
+    command: args.command as string,
+    cwd: (args.cwd as string) ?? null,
+    root,
+  });
 
   const output = `Exit code: ${result.return_code}\n\n--- Stdout ---\n${result.stdout}\n\n--- Stderr ---\n${result.stderr}`;
   return output;

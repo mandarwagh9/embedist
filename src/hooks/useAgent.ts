@@ -49,7 +49,8 @@ interface ActivityEntry {
 }
 
 const MAX_ITERATIONS = 50;
-const PATH_SENSITIVE_TOOLS = ['write_file', 'create_file', 'create_folder'];
+const MUTATING_TOOLS = ['write_file', 'create_file', 'create_folder'];
+const PROJECT_SCOPED_TOOLS = ['build_project', 'run_shell', ...MUTATING_TOOLS];
 
 function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+/g, '/').toLowerCase().replace(/^\/([a-z]):/, '$1:');
@@ -205,17 +206,52 @@ export function useAgent() {
     toolId: string,
     args: Record<string, unknown>
   ) => {
-    if (PATH_SENSITIVE_TOOLS.includes(toolName)) {
-      const pathArg = args.path as string | undefined;
-      if (pathArg && !isPathSafe(projectRoot, pathArg)) {
+    if (PROJECT_SCOPED_TOOLS.includes(toolName) && !projectRoot) {
+      return {
+        callId: toolId,
+        toolCallId: toolId,
+        success: false,
+        output: `PROJECT ROOT REQUIRED: Tool "${toolName}" requires an open project folder. Open a folder first, then retry.`,
+      };
+    }
+
+    let pathArg: string | undefined;
+    if (toolName === 'write_file') {
+      pathArg = args.path as string | undefined;
+    } else if (toolName === 'create_file' || toolName === 'create_folder') {
+      pathArg = args.parent as string | undefined;
+    } else if (toolName === 'build_project') {
+      pathArg = (args.projectPath as string | undefined) || projectRoot;
+      if (!args.projectPath && projectRoot) {
+        args.projectPath = projectRoot;
+      }
+    } else if (toolName === 'run_shell') {
+      pathArg = (args.cwd as string | undefined) || projectRoot;
+      if (!args.cwd && projectRoot) {
+        args.cwd = projectRoot;
+      }
+    }
+
+    if (PROJECT_SCOPED_TOOLS.includes(toolName)) {
+      if (!pathArg || !pathArg.trim()) {
         return {
           callId: toolId,
           toolCallId: toolId,
           success: false,
-          output: `PATH SAFETY ERROR: "${pathArg}" is outside the project root "${projectRoot}". All file paths must be inside the project root.`,
+          output: `PATH SAFETY ERROR: Tool "${toolName}" is missing a valid project path argument.`,
+        };
+      }
+
+      if (!isPathSafe(projectRoot, pathArg)) {
+        return {
+          callId: toolId,
+          toolCallId: toolId,
+          success: false,
+          output: `PATH SAFETY ERROR: "${pathArg}" is outside the project root "${projectRoot}".`,
         };
       }
     }
+
     return executeTool(toolId, toolName, args);
   };
 

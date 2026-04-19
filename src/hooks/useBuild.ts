@@ -7,6 +7,12 @@ interface PlatformInfo {
   arch: string;
 }
 
+interface PlatformIOStatus {
+  version: string;
+  core_version: string;
+  installed: boolean;
+}
+
 interface BuildResult {
   success: boolean;
   stdout: string;
@@ -87,9 +93,16 @@ export function useBuild() {
 
   const checkPlatformIO = useCallback(async () => {
     try {
-      const result = await invoke<string>('check_platformio');
-      appendOutput(result);
-      return true;
+      const status = await invoke<PlatformIOStatus>('check_platformio');
+      if (status.installed) {
+        setError(null);
+        appendOutput(`[CHECK] PlatformIO installed: ${status.version}`);
+        return true;
+      }
+
+      setError('PlatformIO is not installed');
+      appendOutput('[CHECK] PlatformIO not installed');
+      return false;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
