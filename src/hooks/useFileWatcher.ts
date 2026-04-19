@@ -8,12 +8,16 @@ interface FileChangeEvent {
   change_type: 'created' | 'deleted' | 'modified';
 }
 
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
 export function useFileWatcher() {
   const rootPath = useFileStore((state) => state.rootPath);
   const setFileContent = useFileStore((state) => state.setFileContent);
   const clearExternalModification = useFileStore((state) => state.clearExternalModification);
   const openTabs = useFileStore((state) => state.openTabs);
-  const openTabPathsRef = useRef(new Set(openTabs.map(t => t.path)));
+  const openTabPathsRef = useRef(new Set(openTabs.map(t => normalizePath(t.path))));
   const { refreshRoot } = useFileSystem();
 
   const refreshFile = useCallback(async (filePath: string) => {
@@ -28,7 +32,7 @@ export function useFileWatcher() {
   }, [setFileContent, clearExternalModification]);
 
   useEffect(() => {
-    openTabPathsRef.current = new Set(openTabs.map(t => t.path));
+    openTabPathsRef.current = new Set(openTabs.map(t => normalizePath(t.path)));
   }, [openTabs]);
 
   useEffect(() => {
@@ -50,7 +54,7 @@ export function useFileWatcher() {
       unlisten = await listen<FileChangeEvent>('file-changed', (event) => {
         if (!started) return;
         const { path, change_type } = event.payload;
-        const normalizedPath = path.replace(/\\/g, '/');
+        const normalizedPath = normalizePath(path);
         if (change_type === 'modified' && openTabPathsRef.current.has(normalizedPath)) {
           refreshFile(normalizedPath);
         } else if (change_type === 'created' || change_type === 'deleted') {
