@@ -87,9 +87,9 @@ export function useAgent() {
   const cancelRef = useRef(false);
 
   const getActiveEndpoint = useCallback(() => {
-    const ep = customEndpoints.find(e => e.baseUrl && e.apiKey);
+    const ep = customEndpoints.find(e => e.id === activeProvider && e.baseUrl && e.apiKey);
     return ep || null;
-  }, [customEndpoints]);
+  }, [customEndpoints, activeProvider]);
 
   const hasActiveProvider = useCallback(() => {
     const ep = getActiveEndpoint();
