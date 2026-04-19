@@ -85,6 +85,25 @@ export function useAI() {
 
   const isLoading = useAIStore((state) => state.isLoading);
 
+  const switchMode = useCallback((newMode: AIMode) => {
+    const store = useAIStore.getState();
+    const currentMode = store.mode;
+    if (currentMode === newMode) return;
+
+    if (currentMode === 'agent') {
+      store.setAgentStatus('idle');
+      store.clearActivityLog();
+      store.setAgentTask(null);
+      store.setLoading(false);
+    }
+
+    addMessage({
+      role: 'system',
+      content: `[Switched to ${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode]`,
+    });
+    store.setMode(newMode);
+  }, [addMessage]);
+
   const getActiveEndpoint = useCallback(() => {
     const customEndpoint = customEndpoints.find(ep => ep.id === activeProvider && ep.baseUrl && ep.apiKey);
     return customEndpoint || null;
@@ -285,6 +304,10 @@ export function useAI() {
         return response;
       }
 
+      if (mode === 'plan' && response.content.trim()) {
+        useAIStore.getState().setPlanContent(response.content);
+      }
+
       addMessage({ role: 'assistant', content: response.content, usage: response.usage });
       return response;
     } catch (err) {
@@ -300,21 +323,6 @@ export function useAI() {
   const clearAllMessages = useCallback(() => {
     useAIStore.getState().clearAllMessages();
   }, []);
-
-  const switchMode = useCallback((newMode: AIMode) => {
-    const currentMode = useAIStore.getState().mode;
-    if (currentMode === newMode) return;
-    if (currentMode === 'agent') {
-      useAIStore.getState().setAgentStatus('idle');
-      useAIStore.getState().clearActivityLog();
-      useAIStore.getState().setAgentTask(null);
-    }
-    addMessage({
-      role: 'system',
-      content: `[Switched to ${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode]`,
-    });
-    useAIStore.getState().setMode(newMode);
-  }, [addMessage]);
 
   return {
     mode,

@@ -153,9 +153,9 @@ export const useAIStore = create<AIState>()(
         planPhase: mode === 'plan' ? 'explore' : state.planPhase,
         isEditingPlan: mode === 'plan' ? state.isEditingPlan : false,
         planToApprove: mode === 'plan' ? state.planToApprove : null,
-        agentStatus: mode === 'agent' ? 'idle' : state.agentStatus,
-        agentTask: mode === 'agent' ? null : state.agentTask,
-        agentActivityLog: mode === 'agent' ? [] : state.agentActivityLog,
+        agentStatus: mode === 'agent' ? state.agentStatus : 'idle',
+        agentTask: mode === 'agent' ? state.agentTask : null,
+        agentActivityLog: mode === 'agent' ? state.agentActivityLog : [],
       })),
 
       setActiveProvider: (id) => set({ activeProvider: id }),

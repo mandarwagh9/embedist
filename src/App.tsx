@@ -2,8 +2,8 @@ import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useUIStore } from './stores/uiStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useFileStore } from './stores/fileStore';
-import { useAIStore } from './stores/aiStore';
 import { useFileSystem } from './hooks/useFileSystem';
+import { useAI } from './hooks/useAI';
 import { useAIProviderSync } from './hooks/useAIProviderSync';
 import { useFileWatcher } from './hooks/useFileWatcher';
 import { TitleBar } from './components/Layout/TitleBar';
@@ -126,7 +126,7 @@ function App() {
     saveAllFiles,
     cycleTab,
   } = useFileStore();
-  const { setMode } = useAIStore();
+  const { switchMode } = useAI();
   const { openFolder } = useFileSystem();
   useAIProviderSync();
   useFileWatcher();
@@ -276,19 +276,25 @@ function App() {
 
       if (ctrl && e.key === '1') {
         e.preventDefault();
-        setMode('chat');
+        switchMode('chat');
         return;
       }
 
       if (ctrl && e.key === '2') {
         e.preventDefault();
-        setMode('plan');
+        switchMode('plan');
         return;
       }
 
       if (ctrl && e.key === '3') {
         e.preventDefault();
-        setMode('agent');
+        switchMode('debug');
+        return;
+      }
+
+      if (ctrl && e.key === '4') {
+        e.preventDefault();
+        switchMode('agent');
         return;
       }
 
@@ -319,7 +325,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, saveFile, saveAllFiles, setMode, cycleTab, toggleCommandPalette]);
+  }, [openSettings, toggleBottomPanel, setBottomPanelTab, bottomPanelVisible, navigateToFiles, navigateToAI, navigateToSerial, navigateToBuild, openFolder, saveFile, saveAllFiles, switchMode, cycleTab, toggleCommandPalette]);
 
   const getDefaultCode = () => {
     if (rootPath) {

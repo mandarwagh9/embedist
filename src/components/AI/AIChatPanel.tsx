@@ -106,6 +106,18 @@ function AIChatPanelContent() {
   const defaultImplMode = useSettingsStore((state) => state.defaultImplementationMode);
   const modeConfig = SYSTEM_PROMPTS[mode];
 
+  useEffect(() => {
+    if (mode !== 'plan') return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === 'assistant' && lastMsg.mode === 'plan' && lastMsg.content.trim()) {
+      setPlanContent(lastMsg.content);
+      if (lastMsg.content.toLowerCase().includes('approve')) {
+        setPlanPhase('ready');
+      }
+    }
+  }, [mode, messages, setPlanContent, setPlanPhase]);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -271,9 +283,13 @@ function AIChatPanelContent() {
     const updatedMessages = messages.slice(0, -1);
     useAIStore.setState({ messages: updatedMessages });
     setTimeout(() => {
-      sendMessage(userMsg.content, defaultBoard);
+      if (mode === 'agent') {
+        startAgentTask(userMsg.content);
+      } else {
+        sendMessage(userMsg.content, defaultBoard);
+      }
     }, 50);
-  }, [messages, sendMessage, defaultBoard]);
+  }, [messages, mode, sendMessage, startAgentTask, defaultBoard]);
 
   const handleFeedback = useCallback((id: string, feedback: 'positive' | 'negative' | undefined) => {
     setMessageFeedback(id, feedback);

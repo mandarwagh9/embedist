@@ -298,7 +298,7 @@ export function useAgent() {
 
       const currentMessages = useAIStore.getState().messages;
       for (const msg of currentMessages) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
+        if ((msg.role === 'user' || msg.role === 'assistant') && msg.mode === 'agent') {
           conversationMessages.push({
             id: msg.id,
             role: msg.role,
@@ -404,8 +404,8 @@ export function useAgent() {
             const result = await safeExecuteTool(projectRoot, tc.name, tc.id, args);
             const elapsedMs = Date.now() - startTime;
 
-          const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
-          logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
+            const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
+            logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
 
             toolCallsForMessage.push({
               id: tc.id,
@@ -461,6 +461,8 @@ export function useAgent() {
       if (iteration >= MAX_ITERATIONS) {
         logActivity('error', 'Max iterations reached', 'The agent ran for too long. Break the task into smaller steps.');
         toast('warning', 'Agent reached max iterations. Try a simpler task.');
+      } else if (cancelRef.current) {
+        toast('info', 'Agent task cancelled');
       } else {
         toast('success', 'Agent task completed');
       }
@@ -481,6 +483,9 @@ export function useAgent() {
   const cancelAgentTask = useCallback(() => {
     cancelRef.current = true;
     isRunningRef.current = false;
+    invoke('stop_build').catch((err) => {
+      console.warn('[useAgent] stop_build failed during cancel:', err);
+    });
     logActivity('info', 'Cancelling...', 'Stopping the agent task.');
     setAgentStatus('idle');
     setLoading(false);

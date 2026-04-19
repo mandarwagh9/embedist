@@ -5,6 +5,7 @@ import { useFileStore } from '../../stores/fileStore';
 import { useAIStore } from '../../stores/aiStore';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { useBuild } from '../../hooks/useBuild';
+import { useAI } from '../../hooks/useAI';
 import './CommandPalette.css';
 
 interface Command {
@@ -31,7 +32,8 @@ export function CommandPalette() {
   const { commandPaletteVisible, toggleCommandPalette, toggleSidebar, setSidebarSection, setBottomPanelTab, toggleBottomPanel } = useUIStore();
   const { open: openSettings } = useSettingsStore();
   const { activeTabId, openTabs, saveFile, saveAllFiles } = useFileStore();
-  const { setMode, clearMessages } = useAIStore();
+  const { clearMessages } = useAIStore();
+  const { switchMode } = useAI();
   const { openFolder } = useFileSystem();
   const { build, upload, clearOutput } = useBuild();
 
@@ -103,7 +105,7 @@ export function CommandPalette() {
       shortcut: 'Ctrl+1',
       category: 'AI',
       action: () => {
-        setMode('chat');
+        switchMode('chat');
         setSidebarSection('ai');
         toggleCommandPalette();
       },
@@ -114,7 +116,7 @@ export function CommandPalette() {
       shortcut: 'Ctrl+2',
       category: 'AI',
       action: () => {
-        setMode('plan');
+        switchMode('plan');
         setSidebarSection('ai');
         toggleCommandPalette();
       },
@@ -122,10 +124,10 @@ export function CommandPalette() {
     {
       id: 'ai-mode-debug',
       label: 'Switch AI Mode: Debug',
-      shortcut: 'Ctrl+4',
+      shortcut: 'Ctrl+3',
       category: 'AI',
       action: () => {
-        setMode('debug');
+        switchMode('debug');
         setSidebarSection('ai');
         toggleCommandPalette();
       },
@@ -133,10 +135,10 @@ export function CommandPalette() {
     {
       id: 'ai-mode-agent',
       label: 'Switch AI Mode: Agent',
-      shortcut: 'Ctrl+3',
+      shortcut: 'Ctrl+4',
       category: 'AI',
       action: () => {
-        setMode('agent');
+        switchMode('agent');
         setSidebarSection('ai');
         toggleCommandPalette();
       },
@@ -224,7 +226,7 @@ export function CommandPalette() {
         toggleCommandPalette();
       },
     },
-  ], [activeTabId, openTabs, toggleCommandPalette, toggleSidebar, setSidebarSection, setBottomPanelTab, toggleBottomPanel, openSettings, saveFile, saveAllFiles, setMode, clearMessages, openFolder, build, upload, clearOutput]);
+  ], [activeTabId, openTabs, toggleCommandPalette, toggleSidebar, setSidebarSection, setBottomPanelTab, toggleBottomPanel, openSettings, saveFile, saveAllFiles, clearMessages, switchMode, openFolder, build, upload, clearOutput]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands;
