@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::{Command as SyncCommand, Stdio};
 use std::sync::Arc;
 use tauri::command;
@@ -137,6 +138,7 @@ fn find_pio_in_filesystem() -> Option<String> {
     #[cfg(not(windows))]
     if let Ok(home) = std::env::var("HOME") {
         let local_bin_candidates = [
+            format!("{}/.local/share/embedist/platformio-venv/bin/pio", home),
             format!("{}/.local/bin/pio", home),
             format!("{}/.local/bin/platformio", home),
             format!("{}/bin/pio", home),
@@ -211,6 +213,85 @@ fn find_pio_in_filesystem() -> Option<String> {
     }
     
     None
+}
+
+#[cfg(not(windows))]
+fn platformio_venv_dir() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+
+    Some(base.join("embedist").join("platformio-venv"))
+}
+
+#[cfg(not(windows))]
+fn platformio_venv_python() -> Option<PathBuf> {
+    platformio_venv_dir().map(|dir| dir.join("bin").join("python"))
+}
+
+#[cfg(not(windows))]
+fn platformio_venv_pio() -> Option<PathBuf> {
+    platformio_venv_dir().map(|dir| dir.join("bin").join("pio"))
+}
+
+#[cfg(not(windows))]
+async fn install_platformio_in_venv() -> Result<String, String> {
+    use tokio::process::Command;
+
+    let venv_dir = platformio_venv_dir().ok_or_else(|| "Unable to determine a local PlatformIO install path".to_string())?;
+    let venv_python = platformio_venv_python().ok_or_else(|| "Unable to determine the PlatformIO venv Python path".to_string())?;
+
+    if !venv_python.exists() {
+        let python_candidates = ["/usr/bin/python3", "/usr/local/bin/python3", "/bin/python3", "python3"];
+        let mut venv_created = false;
+        let mut last_error = String::new();
+
+        for python in python_candidates {
+            let output = Command::new(python)
+                .args(["-m", "venv"])
+                .arg(&venv_dir)
+                .output()
+                .await;
+
+            match output {
+                Ok(out) if out.status.success() => {
+                    venv_created = true;
+                    break;
+                }
+                Ok(out) => {
+                    let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                    last_error = if stderr.is_empty() {
+                        format!("{} exited with status {}", python, out.status)
+                    } else {
+                        stderr
+                    };
+                }
+                Err(e) => {
+                    last_error = format!("Failed to run {}: {}", python, e);
+                }
+            }
+        }
+
+        if !venv_created {
+            return Err(format!("Failed to create a local PlatformIO virtual environment: {}", last_error));
+        }
+    }
+
+    let output = Command::new(&venv_python)
+        .args(["-m", "pip", "install", "platformio"])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to install PlatformIO in a local virtual environment: {}", e))?;
+
+    if output.status.success() {
+        Ok(format!("PlatformIO installed successfully in {}", venv_dir.display()))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(format!(
+            "Failed to install PlatformIO in a local virtual environment: {}",
+            if stderr.is_empty() { "unknown error".to_string() } else { stderr }
+        ))
+    }
 }
 
 fn get_pio_command(platformio_path: Option<&str>) -> String {
@@ -647,7 +728,16 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
                     installed = true;
                     break;
                 } else {
-                    last_error = String::from_utf8_lossy(&out.stderr).to_string();
+                    let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                    if !cfg!(windows) && stderr.contains("externally-managed-environment") {
+                        return install_platformio_in_venv().await;
+                    }
+
+                    last_error = if stderr.is_empty() {
+                        format!("{} exited with status {}", python_cmd, out.status)
+                    } else {
+                        format!("{}: {}", python_cmd, stderr)
+                    };
                 }
             }
             Err(e) => {
@@ -666,7 +756,14 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
             }
         }
 
-        if let Some(path) = find_pio_in_filesystem() {
+        if let Some(path) = platformio_venv_pio().filter(|p| p.exists()) {
+            if let Ok(out) = run_pio_version(path.to_string_lossy().as_ref()) {
+                if out.status.success() {
+                    let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    return Ok(format!("PlatformIO installed successfully: {}", version));
+                }
+            }
+        } else if let Some(path) = find_pio_in_filesystem() {
             if let Ok(out) = run_pio_version(&path) {
                 if out.status.success() {
                     let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
