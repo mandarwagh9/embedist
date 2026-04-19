@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.37.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.37.0) — 2026-04-19
+
+### Fixed
+- AI tool-call protocol robustness across chat/debug/plan/agent flows: safer tool selection, proper assistant tool-call message sequencing, and explicit tool call IDs in follow-up loops
+- Root-safety hardening for search and reveal operations (`grep_search`, `reveal_in_explorer`) to better enforce project boundaries
+- Ollama provider activation path now works without API key requirements in chat/agent flow
+- Mode lifecycle consistency improvements: unified keyboard/palette mode switching and better agent lifecycle handling during mode changes/cancellation
+- Plan workflow fixes: explorer commands now pass root correctly, selected-file analysis is wired into plan context, and plan context tree expansion is more complete
+- Tool permission dialog reset behavior improved to avoid stale remember-state carryover
+
+---
+
 ## [v0.36.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.36.0) — 2026-04-19
 
 ### Fixed
