@@ -64,6 +64,7 @@ pub fn run() {
             commands::grep_search,
             commands::run_shell,
             commands::reveal_in_explorer,
+            commands::default_terminal_shell,
             commands::install_platformio,
             commands::install_platform,
             commands::pty_spawn,

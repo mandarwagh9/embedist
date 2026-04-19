@@ -125,6 +125,18 @@ pub async fn pty_spawn(
 }
 
 #[tauri::command]
+pub fn default_terminal_shell() -> String {
+    if cfg!(windows) {
+        "powershell.exe".to_string()
+    } else {
+        std::env::var("SHELL")
+            .ok()
+            .filter(|shell| !shell.trim().is_empty())
+            .unwrap_or_else(|| "sh".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn pty_write(id: u32, data: String, state: State<'_, PtyState>) -> Result<(), String> {
     let sessions = state.sessions.lock();
     let session = sessions.get(&id).ok_or("PTY session not found")?;

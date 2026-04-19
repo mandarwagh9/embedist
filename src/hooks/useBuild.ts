@@ -40,6 +40,19 @@ interface Board {
   type: string;
 }
 
+const FALLBACK_BOARDS: Board[] = [
+  { id: 'arduino_nano', name: 'Arduino Nano', type: 'fallback' },
+  { id: 'arduino_mega2560', name: 'Arduino Mega 2560', type: 'fallback' },
+  { id: 'nano33ble', name: 'Arduino Nano 33 BLE Sense', type: 'fallback' },
+  { id: 'esp32dev', name: 'ESP32 Dev Module', type: 'fallback' },
+  { id: 'esp32-s3-devkitc-1', name: 'ESP32-S3', type: 'fallback' },
+  { id: 'esp32-c3-devkitm-1', name: 'ESP32-C3', type: 'fallback' },
+  { id: 'esp01_1m', name: 'ESP8266 (1MB)', type: 'fallback' },
+  { id: 'esp01_512k', name: 'ESP8266 (512KB)', type: 'fallback' },
+  { id: 'esp01_256k', name: 'ESP8266 (256KB)', type: 'fallback' },
+  { id: 'rpipico', name: 'Raspberry Pi Pico', type: 'fallback' },
+];
+
 interface SerialPortInfo {
   path: string;
   friendlyName?: string;
@@ -117,15 +130,19 @@ export function useBuild() {
 
   const listBoards = useCallback(async () => {
     try {
-      const boards = await invoke<Board[]>('list_connected_boards', {
+      const boards = await invoke<Board[]>('get_available_boards', {
         platformioPath: platformioPath || null,
       });
-      setAvailableBoards(boards);
-      return boards;
+      const mergedBoards = boards.length > 0
+        ? boards
+        : FALLBACK_BOARDS;
+      setAvailableBoards(mergedBoards);
+      return mergedBoards;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
-      return [];
+      setAvailableBoards(FALLBACK_BOARDS);
+      return FALLBACK_BOARDS;
     }
   }, [platformioPath]);
 

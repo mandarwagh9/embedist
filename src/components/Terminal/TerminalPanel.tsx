@@ -96,7 +96,7 @@ export function TerminalPanel() {
       terminalInstanceRef.current = term;
       fitAddonRef.current = fitAddon;
 
-      const shell = 'powershell.exe';
+      const shell = await invoke<string>('default_terminal_shell');
       const cwd = rootPath || null;
 
       const ptyId = await invoke<number>('pty_spawn', {
