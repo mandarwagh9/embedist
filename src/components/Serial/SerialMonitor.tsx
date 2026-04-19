@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { useUIStore } from '../../stores/uiStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import './SerialMonitor.css';
@@ -24,6 +26,21 @@ const MAX_LOG_ENTRIES = 5000;
 const SHELL_METACHARS = /[;|&$`(){}[\]<>\"'\\]/g;
 const CONTROL_CHARS = /[\x00-\x1F]/g;
 
+type SerialPortInfo = {
+  path: string;
+  name?: string;
+};
+
+type SerialDataPayload = {
+  session_id: number;
+  data: number[];
+};
+
+type SerialDisconnectPayload = {
+  session_id: number;
+  port_path: string;
+};
+
 function sanitizeInput(input: string): string {
   return input
     .slice(0, MAX_INPUT_LENGTH)
@@ -45,24 +62,31 @@ function sanitizeOutput(text: string): string {
 let logIdCounter = 0;
 
 export function SerialMonitor() {
-  const { serialConnected, serialBaudRate, setSerialConnected, setSerialPort, setSerialBaudRate } = useUIStore();
+  const {
+    serialConnected,
+    serialPort,
+    serialBaudRate,
+    setSerialConnected,
+    setSerialPort,
+    setSerialBaudRate,
+  } = useUIStore();
   const { serial, updateSerial } = useSettingsStore();
+  const [ports, setPorts] = useState<SerialPortInfo[]>([]);
+  const [selectedPort, setSelectedPort] = useState<string>('');
   const [logs, setLogs] = useState<{ id: number; text: string; type: 'info' | 'error' | 'input'; timestamp: number }[]>([]);
   const [input, setInput] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const sessionIdRef = useRef<number | null>(null);
   const bufferRef = useRef<string>('');
-  const portRef = useRef<{
-    readable: ReadableStream<Uint8Array>;
-    writable: WritableStream<Uint8Array>;
-    open(opts: { baudRate: number }): Promise<void>;
-    getInfo(): { path: string };
-    close(): Promise<void>;
-  } | null>(null);
-  
+  const decoderRef = useRef<TextDecoder>(new TextDecoder(serial.encoding || 'iso-8859-1'));
+
+  useEffect(() => {
+    decoderRef.current = new TextDecoder(serial.encoding || 'iso-8859-1');
+  }, [serial.encoding]);
+
   const addLog = (text: string, type: 'info' | 'error' | 'input') => {
     const sanitized = sanitizeOutput(text);
     setLogs(prev => {
@@ -75,165 +99,199 @@ export function SerialMonitor() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const autoScrollRef = useRef(serial.autoScroll);
   useEffect(() => {
-    autoScrollRef.current = serial.autoScroll;
-  }, [serial.autoScroll]);
-
-  useEffect(() => {
-    if (autoScrollRef.current) {
+    if (serial.autoScroll) {
       scrollToBottom();
     }
-  }, [logs]);
+  }, [logs, serial.autoScroll]);
+
+  const refreshPorts = async () => {
+    try {
+      const portList = await invoke<SerialPortInfo[]>('list_serial_ports');
+      setPorts(portList);
+      setSelectedPort((current) => {
+        if (current && portList.some((p) => p.path === current)) {
+          return current;
+        }
+        return portList[0]?.path || '';
+      });
+      return portList;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    refreshPorts();
+    const interval = window.setInterval(() => {
+      refreshPorts();
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let unlistenData: (() => void) | null = null;
+    let unlistenDisconnect: (() => void) | null = null;
+    let unlistenError: (() => void) | null = null;
+
+    const setup = async () => {
+      unlistenData = await listen<SerialDataPayload>('serial-data', (event) => {
+        if (sessionIdRef.current !== event.payload.session_id) return;
+
+        const bytes = new Uint8Array(event.payload.data);
+        const text = decoderRef.current.decode(bytes, { stream: true });
+        bufferRef.current += text;
+
+        if (bufferRef.current.length > MAX_BUFFER_SIZE) {
+          bufferRef.current = bufferRef.current.slice(-MAX_BUFFER_SIZE);
+          addLog('Buffer overflow, trimming...', 'error');
+        }
+
+        const normalized = bufferRef.current.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const lines = normalized.split('\n');
+        bufferRef.current = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim()) {
+            addLog(line, 'info');
+          }
+        }
+      });
+
+      unlistenDisconnect = await listen<SerialDisconnectPayload>('serial-disconnected', (event) => {
+        if (sessionIdRef.current !== event.payload.session_id) return;
+
+        bufferRef.current = '';
+        sessionIdRef.current = null;
+        setSerialConnected(false);
+        setSerialPort(null);
+        setIsConnecting(false);
+        addLog(`Disconnected from ${event.payload.port_path}`, 'info');
+      });
+
+      unlistenError = await listen<{ session_id: number; port_path: string; error: string }>('serial-error', (event) => {
+        if (sessionIdRef.current !== event.payload.session_id) return;
+        const message = event.payload.error || 'Unknown serial error';
+        setError(message);
+        addLog(`Serial error: ${message}`, 'error');
+      });
+    };
+
+    setup().catch((err) => {
+      console.error('Failed to setup serial listeners:', err);
+    });
+
+    return () => {
+      unlistenData?.();
+      unlistenDisconnect?.();
+      unlistenError?.();
+    };
+  }, [setSerialConnected, setSerialPort]);
 
   useEffect(() => {
     return () => {
-      if (readerRef.current) {
-        readerRef.current.cancel().catch(() => {});
-        readerRef.current = null;
-      }
-      if (portRef.current) {
-        portRef.current.close().catch(() => {});
-        portRef.current = null;
-      }
-      if (abortRef.current) {
-        abortRef.current.abort();
-        abortRef.current = null;
+      if (sessionIdRef.current !== null) {
+        const sessionId = sessionIdRef.current;
+        sessionIdRef.current = null;
+        invoke('close_serial_port', { sessionId }).catch(() => {});
       }
     };
   }, []);
 
   const connect = async () => {
-    if (portRef.current) {
-      addLog('Port already open, closing first...', 'info');
-      try {
-        if (readerRef.current) {
-          await readerRef.current.cancel().catch(() => {});
-          readerRef.current = null;
-        }
-        await portRef.current.close();
-        portRef.current = null;
-      } catch (err) {
-        console.warn('Error closing port:', err);
-      }
+    if (serialConnected && sessionIdRef.current !== null) {
+      await disconnect();
     }
 
-    if (!navigator.serial) {
-      addLog('Web Serial API not supported in this browser', 'error');
+    if (!selectedPort) {
+      setError('Select a serial port first');
+      addLog('Select a serial port first', 'error');
       return;
     }
 
-    const { serial } = useSettingsStore.getState();
-    if (serial.clearOnConnect) {
-      setLogs([]);
-    }
+    const request = {
+      portPath: selectedPort,
+      baudRate: serialBaudRate,
+      dataBits: 8,
+      stopBits: 1,
+      parity: 'none',
+      dtr: serial.dtr,
+      rts: serial.rts,
+    };
 
     setIsConnecting(true);
+    setError(null);
+
     try {
-      const port = await navigator.serial!.requestPort() as {
-        readable: ReadableStream<Uint8Array>;
-        writable: WritableStream<Uint8Array>;
-        open(opts: { baudRate: number; dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
-        getInfo(): { path: string };
-        close(): Promise<void>;
-        setSignals?(opts: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
-      };
-      portRef.current = port as typeof portRef.current;
-      
-      await port.open({ 
-        baudRate: serialBaudRate,
-        dataTerminalReady: serial.dtr,
-        requestToSend: serial.rts,
-      });
-      
-      setSerialPort(port.getInfo?.()?.path || 'Connected');
+      if (serial.clearOnConnect) {
+        setLogs([]);
+        bufferRef.current = '';
+      }
+
+      const sessionId = await invoke<number>('open_serial_port', { request });
+      sessionIdRef.current = sessionId;
       setSerialConnected(true);
-      
-      addLog(`Connected at ${serialBaudRate} baud`, 'info');
+      setSerialPort(selectedPort);
+      addLog(`Connected to ${selectedPort} at ${serialBaudRate} baud`, 'info');
       if (serial.dtr) addLog('DTR enabled', 'info');
       if (serial.rts) addLog('RTS enabled', 'info');
-
-      abortRef.current = new AbortController();
-      const reader = port.readable.getReader();
-      readerRef.current = reader;
-
-      const readLoop = async () => {
-        try {
-          const { serial } = useSettingsStore.getState();
-          const decoder = new TextDecoder(serial.encoding || 'iso-8859-1');
-          
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            
-            const text = decoder.decode(value, { stream: true });
-            bufferRef.current += text;
-            
-            if (bufferRef.current.length > MAX_BUFFER_SIZE) {
-              bufferRef.current = bufferRef.current.slice(-MAX_BUFFER_SIZE);
-              addLog('Buffer overflow, trimming...', 'error');
-            }
-            
-            const normalized = bufferRef.current.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            const lines = normalized.split('\n');
-            
-            bufferRef.current = lines.pop() || '';
-            
-            for (const line of lines) {
-              if (line.trim()) {
-                addLog(line, 'info');
-              }
-            }
-          }
-          
-          if (bufferRef.current.trim()) {
-            addLog(bufferRef.current, 'info');
-            bufferRef.current = '';
-          }
-        } catch (err) {
-          console.error('Read error:', err);
-        }
-      };
-
-      readLoop();
     } catch (err) {
-      addLog(`Connection failed: ${err}`, 'error');
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      addLog(`Connection failed: ${message}`, 'error');
+      setSerialConnected(false);
+      setSerialPort(null);
+    } finally {
+      setIsConnecting(false);
     }
-    setIsConnecting(false);
   };
 
   const disconnect = async () => {
-    if (readerRef.current) {
-      await readerRef.current.cancel().catch(() => {});
-      readerRef.current = null;
+    const sessionId = sessionIdRef.current;
+    if (sessionId === null) {
+      setSerialConnected(false);
+      setSerialPort(null);
+      return;
     }
-    if (portRef.current) {
-      await portRef.current.close().catch(() => {});
-      portRef.current = null;
+
+    try {
+      sessionIdRef.current = null;
+      await invoke('close_serial_port', { sessionId });
+    } catch (err) {
+      console.error('Failed to close serial port:', err);
+    } finally {
+      bufferRef.current = '';
+      setSerialConnected(false);
+      setSerialPort(null);
+      addLog('Disconnected', 'info');
     }
-    bufferRef.current = '';
-    setSerialConnected(false);
-    setSerialPort(null);
-    addLog('Disconnected', 'info');
   };
 
   const sendCommand = async () => {
-    if (!input.trim() || !portRef.current) return;
-    
+    if (!input.trim() || sessionIdRef.current === null) return;
+
     const sanitized = sanitizeInput(input);
     if (!sanitized) return;
-    
+
     const { lineEnding } = useSettingsStore.getState().serial;
     const ending = lineEnding === 'CR' ? '\r' : lineEnding === 'LF' ? '\n' : '\r\n';
     const data = sanitized + ending;
+
     try {
-      const writer = portRef.current.writable.getWriter();
-      await writer.write(new TextEncoder().encode(data));
-      writer.releaseLock();
+      await invoke('write_serial_port', { sessionId: sessionIdRef.current, data });
     } catch (err) {
       console.error('Serial send error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
       addLog('Send failed', 'error');
+      return;
     }
+
     addLog(`> ${sanitized}`, 'input');
     setInput('');
   };
@@ -244,11 +302,10 @@ export function SerialMonitor() {
     if (logs.length === 0) return;
     const content = logs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.text}`).join('\n');
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
       const { save } = await import('@tauri-apps/plugin-dialog');
       const filePath = await save({
         defaultPath: `serial-output-${Date.now()}.txt`,
-        filters: [{ name: 'Text Files', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }]
+        filters: [{ name: 'Text Files', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }],
       });
       if (filePath) {
         await invoke('write_file', { path: filePath, content, root: '' });
@@ -263,16 +320,31 @@ export function SerialMonitor() {
       <div className="serial-toolbar">
         <div className="serial-connection">
           <select
+            className="serial-select serial-port-select"
+            value={selectedPort}
+            onChange={(e) => setSelectedPort(e.target.value)}
+            disabled={serialConnected || isConnecting}
+            title="Serial port"
+          >
+            <option value="">Select Port</option>
+            {ports.map((port) => (
+              <option key={port.path} value={port.path}>
+                {port.name || port.path}
+              </option>
+            ))}
+          </select>
+
+          <select
             className="serial-select"
             value={serialBaudRate}
             onChange={(e) => setSerialBaudRate(Number(e.target.value))}
-            disabled={serialConnected}
+            disabled={serialConnected || isConnecting}
           >
             {BAUD_RATES.map(rate => (
               <option key={rate} value={rate}>{rate}</option>
             ))}
           </select>
-          
+
           <button
             className={`serial-btn ${serialConnected ? 'disconnect' : 'connect'}`}
             onClick={serialConnected ? disconnect : connect}
@@ -282,7 +354,7 @@ export function SerialMonitor() {
           </button>
         </div>
 
-        <button 
+        <button
           className={`serial-btn settings-toggle ${showSettings ? 'active' : ''}`}
           onClick={() => setShowSettings(!showSettings)}
           title="Settings"
@@ -305,7 +377,7 @@ export function SerialMonitor() {
                 <option key={ending.value} value={ending.value}>{ending.label}</option>
               ))}
             </select>
-            
+
             <select
               className="serial-select"
               value={serial.encoding}
@@ -318,8 +390,13 @@ export function SerialMonitor() {
             </select>
           </div>
         )}
-        
+
         <div className="serial-actions">
+          <button className="serial-btn" onClick={refreshPorts} title="Refresh Ports">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 10-3.24 6.92M21 12v6h-6"/>
+            </svg>
+          </button>
           <button className="serial-btn" onClick={clearLogs} title="Clear">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -332,6 +409,10 @@ export function SerialMonitor() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="serial-error-banner">{error}</div>
+      )}
 
       <div className="serial-output">
         {logs.length === 0 ? (
@@ -358,7 +439,7 @@ export function SerialMonitor() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendCommand()}
-          placeholder={serialConnected ? "Type command..." : "Connect to send"}
+          placeholder={serialConnected ? `Type command for ${serialPort || 'serial port'}...` : 'Connect to send'}
           disabled={!serialConnected}
           maxLength={MAX_INPUT_LENGTH}
         />

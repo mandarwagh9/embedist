@@ -8,6 +8,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
 [![Version](https://img.shields.io/badge/version-v0.37.0-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
+[![Linux](https://img.shields.io/badge/Linux-000000?logo=linux&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
 </div>
 
@@ -15,9 +16,11 @@
 
 ## Overview
 
-Embedist is a Windows desktop application that combines AI assistance with embedded firmware development. Built with Tauri 2, React, and TypeScript, it brings board-aware AI debugging, real-time serial monitoring, and PlatformIO build integration into a single cohesive environment.
+Embedist is a desktop application that combines AI assistance with embedded firmware development. Built with Tauri 2, React, and TypeScript, it brings board-aware AI debugging, native serial monitoring, and PlatformIO build integration into a single cohesive environment.
 
 Open any project folder — ESP32, Arduino, or any embedded codebase — and get context-aware AI assistance that understands your hardware. Build, upload, monitor serial output, and iterate faster with AI that knows your board.
+
+The current release line ships Windows binaries. This branch adds native serial support and Linux-friendly setup logic so the port added upstream without breaking Windows.
 
 ## Screenshots
 
@@ -47,7 +50,7 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 
 - 🤖 **Multi-Provider AI** — Chat, Plan, Agent, and Debug modes with support for OpenAI, Anthropic, Google, DeepSeek, Ollama, NVIDIA NIM, and custom vLLM endpoints
 - 🔍 **Board-Aware Context** — AI debugging uses detected board info (ESP32 Dev Module, Arduino Uno, etc.) for accurate, hardware-specific fixes
-- 📡 **Serial Monitor** — Real-time device communication with configurable baud rates and auto-connect
+- 📡 **Serial Monitor** — Native real-time device communication with configurable baud rates, line endings, and port selection
 - 🔨 **Build & Upload** — PlatformIO CLI integration with live output streaming, parsed errors/warnings in a Problems panel, and a Stop Build button
 - 📁 **File Explorer** — Context menus (rename, delete, copy path, reveal in explorer), breadcrumbs navigation, Command Palette (Ctrl+Shift+P), Recent Files, inline rename, multi-select
 - 📝 **Tab Management** — Multi-tab editing with Monaco Editor, dirty indicators, save/close/pin operations, and keyboard shortcuts
@@ -57,7 +60,7 @@ Open any project folder — ESP32, Arduino, or any embedded codebase — and get
 - 🧠 **NVIDIA NIM Support** — Thinking mode for advanced reasoning models (e.g., Kimi-K2.5)
 - 🔧 **Edit Custom Endpoints** — Modify existing custom AI endpoints
 - 🔐 **Persistent API Keys** — Custom endpoint API keys survive app restarts
-- 🚀 **Setup Wizard** — First-run guided setup for PlatformIO installation
+- 🚀 **Setup Wizard** — First-run guided setup for PlatformIO installation, including Linux-friendly path hints
 - 🖥️ **Startup Loading State** — Branded spinner on launch, deferred heavy operations to prevent "not responding"
 
 ## Downloads
@@ -85,11 +88,14 @@ Download the executable and run it directly — no installation required.
 4. Configure your AI provider in `Settings` (`Ctrl+,`)
 5. Start coding and debugging with AI assistance
 
+Linux users should build from source for now until native Linux packages are published.
+
 ### Prerequisites
 
 | Requirement | Description |
 |-------------|-------------|
 | **Windows** | Windows 10/11 (64-bit) |
+| **Linux** | Supported in source; desktop packaging is still in progress |
 | **PlatformIO** | Optional — required for build & upload functionality |
 | **AI API Key** | Optional — required for AI debugging features |
 
@@ -110,7 +116,15 @@ npm run tauri dev
 npm run tauri build
 ```
 
-The executable will be generated at `src-tauri/target/release/embedist.exe`.
+The release binary will be generated under `src-tauri/target/release/` with an OS-specific name. On Windows that is `embedist.exe`.
+
+On Linux, the same source tree can be built with the Tauri toolchain, but you may need distro-specific system packages for WebView support and serial access permissions before the app can talk to hardware.
+
+### Linux Setup Notes
+
+- If PlatformIO is installed in a non-standard location, set the CLI path in `Settings > Build` to the full path of `pio`.
+- If serial ports are visible but cannot be opened, make sure your user has permission to access `/dev/tty*` devices.
+- If PlatformIO is not on PATH, the setup wizard can still use the path you configured in settings.
 
 #### Rust Dependencies
 
@@ -183,7 +197,7 @@ Embedist is built on a modern, lightweight stack optimized for performance and d
 | State Management | Zustand with `localStorage` persistence |
 | AI Integration | OpenAI, Anthropic, Google, DeepSeek, Ollama, NVIDIA NIM, vLLM |
 | Build System | PlatformIO CLI (`pio`, `pio run`, `pio device monitor`) |
-| Serial Communication | Web Serial API (Chrome/Edge) |
+| Serial Communication | Native Rust serial backend |
 | Styling | CSS Variables — no framework |
 
 ### Directory Structure
