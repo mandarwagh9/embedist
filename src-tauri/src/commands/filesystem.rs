@@ -302,6 +302,61 @@ pub fn read_platformio_board(path: String, root: String) -> Result<String, Strin
     Ok(board)
 }
 
+fn platformio_board_platform(board: &str) -> Option<(&'static str, &'static str)> {
+    match board {
+        "arduino_nano" | "arduino_mega2560" | "arduino_uno" | "atmega328p" => Some(("atmelavr", "arduino")),
+        "nano33ble" => Some(("nordicnrf52", "arduino")),
+        "esp32dev" | "esp32-s3-devkitc-1" | "esp32-c3-devkitm-1" => Some(("espressif32", "arduino")),
+        "esp01_1m" | "esp01_512k" | "esp01_256k" => Some(("espressif8266", "arduino")),
+        "rpipico" => Some(("raspberrypi", "arduino")),
+        _ => None,
+    }
+}
+
+#[command]
+pub fn initialize_platformio_project(path: String, root: String, board: String) -> Result<String, String> {
+    let project_root = validate_path(&path, &root)?;
+    if !project_root.is_dir() {
+        return Err("Project path must be a folder".to_string());
+    }
+
+    let platformio_ini = project_root.join("platformio.ini");
+    if platformio_ini.exists() {
+        return Err("platformio.ini already exists in this folder".to_string());
+    }
+
+    let (platform, framework) = platformio_board_platform(&board)
+        .ok_or_else(|| format!("Unsupported board '{}'", board))?;
+
+    let project_name = project_root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("embedist");
+
+    let ini = format!(
+        "[env:{board}]\nplatform = {platform}\nboard = {board}\nframework = {framework}\nmonitor_speed = 115200\n\n",
+        board = board,
+        platform = platform,
+        framework = framework
+    );
+
+    fs::write(&platformio_ini, ini).map_err(|e| format!("Failed to create platformio.ini: {}", e))?;
+
+    let src_dir = project_root.join("src");
+    fs::create_dir_all(&src_dir).map_err(|e| format!("Failed to create src directory: {}", e))?;
+
+    let main_cpp = src_dir.join("main.cpp");
+    if !main_cpp.exists() {
+        let sketch = format!(
+            "#include <Arduino.h>\n\nvoid setup() {{\n  Serial.begin(115200);\n  delay(1000);\n  Serial.println(\"{project_name} ready\");\n}}\n\nvoid loop() {{\n  delay(1000);\n}}\n",
+            project_name = project_name
+        );
+        fs::write(&main_cpp, sketch).map_err(|e| format!("Failed to create src/main.cpp: {}", e))?;
+    }
+
+    Ok(project_root.to_string_lossy().to_string())
+}
+
 #[command]
 pub fn get_home_dir() -> Result<String, String> {
     dirs::home_dir()
