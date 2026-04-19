@@ -57,6 +57,15 @@ interface APIMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   mode?: AIMode;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
 }
 
 export function useAI() {
@@ -82,6 +91,9 @@ export function useAI() {
   }, [customEndpoints, activeProvider]);
 
   const hasActiveProvider = useCallback(() => {
+    if (activeProvider === 'ollama') {
+      return true;
+    }
     const ep = customEndpoints.find(e => e.id === activeProvider && e.baseUrl && e.apiKey);
     if (ep) return true;
     if (providers[activeProvider as keyof typeof providers]?.apiKey) return true;
@@ -102,7 +114,7 @@ export function useAI() {
   }, [defaultBoard]);
 
   const getApprovedPlanFromMessages = useCallback((msgs: AIMessage[]): string | null => {
-    for (let i = 0; i < msgs.length; i++) {
+    for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i];
       if (m.role === 'system' && m.content.startsWith('## Plan to Implement')) {
         const planEnd = m.content.indexOf('\n\n---\n');
@@ -189,11 +201,29 @@ export function useAI() {
         });
       }
 
-      const parsedToolCalls = parseJsonToolCalls(response.content);
-      const toolCallsToExecute = parsedToolCalls.length > 0 ? parsedToolCalls : (response.tool_calls || []);
+      const modelToolCalls = response.tool_calls || [];
+      const parsedToolCalls = useTools && modelToolCalls.length === 0
+        ? parseJsonToolCalls(response.content)
+        : [];
+      const toolCallsToExecute = useTools ? (modelToolCalls.length > 0 ? modelToolCalls : parsedToolCalls) : [];
 
       if (toolCallsToExecute.length > 0) {
         const planToolCalls: Array<{ id: string; name: string; args: string; output: string; success: boolean; elapsedMs?: number }> = [];
+
+        allMessages.push({
+          id: `assistant-tools-${Date.now()}`,
+          role: 'assistant',
+          content: response.content || '',
+          mode,
+          tool_calls: toolCallsToExecute.map((tc) => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
+            },
+          })),
+        });
 
         for (const tc of toolCallsToExecute) {
           let args: Record<string, unknown> = {};
@@ -228,9 +258,12 @@ export function useAI() {
             role: 'tool',
             content: result.output,
             mode,
+            tool_call_id: tc.id,
           };
           allMessages.push(toolResultMsg);
         }
+
+        const followUpChatTemplateKwargs = customEndpoint?.thinking ? { thinking: true } : undefined;
 
         const followUpResponse = await invoke<AIResponse>('chat_completion', {
           messages: allMessages,
@@ -242,6 +275,7 @@ export function useAI() {
           temperature: aiParameters.temperature,
           maxTokens: aiParameters.maxTokens,
           topP: aiParameters.topP,
+          chatTemplate_kwargs: followUpChatTemplateKwargs || null,
         });
         
         response.content = followUpResponse.content;

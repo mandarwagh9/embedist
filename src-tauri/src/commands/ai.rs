@@ -184,6 +184,14 @@ pub async fn chat_completion(
             (active, config, false)
         }
     };
+
+    if active == "ollama" {
+        let model_name = model.unwrap_or_else(|| config.default_model.clone());
+        let url = base_url
+            .or(config.base_url.clone())
+            .unwrap_or_else(|| "http://localhost:11434".to_string());
+        return chat_ollama(&url, &model_name, &messages, temperature, max_tokens, top_p).await;
+    }
     
     let model_name = model.unwrap_or_else(|| config.default_model.clone());
     let api_key = api_key.unwrap_or_else(|| config.api_key.clone());

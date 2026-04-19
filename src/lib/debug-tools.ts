@@ -78,13 +78,15 @@ registerDebugTool('search_code', {
 }, async (args) => {
   const pattern = args.pattern as string;
   const searchPath = args.path as string || useFileStore.getState().rootPath;
+  const root = useFileStore.getState().rootPath;
   if (!searchPath) return 'No project open. Please provide a path.';
   
   const result = await invoke<{path: string, line_number: number, content: string}[]>('grep_search', { 
     root_path: searchPath, 
     pattern, 
     file_pattern: null,
-    max_results: 50 
+    max_results: 50,
+    root,
   });
   if (result.length === 0) return 'No matches found';
   return result.map(r => `${r.path}:${r.line_number}: ${r.content}`).join('\n');

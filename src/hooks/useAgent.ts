@@ -49,8 +49,9 @@ interface ActivityEntry {
 }
 
 const MAX_ITERATIONS = 50;
+const FILE_SYSTEM_TOOLS = ['read_file', 'list_directory', 'get_directory_tree', 'search_code'];
 const MUTATING_TOOLS = ['write_file', 'create_file', 'create_folder'];
-const PROJECT_SCOPED_TOOLS = ['build_project', 'run_shell', ...MUTATING_TOOLS];
+const PROJECT_SCOPED_TOOLS = [...FILE_SYSTEM_TOOLS, 'build_project', 'run_shell', ...MUTATING_TOOLS];
 
 function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+/g, '/').toLowerCase().replace(/^\/([a-z]):/, '$1:');
@@ -92,6 +93,7 @@ export function useAgent() {
   }, [customEndpoints, activeProvider]);
 
   const hasActiveProvider = useCallback(() => {
+    if (activeProvider === 'ollama') return true;
     const ep = getActiveEndpoint();
     if (ep) return true;
     const p = providerConfigs[activeProvider as keyof typeof providerConfigs];
@@ -230,6 +232,11 @@ export function useAgent() {
       if (!args.cwd && projectRoot) {
         args.cwd = projectRoot;
       }
+    } else if (toolName === 'search_code' || toolName === 'read_file' || toolName === 'list_directory' || toolName === 'get_directory_tree') {
+      pathArg = (args.path as string | undefined) || projectRoot;
+      if (!args.path && projectRoot) {
+        args.path = projectRoot;
+      }
     }
 
     if (PROJECT_SCOPED_TOOLS.includes(toolName)) {
@@ -353,6 +360,20 @@ export function useAgent() {
         if (response.tool_calls && response.tool_calls.length > 0) {
           const toolCallsForMessage: Array<{ id: string; name: string; args: string; output: string; success: boolean; elapsedMs?: number }> = [];
 
+          conversationMessages.push({
+            id: `asst-tools-${Date.now()}-${iteration}`,
+            role: 'assistant',
+            content: response.content || '',
+            tool_calls: response.tool_calls.map(tc => ({
+              id: tc.id,
+              type: 'function',
+              function: {
+                name: tc.name,
+                arguments: tc.arguments,
+              },
+            })),
+          });
+
           for (const tc of response.tool_calls) {
             if (cancelRef.current) break;
 
@@ -383,8 +404,8 @@ export function useAgent() {
             const result = await safeExecuteTool(projectRoot, tc.name, tc.id, args);
             const elapsedMs = Date.now() - startTime;
 
-            const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
-            logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
+          const resultType: ActivityEntry['type'] = result.success ? toolIcon : 'error';
+          logActivity(resultType, `${tc.name} → ${result.success ? 'OK' : 'FAILED'}`, result.output.substring(0, 300));
 
             toolCallsForMessage.push({
               id: tc.id,
@@ -425,21 +446,7 @@ export function useAgent() {
           }
 
           if (toolCallsForMessage.length > 0) {
-            const msgId = `asst-tools-${Date.now()}-${iteration}`;
             addMessage({ role: 'assistant', content: '', toolCalls: toolCallsForMessage });
-            conversationMessages.push({
-              id: msgId,
-              role: 'assistant',
-              content: '',
-              tool_calls: toolCallsForMessage.map(tc => ({
-                id: tc.id,
-                type: 'function',
-                function: {
-                  name: tc.name,
-                  arguments: tc.args,
-                },
-              })),
-            });
           }
         } else {
           if (response.content && response.content.trim()) {

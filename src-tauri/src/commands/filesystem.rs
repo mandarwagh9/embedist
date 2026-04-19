@@ -341,7 +341,24 @@ pub fn grep_search(
     pattern: String,
     file_pattern: Option<String>,
     max_results: Option<usize>,
+    root: Option<String>,
 ) -> Result<Vec<SearchResult>, String> {
+    let validated_root = if let Some(r) = root.as_ref() {
+        if !r.trim().is_empty() {
+            Some(validate_path(r, r)?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let search_root = if let Some(project_root) = validated_root.as_ref() {
+        validate_path_buf(Path::new(&root_path), &project_root.to_string_lossy())?
+    } else {
+        PathBuf::from(&root_path)
+    };
+
     let max = max_results.unwrap_or(100);
     let pattern_lower = pattern.to_lowercase();
     let file_pat = file_pattern.as_deref();
@@ -406,7 +423,7 @@ pub fn grep_search(
     }
 
     let mut results = Vec::new();
-    search_dir(&root_path, &pattern_lower, file_pat, max, &mut results);
+    search_dir(&search_root.to_string_lossy(), &pattern_lower, file_pat, max, &mut results);
     Ok(results)
 }
 
@@ -418,12 +435,21 @@ pub struct ShellResult {
 }
 
 #[command]
-pub fn reveal_in_explorer(path: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
-    let target = if p.is_file() || p.is_dir() {
-        &path
+pub fn reveal_in_explorer(path: String, root: Option<String>) -> Result<(), String> {
+    let safe_path = if let Some(r) = root.as_ref() {
+        if r.trim().is_empty() {
+            PathBuf::from(&path)
+        } else {
+            validate_path(&path, r)?
+        }
     } else {
-        return Err(format!("Path does not exist: {}", path));
+        PathBuf::from(&path)
+    };
+
+    let target = if safe_path.is_file() || safe_path.is_dir() {
+        safe_path.to_string_lossy().to_string()
+    } else {
+        return Err(format!("Path does not exist: {}", safe_path.to_string_lossy()));
     };
 
     #[cfg(target_os = "windows")]
@@ -439,7 +465,7 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .args(["-R", target])
+            .args(["-R", &target])
             .spawn()
             .map_err(|e| format!("Failed to open finder: {}", e))?
             .wait()
@@ -448,7 +474,7 @@ pub fn reveal_in_explorer(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "linux")]
     {
-        let dir = p.parent().unwrap_or(&p);
+        let dir = safe_path.parent().unwrap_or(&safe_path);
         std::process::Command::new("xdg-open")
             .arg(dir)
             .spawn()

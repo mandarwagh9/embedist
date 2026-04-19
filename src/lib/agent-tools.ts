@@ -209,6 +209,7 @@ registerTool('search_code', {
     },
   },
 }, async (args) => {
+  const root = useFileStore.getState().rootPath;
   const results = await invoke<Array<{
     path: string;
     line_number: number;
@@ -218,6 +219,7 @@ registerTool('search_code', {
     pattern: args.pattern as string,
     file_pattern: (args.filePattern as string) ?? null,
     max_results: 50,
+    root,
   });
 
   if (results.length === 0) return 'No matches found.';
