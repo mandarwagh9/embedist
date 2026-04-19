@@ -16,22 +16,36 @@ const COMMON_PLATFORMS = [
 ];
 
 export function SetupWizard() {
-  const { hasCompletedSetup, setHasCompletedSetup } = useSettingsStore();
+  const { hasCompletedSetup, setHasCompletedSetup, build } = useSettingsStore();
   const [step, setStep] = useState(1);
+  const [platformInfo, setPlatformInfo] = useState<{ os: string; arch: string } | null>(null);
   const [platformIOStatus, setPlatformIOStatus] = useState<PlatformInfo | null>(null);
   const [installing, setInstalling] = useState(false);
   const [installProgress, setInstallProgress] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['esp32']);
+  const platformioPath = build.platformioPath;
 
   useEffect(() => {
     if (!hasCompletedSetup) {
       checkPlatformIO();
+      checkPlatform();
     }
   }, [hasCompletedSetup]);
 
+  const checkPlatform = async () => {
+    try {
+      const info = await invoke<{ os: string; arch: string }>('get_platform_info');
+      setPlatformInfo(info);
+    } catch {
+      setPlatformInfo(null);
+    }
+  };
+
   const checkPlatformIO = async () => {
     try {
-      const info = await invoke<PlatformInfo>('check_platformio');
+      const info = await invoke<PlatformInfo>('check_platformio', {
+        platformioPath: platformioPath || null,
+      });
       setPlatformIOStatus(info);
     } catch (err) {
       setPlatformIOStatus({ version: 'Not found', core_version: '', installed: false });
@@ -43,7 +57,7 @@ export function SetupWizard() {
     setInstallProgress('Installing PlatformIO...');
     
     try {
-      await invoke('install_platformio');
+      await invoke('install_platformio', { platformioPath: platformioPath || null });
       setInstallProgress('PlatformIO installed successfully!');
       await checkPlatformIO();
     } catch (err) {
@@ -61,7 +75,7 @@ export function SetupWizard() {
     for (const platform of selectedPlatforms) {
       setInstallProgress(`Installing ${platform}...`);
       try {
-        await invoke('install_platform', { platform });
+        await invoke('install_platform', { platform, platformioPath: platformioPath || null });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setInstallProgress(`Failed to install ${platform}: ${message}`);
@@ -86,6 +100,8 @@ export function SetupWizard() {
   };
 
   if (hasCompletedSetup) return null;
+
+  const isLinux = platformInfo?.os === 'linux';
 
   return (
     <div className="setup-wizard-overlay">
@@ -114,14 +130,31 @@ export function SetupWizard() {
               }
             </div>
 
+            {isLinux && !platformIOStatus?.installed && (
+              <div className="setup-note linux-note">
+                <strong>Linux setup:</strong> if auto-detection misses your install, set the CLI path to
+                <code>{' '}{platformioPath}</code> in Settings or install with:
+                <code> python3 -m pip install --user platformio</code>
+              </div>
+            )}
+
             {!platformIOStatus?.installed && (
-              <button 
-                className="setup-btn primary"
-                onClick={handleInstallPlatformIO}
-                disabled={installing}
-              >
-                {installing ? 'Installing...' : 'Install PlatformIO'}
-              </button>
+              <div className="setup-wizard-actions setup-wizard-actions-left">
+                <button 
+                  className="setup-btn primary"
+                  onClick={handleInstallPlatformIO}
+                  disabled={installing}
+                >
+                  {installing ? 'Installing...' : 'Install PlatformIO'}
+                </button>
+                <button
+                  className="setup-btn secondary"
+                  onClick={checkPlatformIO}
+                  disabled={installing}
+                >
+                  Recheck
+                </button>
+              </div>
             )}
 
             {installProgress && (

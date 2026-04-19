@@ -59,7 +59,12 @@ fn run_sync_command(cmd: &str, args: &[&str]) -> Result<std::process::Output, St
 }
 
 fn run_pio_command_via_python(args: &[&str]) -> Result<std::process::Output, String> {
-    let python_cmds = ["python", "python3", "py"];
+    let python_cmds = if cfg!(windows) {
+        ["py", "python", "python3"]
+    } else {
+        ["python3", "python", "py"]
+    };
+
     for python_cmd in python_cmds {
         let result = SyncCommand::new(python_cmd)
             .args(["-m", "platformio"])
@@ -75,20 +80,55 @@ fn run_pio_command_via_python(args: &[&str]) -> Result<std::process::Output, Str
     Err("No Python with PlatformIO found".to_string())
 }
 
+fn command_exists(command: &str) -> bool {
+    let probe = if cfg!(windows) { "where" } else { "which" };
+    SyncCommand::new(probe)
+        .arg(command)
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn run_pio_version(command: &str) -> Result<std::process::Output, String> {
+    run_sync_command(command, &["--version"])
+}
+
+fn normalize_platformio_override(platformio_path: Option<&str>) -> Option<&str> {
+    platformio_path
+        .map(str::trim)
+        .filter(|path| !path.is_empty() && *path != "pio" && *path != "platformio")
+}
+
 fn find_pio_in_filesystem() -> Option<String> {
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(parent) = exe_path.parent() {
-            let bundled = parent.join("python").join("Scripts").join("pio.exe");
-            if bundled.exists() {
-                return Some(bundled.to_string_lossy().to_string());
+            #[cfg(windows)]
+            {
+                let bundled = parent.join("python").join("Scripts").join("pio.exe");
+                if bundled.exists() {
+                    return Some(bundled.to_string_lossy().to_string());
+                }
+                let bundled_alt = parent.join("platformio").join("pio.exe");
+                if bundled_alt.exists() {
+                    return Some(bundled_alt.to_string_lossy().to_string());
+                }
             }
-            let bundled_alt = parent.join("platformio").join("pio.exe");
-            if bundled_alt.exists() {
-                return Some(bundled_alt.to_string_lossy().to_string());
+
+            #[cfg(not(windows))]
+            {
+                let bundled = parent.join("pio");
+                if bundled.exists() {
+                    return Some(bundled.to_string_lossy().to_string());
+                }
+                let bundled_alt = parent.join("platformio").join("pio");
+                if bundled_alt.exists() {
+                    return Some(bundled_alt.to_string_lossy().to_string());
+                }
             }
         }
     }
-    
+
+    #[cfg(windows)]
     if let Ok(home) = std::env::var("USERPROFILE") {
         let search_paths = vec![
             format!("{}\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\pio.exe", home),
@@ -104,7 +144,7 @@ fn find_pio_in_filesystem() -> Option<String> {
             format!("{}\\anaconda3\\Scripts\\pio.exe", home),
             format!("{}\\anaconda3\\Scripts\\python.exe", home),
         ];
-        
+
         for p in search_paths {
             let path = std::path::Path::new(&p);
             if path.exists() {
@@ -112,8 +152,33 @@ fn find_pio_in_filesystem() -> Option<String> {
             }
         }
     }
-    
-    if let Ok(output) = SyncCommand::new("where").arg("pio").output() {
+
+    let probe_commands = if cfg!(windows) {
+        vec!["pio"]
+    } else {
+        vec!["pio", "platformio"]
+    };
+
+    for probe in probe_commands {
+        if let Ok(output) = SyncCommand::new(if cfg!(windows) { "where" } else { "which" }).arg(probe).output() {
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Some(path.lines().next().unwrap_or(probe).to_string());
+                }
+            }
+        }
+    }
+
+    if !cfg!(windows) && command_exists("pio") {
+        return Some("pio".to_string());
+    }
+
+    if !cfg!(windows) && command_exists("platformio") {
+        return Some("platformio".to_string());
+    }
+
+    if let Ok(output) = SyncCommand::new("which").arg("pio").output() {
         if output.status.success() {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !path.is_empty() {
@@ -125,14 +190,22 @@ fn find_pio_in_filesystem() -> Option<String> {
     None
 }
 
-fn get_pio_command() -> String {
+fn get_pio_command(platformio_path: Option<&str>) -> String {
+    if let Some(path) = normalize_platformio_override(platformio_path) {
+        return path.to_string();
+    }
+
     if let Some(path) = find_pio_in_filesystem() {
         return path;
     }
     "pio".to_string()
 }
 
-fn run_pio_command(args: &[&str]) -> Result<std::process::Output, String> {
+fn run_pio_command(args: &[&str], platformio_path: Option<&str>) -> Result<std::process::Output, String> {
+    if let Some(path) = normalize_platformio_override(platformio_path) {
+        return run_sync_command(path, args);
+    }
+
     if let Some(path) = find_pio_in_filesystem() {
         run_sync_command(&path, args)
     } else {
@@ -141,7 +214,35 @@ fn run_pio_command(args: &[&str]) -> Result<std::process::Output, String> {
 }
 
 #[command]
-pub fn check_platformio() -> PlatformInfo {
+pub fn check_platformio(platformio_path: Option<String>) -> PlatformInfo {
+    let override_path = normalize_platformio_override(platformio_path.as_deref());
+
+    if let Some(path) = override_path {
+        if let Ok(output) = run_pio_version(path) {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                return PlatformInfo {
+                    version,
+                    core_version: "".to_string(),
+                    installed: true,
+                };
+            }
+        }
+    }
+
+    if let Some(path) = find_pio_in_filesystem() {
+        if let Ok(output) = run_pio_version(&path) {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                return PlatformInfo {
+                    version,
+                    core_version: "".to_string(),
+                    installed: true,
+                };
+            }
+        }
+    }
+
     if let Ok(output) = run_pio_command_via_python(&["--version"]) {
         if output.status.success() {
             let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -169,8 +270,8 @@ pub fn check_platformio() -> PlatformInfo {
 }
 
 #[command]
-pub fn list_connected_boards() -> Result<Vec<BoardInfo>, String> {
-    let output = run_pio_command(&["device", "list", "--json-output"])?;
+pub fn list_connected_boards(platformio_path: Option<String>) -> Result<Vec<BoardInfo>, String> {
+    let output = run_pio_command(&["device", "list", "--json-output"], platformio_path.as_deref())?;
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let boards: Vec<BoardInfo> = serde_json::from_str(&stdout).unwrap_or_default();
@@ -188,8 +289,8 @@ pub fn list_connected_boards() -> Result<Vec<BoardInfo>, String> {
 }
 
 #[command]
-pub fn get_available_boards() -> Vec<BoardInfo> {
-    let output = match run_pio_command(&["boards", "--json-output"]) {
+pub fn get_available_boards(platformio_path: Option<String>) -> Vec<BoardInfo> {
+    let output = match run_pio_command(&["boards", "--json-output"], platformio_path.as_deref()) {
         Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).to_string(),
         _ => return vec![],
     };
@@ -252,11 +353,12 @@ pub async fn run_platformio_command(
     state: tauri::State<'_, BuildState>,
     args: Vec<String>,
     app: tauri::AppHandle,
+    platformio_path: Option<String>,
 ) -> Result<BuildResult, String> {
     use std::time::Instant;
 
     let start = Instant::now();
-    let pio_cmd = get_pio_command();
+    let pio_cmd = get_pio_command(platformio_path.as_deref());
     let mut cmd = tokio::process::Command::new(&pio_cmd);
     cmd.args(&args)
         .stdout(Stdio::piped())
@@ -339,8 +441,9 @@ pub async fn build_project(
     state: tauri::State<'_, BuildState>,
     project_path: String,
     app: tauri::AppHandle,
+    platformio_path: Option<String>,
 ) -> Result<BuildResult, String> {
-    run_platformio_command(state, vec!["run".to_string(), "-d".to_string(), project_path], app).await
+    run_platformio_command(state, vec!["run".to_string(), "-d".to_string(), project_path], app, platformio_path).await
 }
 
 #[command]
@@ -350,6 +453,7 @@ pub async fn upload_firmware(
     board: Option<String>,
     port: Option<String>,
     app: tauri::AppHandle,
+    platformio_path: Option<String>,
 ) -> Result<BuildResult, String> {
     // First, read platformio.ini to detect ESP boards
     let pio_ini_path = std::path::Path::new(&project_path).join("platformio.ini");
@@ -367,7 +471,7 @@ pub async fn upload_firmware(
             "-d".to_string(),
             project_path.clone(),
         ];
-        let erase_result = run_platformio_command(state.clone(), erase_args, app.clone()).await;
+        let erase_result = run_platformio_command(state.clone(), erase_args, app.clone(), platformio_path.clone()).await;
         if let Ok(result) = erase_result {
             if !result.success {
                 let _ = app.emit("build-output", format!("[UPLOAD] Flash erase failed, continuing with upload: {}", result.stderr));
@@ -392,7 +496,7 @@ pub async fn upload_firmware(
         args.push("--upload-port".to_string());
         args.push(p);
     }
-    run_platformio_command(state, args, app).await
+    run_platformio_command(state, args, app, platformio_path).await
 }
 
 #[command]
@@ -400,6 +504,7 @@ pub async fn erase_flash(
     state: tauri::State<'_, BuildState>,
     project_path: String,
     app: tauri::AppHandle,
+    platformio_path: Option<String>,
 ) -> Result<BuildResult, String> {
     let args = vec![
         "run".to_string(),
@@ -408,7 +513,7 @@ pub async fn erase_flash(
         "-d".to_string(),
         project_path,
     ];
-    run_platformio_command(state, args, app).await
+    run_platformio_command(state, args, app, platformio_path).await
 }
 
 #[command]
@@ -479,19 +584,31 @@ fn parse_compiler_error_line(line: &str, error_type: &str) -> Option<serde_json:
 }
 
 #[command]
-pub async fn install_platformio() -> Result<String, String> {
+pub async fn install_platformio(platformio_path: Option<String>) -> Result<String, String> {
     use tokio::process::Command;
-    
-    let python_cmds = vec![
-        "python".to_string(),
-    ];
+
+    let python_cmds = if cfg!(windows) {
+        vec!["py".to_string(), "python".to_string(), "python3".to_string()]
+    } else {
+        vec!["python3".to_string(), "python".to_string(), "py".to_string()]
+    };
     
     let mut installed = false;
     let mut last_error = String::new();
     
     for python_cmd in python_cmds {
+        let mut args = vec!["-m", "pip"];
+        if !cfg!(windows) {
+            args.push("install");
+            args.push("--user");
+            args.push("platformio");
+        } else {
+            args.push("install");
+            args.push("platformio");
+        }
+
         let output = Command::new(&python_cmd)
-            .args(["-m", "pip", "install", "platformio"])
+            .args(args)
             .output()
             .await;
         
@@ -511,6 +628,15 @@ pub async fn install_platformio() -> Result<String, String> {
     }
     
     if installed {
+        if let Some(path) = normalize_platformio_override(platformio_path.as_deref()) {
+            if let Ok(out) = run_pio_version(path) {
+                if out.status.success() {
+                    let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    return Ok(format!("PlatformIO installed successfully: {}", version));
+                }
+            }
+        }
+
         if let Ok(out) = run_pio_command_via_python(&["--version"]) {
             if out.status.success() {
                 let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -524,8 +650,8 @@ pub async fn install_platformio() -> Result<String, String> {
 }
 
 #[command]
-pub async fn install_platform(platform: String) -> Result<String, String> {
-    let mut cmd = tokio::process::Command::new(get_pio_command());
+pub async fn install_platform(platform: String, platformio_path: Option<String>) -> Result<String, String> {
+    let mut cmd = tokio::process::Command::new(get_pio_command(platformio_path.as_deref()));
     let output = cmd.args(["platform", "install", &platform])
         .output()
         .await

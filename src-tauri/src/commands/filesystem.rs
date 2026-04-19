@@ -446,7 +446,7 @@ pub fn reveal_in_explorer(path: String, root: Option<String>) -> Result<(), Stri
         PathBuf::from(&path)
     };
 
-    let target = if safe_path.is_file() || safe_path.is_dir() {
+    let _target = if safe_path.is_file() || safe_path.is_dir() {
         safe_path.to_string_lossy().to_string()
     } else {
         return Err(format!("Path does not exist: {}", safe_path.to_string_lossy()));
@@ -455,7 +455,7 @@ pub fn reveal_in_explorer(path: String, root: Option<String>) -> Result<(), Stri
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
-            .arg(format!("/select,{}", target))
+            .arg(format!("/select,{}", _target))
             .spawn()
             .map_err(|e| format!("Failed to open explorer: {}", e))?
             .wait()
@@ -465,7 +465,7 @@ pub fn reveal_in_explorer(path: String, root: Option<String>) -> Result<(), Stri
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .args(["-R", &target])
+            .args(["-R", &_target])
             .spawn()
             .map_err(|e| format!("Failed to open finder: {}", e))?
             .wait()

@@ -25,7 +25,7 @@ export function BuildSettings() {
         <div className="settings-row">
           <div className="settings-label">
             <span>PlatformIO CLI Path</span>
-            <small>Leave as 'pio' if in PATH</small>
+            <small>Leave as 'pio' if it is on PATH, or set an absolute path like /home/you/.local/bin/pio</small>
           </div>
           <input
             type="text"

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useSettingsStore } from '../stores/settingsStore';
 
 interface PlatformInfo {
   os: string;
@@ -45,6 +46,7 @@ interface SerialPortInfo {
 }
 
 export function useBuild() {
+  const platformioPath = useSettingsStore((state) => state.build.platformioPath);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [buildOutput, setBuildOutput] = useState<string[]>([]);
@@ -93,7 +95,9 @@ export function useBuild() {
 
   const checkPlatformIO = useCallback(async () => {
     try {
-      const status = await invoke<PlatformIOStatus>('check_platformio');
+      const status = await invoke<PlatformIOStatus>('check_platformio', {
+        platformioPath: platformioPath || null,
+      });
       if (status.installed) {
         setError(null);
         appendOutput(`[CHECK] PlatformIO installed: ${status.version}`);
@@ -109,11 +113,13 @@ export function useBuild() {
       appendOutput(`PlatformIO check failed: ${errorMessage}`);
       return false;
     }
-  }, [appendOutput]);
+  }, [appendOutput, platformioPath]);
 
   const listBoards = useCallback(async () => {
     try {
-      const boards = await invoke<Board[]>('list_connected_boards');
+      const boards = await invoke<Board[]>('list_connected_boards', {
+        platformioPath: platformioPath || null,
+      });
       setAvailableBoards(boards);
       return boards;
     } catch (err) {
@@ -121,7 +127,7 @@ export function useBuild() {
       setError(errorMessage);
       return [];
     }
-  }, []);
+  }, [platformioPath]);
 
   const listPorts = useCallback(async () => {
     try {
@@ -146,7 +152,10 @@ export function useBuild() {
 
     try {
       appendOutput('[BUILD] Starting build...');
-      const result = await invoke<BuildResult>('build_project', { projectPath });
+      const result = await invoke<BuildResult>('build_project', {
+        projectPath,
+        platformioPath: platformioPath || null,
+      });
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       if (result.success) {
@@ -166,7 +175,7 @@ export function useBuild() {
       setIsBuilding(false);
       isBuildingRef.current = false;
     }
-  }, [appendOutput, clearOutput]);
+  }, [appendOutput, clearOutput, platformioPath]);
 
   const stopBuild = useCallback(async () => {
     try {
@@ -195,6 +204,7 @@ export function useBuild() {
         projectPath,
         board: selectedBoard,
         port: selectedPort || null,
+        platformioPath: platformioPath || null,
       });
 
       if (result.success) {
@@ -213,7 +223,7 @@ export function useBuild() {
       setIsUploading(false);
       isBuildingRef.current = false;
     }
-  }, [appendOutput, clearOutput, selectedBoard]);
+  }, [appendOutput, clearOutput, platformioPath, selectedBoard, selectedPort]);
 
   const parseErrors = useCallback(async (output: string) => {
     try {
