@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use tauri::command;
 use tauri::{Emitter, Manager};
 use tokio::process::Command as AsyncCommand;
@@ -8,31 +8,100 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher, EventKind};
 
-fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
-    if allowed_root.is_empty() {
-        return Ok(PathBuf::from(path));
+fn normalize_lexical(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            other => normalized.push(other.as_os_str()),
+        }
     }
-    let canonical_root = PathBuf::from(allowed_root).canonicalize()
-        .map_err(|e| format!("Invalid project root: {}", e))?;
-    let p = PathBuf::from(path);
-    let canonical = if p.exists() {
-        p.canonicalize().map_err(|e| format!("Cannot resolve path: {}", e))?
+    normalized
+}
+
+fn resolve_path_for_validation(path: &Path, canonical_root: &Path) -> Result<PathBuf, String> {
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
     } else {
-        let joined = canonical_root.join(&p);
-        joined.canonicalize().unwrap_or(joined)
+        canonical_root.join(path)
     };
 
-    // On Windows, canonicalize() may return \\?\ prefixed paths.
-    // Normalize both paths for comparison by converting to string and stripping \\?\ prefix.
-    let root_str = canonical_root.to_string_lossy().to_string();
-    let canon_str = canonical.to_string_lossy().to_string();
-    let root_normalized = root_str.strip_prefix(r"\\?\").unwrap_or(&root_str);
-    let canon_normalized = canon_str.strip_prefix(r"\\?\").unwrap_or(&canon_str);
+    let normalized = normalize_lexical(&candidate);
 
-    if canon_normalized.starts_with(root_normalized) {
-        Ok(canonical)
+    if normalized.exists() {
+        return normalized
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve path: {}", e));
+    }
+
+    let mut pending: Vec<std::ffi::OsString> = Vec::new();
+    let mut cursor = normalized.as_path();
+
+    while !cursor.exists() {
+        let name = cursor
+            .file_name()
+            .ok_or_else(|| format!("Cannot resolve path: {}", normalized.display()))?;
+        pending.push(name.to_os_string());
+        cursor = cursor
+            .parent()
+            .ok_or_else(|| format!("Cannot resolve path: {}", normalized.display()))?;
+    }
+
+    let mut resolved = cursor
+        .canonicalize()
+        .map_err(|e| format!("Cannot resolve path: {}", e))?;
+
+    for segment in pending.iter().rev() {
+        resolved.push(segment);
+    }
+
+    Ok(resolved)
+}
+
+fn validate_path_buf(path: &Path, allowed_root: &str) -> Result<PathBuf, String> {
+    if allowed_root.trim().is_empty() {
+        let normalized = normalize_lexical(path);
+        if normalized.exists() {
+            return normalized
+                .canonicalize()
+                .map_err(|e| format!("Cannot resolve path: {}", e));
+        }
+        return Ok(normalized);
+    }
+
+    let canonical_root = PathBuf::from(allowed_root)
+        .canonicalize()
+        .map_err(|e| format!("Invalid project root: {}", e))?;
+
+    let resolved = resolve_path_for_validation(path, &canonical_root)?;
+
+    if resolved.starts_with(&canonical_root) {
+        Ok(resolved)
     } else {
         Err("Access denied: path is outside project root".to_string())
+    }
+}
+
+fn validate_path(path: &str, allowed_root: &str) -> Result<PathBuf, String> {
+    validate_path_buf(Path::new(path), allowed_root)
+}
+
+fn validate_leaf_name(name: &str, label: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err(format!("Invalid {}: name cannot be empty", label));
+    }
+
+    let mut components = Path::new(trimmed).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
+        _ => Err(format!(
+            "Invalid {}: must be a single file or folder name",
+            label
+        )),
     }
 }
 
@@ -68,16 +137,18 @@ pub fn write_file(path: String, content: String, root: String) -> Result<(), Str
 
 #[command]
 pub fn create_file(parent: String, name: String, root: String) -> Result<String, String> {
+    let name = validate_leaf_name(&name, "file name")?;
     let parent_path = validate_path(&parent, &root)?;
-    let path = parent_path.join(&name);
+    let path = validate_path_buf(&parent_path.join(&name), &root)?;
     fs::write(&path, "").map_err(|e| format!("Failed to create file: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[command]
 pub fn create_folder(parent: String, name: String, root: String) -> Result<String, String> {
+    let name = validate_leaf_name(&name, "folder name")?;
     let parent_path = validate_path(&parent, &root)?;
-    let path = parent_path.join(&name);
+    let path = validate_path_buf(&parent_path.join(&name), &root)?;
     fs::create_dir_all(&path).map_err(|e| format!("Failed to create folder: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
@@ -94,12 +165,10 @@ pub fn delete_path(path: String, root: String) -> Result<(), String> {
 
 #[command]
 pub fn rename_path(old_path: String, new_name: String, root: String) -> Result<String, String> {
+    let new_name = validate_leaf_name(&new_name, "new name")?;
     let old = validate_path(&old_path, &root)?;
     let parent = old.parent().ok_or("No parent directory")?;
-    let new_path = parent.join(&new_name);
-    if !new_path.starts_with(PathBuf::from(&root).canonicalize().map_err(|e| format!("Invalid root: {}", e))?) {
-        return Err("Access denied: renamed path would escape project root".to_string());
-    }
+    let new_path = validate_path_buf(&parent.join(&new_name), &root)?;
     fs::rename(&old, &new_path).map_err(|e| format!("Failed to rename: {}", e))?;
     Ok(new_path.to_string_lossy().to_string())
 }
@@ -418,8 +487,8 @@ pub struct FileChangeEvent {
 }
 
 #[command]
-pub fn start_watch(app: tauri::AppHandle, path: String, _root: String) -> Result<(), String> {
-    let watch_path = PathBuf::from(&path);
+pub fn start_watch(app: tauri::AppHandle, path: String, root: String) -> Result<(), String> {
+    let watch_path = validate_path(&path, &root)?;
     if !watch_path.exists() {
         return Err("Watch path does not exist".to_string());
     }
@@ -437,7 +506,7 @@ pub fn start_watch(app: tauri::AppHandle, path: String, _root: String) -> Result
 
     let watch_state = app.state::<WatchState>();
     watch_state.watcher.lock().replace(watcher.clone());
-    watch_state.watched_path.lock().replace(path.clone());
+    watch_state.watched_path.lock().replace(watch_path.to_string_lossy().to_string());
 
     std::thread::spawn(move || {
         for event in rx {
