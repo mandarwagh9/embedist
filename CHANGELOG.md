@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.36.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.36.0) — 2026-04-19
+
+### Fixed
+- Filesystem command safety hardening in Tauri backend (`filesystem.rs`): stronger root containment validation, safer path resolution, and strict single-segment name validation for create/rename operations
+- Agent tool execution safety: project-scoped path enforcement for write/create/build/shell actions, plus root-aware shell execution wiring
+- File watcher reliability: normalized path comparison for open tabs so externally modified files refresh correctly
+- AI provider consistency: robust backend provider reconciliation (add/update/remove), race-safe sync flow, and active provider fallback when stale
+
+---
+
+## [v0.35.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.35.0) — 2026-04-19
+
+### Fixed
+- Build/upload flow: upload now forwards selected board and uses PlatformIO `--environment` during firmware upload
+- `BuildState` cloning in Rust PlatformIO command path now uses async-safe shared state pattern
+- AI provider handling and usage reporting improvements across chat/agent paths (OpenAI, Anthropic, DeepSeek, Google)
+- Multiple silent catch paths replaced with explicit error logging for better diagnosability
+
+### Documentation
+- Updated project guidance in `AGENTS.md` and refreshed release links/version metadata to align with v0.35.0
+
+---
+
 ## [v0.34.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.34.0) — 2026-04-06
 
 ### Fixed

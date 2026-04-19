@@ -4,86 +4,48 @@ sidebar_position: 3
 
 # Testing
 
-Testing procedures for Embedist development.
+Current validation procedures for Embedist development.
 
-## Testing Strategy
+## Current Test Reality
 
-Embedist uses multiple testing approaches:
+At the moment, this repository does **not** include a formal automated test suite (`npm test`, `*.spec.*`, `*.test.*`, and `src-tauri/tests` are absent).
 
-- **Unit Tests**: Core functionality
-- **Integration Tests**: Component interaction
-- **E2E Tests**: Full user flows
+Quality validation is currently done with build + static checks + focused manual smoke testing.
 
-## Running Tests
+## Required Verification Commands
 
-### Frontend Tests
+Run these from the repo root:
 
 ```bash
-# Install test dependencies
-npm install
+# Frontend typecheck + production bundle
+npm run build
 
-# Run unit tests
-npm test
-
-# Run with coverage
-npm test -- --coverage
+# Rust lint/static checks
+cargo clippy --manifest-path src-tauri/Cargo.toml
 ```
 
-### Backend Tests (Rust)
+## Release Validation
+
+For release candidates, also run:
 
 ```bash
-cd src-tauri
-
-# Run tests
-cargo test
-
-# Run with output
-cargo test -- --nocapture
+# Produce signed/packaged desktop artifacts
+npm run tauri build
 ```
 
-## Test Structure
+Expected outputs:
+- `src-tauri/target/release/embedist.exe`
+- `src-tauri/target/release/bundle/nsis/Embedist_<version>_x64-setup.exe`
 
-```
-src/
-├── __tests__/           # Unit tests
-│   ├── utils/
-│   └── lib/
-├── integration/         # Integration tests
-└── e2e/                # E2E tests (future)
-```
+## Manual Smoke Checklist
 
-## Writing Tests
+After successful commands, verify key user flows:
+- Open a project folder and browse/edit/save files
+- Run AI in Chat/Plan/Agent/Debug modes with configured provider
+- Build and upload firmware from the Build panel
+- Open Serial Monitor and send/receive data
+- Confirm external file changes refresh open tabs
 
-### React Components
+## Future Work
 
-```typescript
-import { render, screen } from '@testing-library/react';
-import { CodeEditor } from './CodeEditor';
-
-test('renders editor', () => {
-  render(<CodeEditor />);
-  expect(screen.getByRole('textbox')).toBeInTheDocument();
-});
-```
-
-### Utilities
-
-```typescript
-import { parseSerialOutput } from '../lib/utils';
-
-test('parses serial data', () => {
-  const result = parseSerialOutput('Hello\n');
-  expect(result).toBe('Hello');
-});
-```
-
-## CI/CD
-
-Tests run automatically on:
-- Pull requests
-- Main branch commits
-
-## Coverage Goals
-
-- Utilities: 80%+
-- Components: 60%+
+Adding automated unit/integration/e2e tests is still recommended, but this is not yet wired into project scripts.

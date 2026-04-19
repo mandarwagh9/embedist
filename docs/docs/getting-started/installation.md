@@ -15,7 +15,7 @@ This guide will help you install Embedist on your system.
 
 ### Option 2: NSIS Installer
 
-1. Download `Embedist_0.17.0_x64-setup.exe` from [Releases](https://github.com/mandarwagh9/embedist/releases)
+1. Download the latest `Embedist_<version>_x64-setup.exe` from [Releases](https://github.com/mandarwagh9/embedist/releases)
 2. Run the installer
 3. Follow the installation wizard
 
