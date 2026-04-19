@@ -72,6 +72,8 @@ The current release line ships Windows binaries. This branch adds native serial 
 
 Download the executable and run it directly — no installation required.
 
+Linux release builds are produced as AppImage and `.deb` packages from the same source tree, so the release page can carry both the Windows installer and native Linux bundles.
+
 > **Windows SmartScreen warning?** When you first run the app, Windows may show a blue SmartScreen warning. This is not a virus warning — it's a standard Windows security screen for unsigned applications. Simply click **"More info"** then **"Run anyway"** to launch Embedist.
 
 **[All Releases](https://github.com/mandarwagh9/embedist/releases)** | **[Changelog](CHANGELOG.md)**
@@ -82,20 +84,20 @@ Download the executable and run it directly — no installation required.
 
 ### Quick Start
 
-1. Download `embedist.exe` from [Releases](https://github.com/mandarwagh9/embedist/releases)
+1. Download the release package for your platform from [Releases](https://github.com/mandarwagh9/embedist/releases)
 2. Run the application
 3. Press `Ctrl+O` or use `File > Open Folder` to open a project directory
 4. Configure your AI provider in `Settings` (`Ctrl+,`)
 5. Start coding and debugging with AI assistance
 
-Linux users should build from source for now until native Linux packages are published.
+Linux builds are packaged as native AppImage and `.deb` artifacts, so you can either download a release package or build from source on your distro.
 
 ### Prerequisites
 
 | Requirement | Description |
 |-------------|-------------|
 | **Windows** | Windows 10/11 (64-bit) |
-| **Linux** | Supported in source; desktop packaging is still in progress |
+| **Linux** | Supported in source and packaged as AppImage/.deb |
 | **PlatformIO** | Optional — required for build & upload functionality |
 | **AI API Key** | Optional — required for AI debugging features |
 
@@ -116,7 +118,7 @@ npm run tauri dev
 npm run tauri build
 ```
 
-The release binary will be generated under `src-tauri/target/release/` with an OS-specific name. On Windows that is `embedist.exe`.
+The release binary will be generated under `src-tauri/target/release/` with an OS-specific name. On Windows that is `embedist.exe`. On Linux, Tauri also produces bundle artifacts under `src-tauri/target/release/bundle/appimage/` and `src-tauri/target/release/bundle/deb/`.
 
 On Linux, the same source tree can be built with the Tauri toolchain, but you may need distro-specific system packages for WebView support and serial access permissions before the app can talk to hardware.
 

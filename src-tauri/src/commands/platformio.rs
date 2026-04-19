@@ -59,10 +59,16 @@ fn run_sync_command(cmd: &str, args: &[&str]) -> Result<std::process::Output, St
 }
 
 fn run_pio_command_via_python(args: &[&str]) -> Result<std::process::Output, String> {
-    let python_cmds = if cfg!(windows) {
-        ["py", "python", "python3"]
+    let python_cmds: &[&str] = if cfg!(windows) {
+        &["py", "python", "python3"]
     } else {
-        ["python3", "python", "py"]
+        &[
+            "/usr/bin/python3",
+            "/usr/local/bin/python3",
+            "/bin/python3",
+            "python3",
+            "python",
+        ]
     };
 
     for python_cmd in python_cmds {
@@ -124,6 +130,23 @@ fn find_pio_in_filesystem() -> Option<String> {
                 if bundled_alt.exists() {
                     return Some(bundled_alt.to_string_lossy().to_string());
                 }
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    if let Ok(home) = std::env::var("HOME") {
+        let local_bin_candidates = [
+            format!("{}/.local/bin/pio", home),
+            format!("{}/.local/bin/platformio", home),
+            format!("{}/bin/pio", home),
+            format!("{}/bin/platformio", home),
+        ];
+
+        for p in local_bin_candidates {
+            let path = std::path::Path::new(&p);
+            if path.exists() {
+                return Some(p);
             }
         }
     }
@@ -590,7 +613,13 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
     let python_cmds = if cfg!(windows) {
         vec!["py".to_string(), "python".to_string(), "python3".to_string()]
     } else {
-        vec!["python3".to_string(), "python".to_string(), "py".to_string()]
+        vec![
+            "/usr/bin/python3".to_string(),
+            "/usr/local/bin/python3".to_string(),
+            "/bin/python3".to_string(),
+            "python3".to_string(),
+            "python".to_string(),
+        ]
     };
     
     let mut installed = false;
@@ -637,10 +666,12 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
             }
         }
 
-        if let Ok(out) = run_pio_command_via_python(&["--version"]) {
-            if out.status.success() {
-                let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                return Ok(format!("PlatformIO installed successfully: {}", version));
+        if let Some(path) = find_pio_in_filesystem() {
+            if let Ok(out) = run_pio_version(&path) {
+                if out.status.success() {
+                    let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    return Ok(format!("PlatformIO installed successfully: {}", version));
+                }
             }
         }
         Ok("PlatformIO installed successfully".to_string())

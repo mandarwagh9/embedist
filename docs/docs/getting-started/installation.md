@@ -10,7 +10,7 @@ This guide will help you install Embedist on your system.
 
 ### Option 1: Download EXE
 
-1. Download `embedist.exe` from the [Releases](https://github.com/mandarwagh9/embedist/releases) page
+1. Download the release package for your platform from the [Releases](https://github.com/mandarwagh9/embedist/releases) page
 2. Run the application directly — no installation required
 
 ### Option 2: NSIS Installer
@@ -20,6 +20,18 @@ This guide will help you install Embedist on your system.
 3. Follow the installation wizard
 
 > **Windows SmartScreen**: If you see a SmartScreen warning, click "More info" then "Run anyway" to launch Embedist.
+
+### Option 3: Linux Packages
+
+1. Download the latest AppImage or `.deb` package from [Releases](https://github.com/mandarwagh9/embedist/releases)
+2. For AppImage, make it executable and run it:
+
+```bash
+chmod +x Embedist-*.AppImage
+./Embedist-*.AppImage
+```
+
+3. For `.deb`, install it with your package manager or `dpkg -i`
 
 ## Build from Source
 
@@ -49,7 +61,7 @@ npm run tauri dev
 npm run tauri build
 ```
 
-The executable will be generated at `src-tauri/target/release/embedist.exe`.
+The executable will be generated under `src-tauri/target/release/` with an OS-specific name, and Linux builds will also produce AppImage and `.deb` packages under `src-tauri/target/release/bundle/`.
 
 ## Platform-Specific Setup
 
