@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.37.1](https://github.com/mandarwagh9/embedist/releases/tag/v0.37.1) — 2026-04-20
+
+### Fixed
+- Linux release packaging now emits AppImage and `.deb` bundles with explicit icon configuration for AppImage generation
+- Linux setup wizard now maps common boards to the correct PlatformIO platform IDs, including Arduino Nano 33 BLE Sense
+- PlatformIO installation on Linux now falls back to a local virtualenv when distro Python policies block user-site installs
+- Documentation updated to reflect Linux release packages and cross-platform setup behavior
+
+---
+
 ## [v0.37.0](https://github.com/mandarwagh9/embedist/releases/tag/v0.37.0) — 2026-04-19
 
 ### Fixed

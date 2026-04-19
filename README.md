@@ -6,7 +6,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Version](https://img.shields.io/badge/version-v0.37.0-blue)](https://github.com/mandarwagh9/embedist/releases)
+[![Version](https://img.shields.io/badge/version-v0.37.1-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 [![Linux](https://img.shields.io/badge/Linux-000000?logo=linux&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
@@ -65,10 +65,10 @@ The current release line ships Windows binaries. This branch adds native serial 
 
 ## Downloads
 
-### Latest Release: v0.37.0
+### Latest Release: v0.37.1
 
-[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.37.0/embedist.exe)
-[![Download Installer](https://img.shields.io/badge/Download-Installer-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.37.0/Embedist_0.37.0_x64-setup.exe)
+[![Download embedist.exe](https://img.shields.io/badge/Download-embedist.exe-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.37.1/embedist.exe)
+[![Download Installer](https://img.shields.io/badge/Download-Installer-blue)](https://github.com/mandarwagh9/embedist/releases/download/v0.37.1/Embedist_0.37.1_x64-setup.exe)
 
 Download the executable and run it directly — no installation required.
 

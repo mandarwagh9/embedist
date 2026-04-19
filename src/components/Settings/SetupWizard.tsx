@@ -10,9 +10,10 @@ interface PlatformInfo {
 }
 
 const COMMON_PLATFORMS = [
-  { id: 'atmega328p', name: 'Arduino Uno/Nano', size: '~50MB' },
-  { id: 'esp32', name: 'ESP32', size: '~80MB' },
-  { id: 'esp8266', name: 'ESP8266', size: '~60MB' },
+  { id: 'arduino-avr', platformId: 'atmelavr', name: 'Arduino Uno/Nano', size: '~50MB' },
+  { id: 'nano33ble', platformId: 'nordicnrf52', name: 'Arduino Nano 33 BLE Sense', size: '~90MB' },
+  { id: 'esp32', platformId: 'espressif32', name: 'ESP32', size: '~80MB' },
+  { id: 'esp8266', platformId: 'espressif8266', name: 'ESP8266', size: '~60MB' },
 ];
 
 export function SetupWizard() {
@@ -73,12 +74,16 @@ export function SetupWizard() {
     let allSuccess = true;
     
     for (const platform of selectedPlatforms) {
-      setInstallProgress(`Installing ${platform}...`);
+      const selected = COMMON_PLATFORMS.find(p => p.id === platform);
+      const platformName = selected?.name ?? platform;
+      const platformId = selected?.platformId ?? platform;
+
+      setInstallProgress(`Installing ${platformName}...`);
       try {
-        await invoke('install_platform', { platform, platformioPath: platformioPath || null });
+        await invoke('install_platform', { platform: platformId, platformioPath: platformioPath || null });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        setInstallProgress(`Failed to install ${platform}: ${message}`);
+        setInstallProgress(`Failed to install ${platformName}: ${message}`);
         allSuccess = false;
         break;
       }
@@ -133,8 +138,8 @@ export function SetupWizard() {
             {isLinux && !platformIOStatus?.installed && (
               <div className="setup-note linux-note">
                 <strong>Linux setup:</strong> if auto-detection misses your install, set the CLI path to
-                <code>{' '}{platformioPath}</code> in Settings or install with:
-                <code> python3 -m pip install --user platformio</code>
+                <code>{' '}{platformioPath}</code> in Settings. If your distro blocks user-site pip installs,
+                Embedist will fall back to a private local virtualenv automatically.
               </div>
             )}
 
