@@ -77,9 +77,11 @@ fn run_pio_command_via_python(args: &[&str]) -> Result<std::process::Output, Str
             .args(["-m", "platformio"])
             .args(args)
             .output();
-        
+
         if let Ok(output) = result {
-            if output.status.success() || !String::from_utf8_lossy(&output.stderr).contains("No module named") {
+            if output.status.success()
+                || !String::from_utf8_lossy(&output.stderr).contains("No module named")
+            {
                 return Ok(output);
             }
         }
@@ -156,13 +158,34 @@ fn find_pio_in_filesystem() -> Option<String> {
     #[cfg(windows)]
     if let Ok(home) = std::env::var("USERPROFILE") {
         let search_paths = vec![
-            format!("{}\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\pio.exe", home),
-            format!("{}\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pio.exe", home),
-            format!("{}\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pio.exe", home),
-            format!("{}\\AppData\\Local\\Programs\\Python\\Python310\\Scripts\\pio.exe", home),
-            format!("{}\\AppData\\Roaming\\Python\\Python313\\Scripts\\pio.exe", home),
-            format!("{}\\AppData\\Roaming\\Python\\Python312\\Scripts\\pio.exe", home),
-            format!("{}\\AppData\\Roaming\\Python\\Python311\\Scripts\\pio.exe", home),
+            format!(
+                "{}\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\pio.exe",
+                home
+            ),
+            format!(
+                "{}\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\pio.exe",
+                home
+            ),
+            format!(
+                "{}\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pio.exe",
+                home
+            ),
+            format!(
+                "{}\\AppData\\Local\\Programs\\Python\\Python310\\Scripts\\pio.exe",
+                home
+            ),
+            format!(
+                "{}\\AppData\\Roaming\\Python\\Python313\\Scripts\\pio.exe",
+                home
+            ),
+            format!(
+                "{}\\AppData\\Roaming\\Python\\Python312\\Scripts\\pio.exe",
+                home
+            ),
+            format!(
+                "{}\\AppData\\Roaming\\Python\\Python311\\Scripts\\pio.exe",
+                home
+            ),
             format!("{}\\AppData\\Roaming\\Python\\Scripts\\pio.exe", home),
             format!("{}\\miniconda3\\Scripts\\pio.exe", home),
             format!("{}\\miniconda3\\Scripts\\python.exe", home),
@@ -185,7 +208,10 @@ fn find_pio_in_filesystem() -> Option<String> {
     };
 
     for probe in probe_commands {
-        if let Ok(output) = SyncCommand::new(if cfg!(windows) { "where" } else { "which" }).arg(probe).output() {
+        if let Ok(output) = SyncCommand::new(if cfg!(windows) { "where" } else { "which" })
+            .arg(probe)
+            .output()
+        {
             if output.status.success() {
                 let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !path.is_empty() {
@@ -211,7 +237,7 @@ fn find_pio_in_filesystem() -> Option<String> {
             }
         }
     }
-    
+
     None
 }
 
@@ -219,7 +245,9 @@ fn find_pio_in_filesystem() -> Option<String> {
 fn platformio_venv_dir() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+        })?;
 
     Some(base.join("embedist").join("platformio-venv"))
 }
@@ -238,11 +266,18 @@ fn platformio_venv_pio() -> Option<PathBuf> {
 async fn install_platformio_in_venv() -> Result<String, String> {
     use tokio::process::Command;
 
-    let venv_dir = platformio_venv_dir().ok_or_else(|| "Unable to determine a local PlatformIO install path".to_string())?;
-    let venv_python = platformio_venv_python().ok_or_else(|| "Unable to determine the PlatformIO venv Python path".to_string())?;
+    let venv_dir = platformio_venv_dir()
+        .ok_or_else(|| "Unable to determine a local PlatformIO install path".to_string())?;
+    let venv_python = platformio_venv_python()
+        .ok_or_else(|| "Unable to determine the PlatformIO venv Python path".to_string())?;
 
     if !venv_python.exists() {
-        let python_candidates = ["/usr/bin/python3", "/usr/local/bin/python3", "/bin/python3", "python3"];
+        let python_candidates = [
+            "/usr/bin/python3",
+            "/usr/local/bin/python3",
+            "/bin/python3",
+            "python3",
+        ];
         let mut venv_created = false;
         let mut last_error = String::new();
 
@@ -273,7 +308,10 @@ async fn install_platformio_in_venv() -> Result<String, String> {
         }
 
         if !venv_created {
-            return Err(format!("Failed to create a local PlatformIO virtual environment: {}", last_error));
+            return Err(format!(
+                "Failed to create a local PlatformIO virtual environment: {}",
+                last_error
+            ));
         }
     }
 
@@ -281,15 +319,27 @@ async fn install_platformio_in_venv() -> Result<String, String> {
         .args(["-m", "pip", "install", "platformio"])
         .output()
         .await
-        .map_err(|e| format!("Failed to install PlatformIO in a local virtual environment: {}", e))?;
+        .map_err(|e| {
+            format!(
+                "Failed to install PlatformIO in a local virtual environment: {}",
+                e
+            )
+        })?;
 
     if output.status.success() {
-        Ok(format!("PlatformIO installed successfully in {}", venv_dir.display()))
+        Ok(format!(
+            "PlatformIO installed successfully in {}",
+            venv_dir.display()
+        ))
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         Err(format!(
             "Failed to install PlatformIO in a local virtual environment: {}",
-            if stderr.is_empty() { "unknown error".to_string() } else { stderr }
+            if stderr.is_empty() {
+                "unknown error".to_string()
+            } else {
+                stderr
+            }
         ))
     }
 }
@@ -305,7 +355,10 @@ fn get_pio_command(platformio_path: Option<&str>) -> String {
     "pio".to_string()
 }
 
-fn run_pio_command(args: &[&str], platformio_path: Option<&str>) -> Result<std::process::Output, String> {
+fn run_pio_command(
+    args: &[&str],
+    platformio_path: Option<&str>,
+) -> Result<std::process::Output, String> {
     if let Some(path) = normalize_platformio_override(platformio_path) {
         return run_sync_command(path, args);
     }
@@ -357,7 +410,7 @@ pub fn check_platformio(platformio_path: Option<String>) -> PlatformInfo {
             };
         }
     }
-    
+
     if find_pio_in_filesystem().is_some() {
         return PlatformInfo {
             version: "Installed (version check failed)".to_string(),
@@ -365,7 +418,7 @@ pub fn check_platformio(platformio_path: Option<String>) -> PlatformInfo {
             installed: true,
         };
     }
-    
+
     PlatformInfo {
         version: "Not installed".to_string(),
         core_version: "".to_string(),
@@ -375,7 +428,10 @@ pub fn check_platformio(platformio_path: Option<String>) -> PlatformInfo {
 
 #[command]
 pub fn list_connected_boards(platformio_path: Option<String>) -> Result<Vec<BoardInfo>, String> {
-    let output = run_pio_command(&["device", "list", "--json-output"], platformio_path.as_deref())?;
+    let output = run_pio_command(
+        &["device", "list", "--json-output"],
+        platformio_path.as_deref(),
+    )?;
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let boards: Vec<BoardInfo> = serde_json::from_str(&stdout).unwrap_or_default();
@@ -407,15 +463,27 @@ pub fn get_available_boards(platformio_path: Option<String>) -> Vec<BoardInfo> {
     raw.into_iter()
         .filter_map(|b| {
             let id = b.get("id")?.as_str()?.to_string();
-            let name = b.get("name").and_then(|v| v.as_str()).unwrap_or(&id).to_string();
-            let platform = b.get("platform").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let name = b
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&id)
+                .to_string();
+            let platform = b
+                .get("platform")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             Some(BoardInfo {
                 id,
                 name,
                 platform,
                 mcu: b.get("mcu").and_then(|v| v.as_str()).map(String::from),
                 frequency: b.get("frequencies").and_then(|v| {
-                    v.as_object()?.values().next().and_then(|f| f.as_str()).map(String::from)
+                    v.as_object()?
+                        .values()
+                        .next()
+                        .and_then(|f| f.as_str())
+                        .map(String::from)
                 }),
                 flash_size: b.get("flash").and_then(|v| v.as_str()).map(String::from),
                 ram_size: b.get("ram").and_then(|v| v.as_str()).map(String::from),
@@ -439,8 +507,18 @@ pub async fn stop_build(state: tauri::State<'_, BuildState>) -> Result<bool, Str
         }
         #[cfg(not(windows))]
         {
+            let pid_str = pid.to_string();
             let _ = SyncCommand::new("kill")
-                .args(["-9", &pid.to_string()])
+                .args(["-TERM", &pid_str])
+                .spawn()
+                .map_err(|e| format!("Failed to spawn kill: {}", e))?
+                .wait()
+                .map_err(|e| format!("Failed to wait on kill: {}", e))?;
+
+            std::thread::sleep(std::time::Duration::from_millis(500));
+
+            let _ = SyncCommand::new("kill")
+                .args(["-KILL", &pid_str])
                 .spawn()
                 .map_err(|e| format!("Failed to spawn kill: {}", e))?
                 .wait()
@@ -468,7 +546,9 @@ pub async fn run_platformio_command(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn pio: {}", e))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn pio: {}", e))?;
     let pid = child.id().unwrap_or(0);
 
     {
@@ -502,7 +582,10 @@ pub async fn run_platformio_command(
         lines
     });
 
-    let status = child.wait().await.map_err(|e| format!("Failed to wait on pio: {}", e))?;
+    let status = child
+        .wait()
+        .await
+        .map_err(|e| format!("Failed to wait on pio: {}", e))?;
 
     {
         let mut guard = state.child_id.lock().await;
@@ -547,7 +630,13 @@ pub async fn build_project(
     app: tauri::AppHandle,
     platformio_path: Option<String>,
 ) -> Result<BuildResult, String> {
-    run_platformio_command(state, vec!["run".to_string(), "-d".to_string(), project_path], app, platformio_path).await
+    run_platformio_command(
+        state,
+        vec!["run".to_string(), "-d".to_string(), project_path],
+        app,
+        platformio_path,
+    )
+    .await
 }
 
 #[command]
@@ -562,12 +651,17 @@ pub async fn upload_firmware(
     // First, read platformio.ini to detect ESP boards
     let pio_ini_path = std::path::Path::new(&project_path).join("platformio.ini");
     let pio_ini_content = std::fs::read_to_string(&pio_ini_path).unwrap_or_default();
-    let is_esp_board = pio_ini_content.contains("esp8266") || pio_ini_content.contains("esp32")
-        || pio_ini_content.contains("espressif8266") || pio_ini_content.contains("espressif32");
+    let is_esp_board = pio_ini_content.contains("esp8266")
+        || pio_ini_content.contains("esp32")
+        || pio_ini_content.contains("espressif8266")
+        || pio_ini_content.contains("espressif32");
 
     // For ESP boards, erase flash before upload to prevent conflicts with old firmware
     if is_esp_board {
-        let _ = app.emit("build-output", "[UPLOAD] Erasing flash before upload (ESP board detected)...".to_string());
+        let _ = app.emit(
+            "build-output",
+            "[UPLOAD] Erasing flash before upload (ESP board detected)...".to_string(),
+        );
         let erase_args = vec![
             "run".to_string(),
             "--target".to_string(),
@@ -575,12 +669,27 @@ pub async fn upload_firmware(
             "-d".to_string(),
             project_path.clone(),
         ];
-        let erase_result = run_platformio_command(state.clone(), erase_args, app.clone(), platformio_path.clone()).await;
+        let erase_result = run_platformio_command(
+            state.clone(),
+            erase_args,
+            app.clone(),
+            platformio_path.clone(),
+        )
+        .await;
         if let Ok(result) = erase_result {
             if !result.success {
-                let _ = app.emit("build-output", format!("[UPLOAD] Flash erase failed, continuing with upload: {}", result.stderr));
+                let _ = app.emit(
+                    "build-output",
+                    format!(
+                        "[UPLOAD] Flash erase failed, continuing with upload: {}",
+                        result.stderr
+                    ),
+                );
             } else {
-                let _ = app.emit("build-output", "[UPLOAD] Flash erased successfully".to_string());
+                let _ = app.emit(
+                    "build-output",
+                    "[UPLOAD] Flash erased successfully".to_string(),
+                );
             }
         }
     }
@@ -626,7 +735,11 @@ pub fn parse_build_errors(output: String) -> Vec<serde_json::Value> {
 
     for line in output.lines() {
         if line.contains("error:") || line.contains("Error:") || line.contains("ERROR:") {
-            let error_type = if line.contains("warning:") || line.contains("Warning:") { "warning" } else { "error" };
+            let error_type = if line.contains("warning:") || line.contains("Warning:") {
+                "warning"
+            } else {
+                "error"
+            };
             if let Some(parsed) = parse_compiler_error_line(line, error_type) {
                 errors.push(parsed);
             } else {
@@ -648,8 +761,12 @@ pub fn parse_build_errors(output: String) -> Vec<serde_json::Value> {
 }
 
 fn parse_compiler_error_line(line: &str, error_type: &str) -> Option<serde_json::Value> {
-    let colon_pos = line.find("error:").or_else(|| line.find("Error:")).or_else(|| line.find("ERROR:"))
-        .or_else(|| line.find("warning:")).or_else(|| line.find("Warning:"));
+    let colon_pos = line
+        .find("error:")
+        .or_else(|| line.find("Error:"))
+        .or_else(|| line.find("ERROR:"))
+        .or_else(|| line.find("warning:"))
+        .or_else(|| line.find("Warning:"));
 
     let colon_pos = colon_pos?;
     let prefix = &line[..colon_pos].trim_end_matches(':');
@@ -661,8 +778,13 @@ fn parse_compiler_error_line(line: &str, error_type: &str) -> Option<serde_json:
         let col_or_file = parts[1];
         let file = parts[2];
 
-        if line_num.parse::<u32>().is_ok() && (col_or_file.parse::<u32>().is_ok() || !col_or_file.is_empty()) {
-            let message = line[colon_pos..].trim_start_matches(|c: char| c.is_alphabetic() || c == ':').trim().to_string();
+        if line_num.parse::<u32>().is_ok()
+            && (col_or_file.parse::<u32>().is_ok() || !col_or_file.is_empty())
+        {
+            let message = line[colon_pos..]
+                .trim_start_matches(|c: char| c.is_alphabetic() || c == ':')
+                .trim()
+                .to_string();
             return Some(serde_json::json!({
                 "type": error_type,
                 "file": file.trim(),
@@ -674,7 +796,10 @@ fn parse_compiler_error_line(line: &str, error_type: &str) -> Option<serde_json:
         let line_num = parts[0];
         let file = parts[1];
         if line_num.parse::<u32>().is_ok() {
-            let message = line[colon_pos..].trim_start_matches(|c: char| c.is_alphabetic() || c == ':').trim().to_string();
+            let message = line[colon_pos..]
+                .trim_start_matches(|c: char| c.is_alphabetic() || c == ':')
+                .trim()
+                .to_string();
             return Some(serde_json::json!({
                 "type": error_type,
                 "file": file.trim(),
@@ -692,7 +817,11 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
     use tokio::process::Command;
 
     let python_cmds = if cfg!(windows) {
-        vec!["py".to_string(), "python".to_string(), "python3".to_string()]
+        vec![
+            "py".to_string(),
+            "python".to_string(),
+            "python3".to_string(),
+        ]
     } else {
         vec![
             "/usr/bin/python3".to_string(),
@@ -702,10 +831,10 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
             "python".to_string(),
         ]
     };
-    
+
     let mut installed = false;
     let mut last_error = String::new();
-    
+
     for python_cmd in python_cmds {
         let mut args = vec!["-m", "pip"];
         if !cfg!(windows) {
@@ -717,11 +846,8 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
             args.push("platformio");
         }
 
-        let output = Command::new(&python_cmd)
-            .args(args)
-            .output()
-            .await;
-        
+        let output = Command::new(&python_cmd).args(args).output().await;
+
         match output {
             Ok(out) => {
                 if out.status.success() {
@@ -745,7 +871,7 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
             }
         }
     }
-    
+
     if installed {
         if let Some(path) = normalize_platformio_override(platformio_path.as_deref()) {
             if let Ok(out) = run_pio_version(path) {
@@ -778,17 +904,24 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
 }
 
 #[command]
-pub async fn install_platform(platform: String, platformio_path: Option<String>) -> Result<String, String> {
+pub async fn install_platform(
+    platform: String,
+    platformio_path: Option<String>,
+) -> Result<String, String> {
     let mut cmd = tokio::process::Command::new(get_pio_command(platformio_path.as_deref()));
-    let output = cmd.args(["platform", "install", &platform])
+    let output = cmd
+        .args(["platform", "install", &platform])
         .output()
         .await
         .map_err(|e| format!("Failed to install platform {}: {}", platform, e))?;
-    
+
     if output.status.success() {
         Ok(format!("Platform {} installed successfully", platform))
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("Failed to install platform {}: {}", platform, stderr))
+        Err(format!(
+            "Failed to install platform {}: {}",
+            platform, stderr
+        ))
     }
 }

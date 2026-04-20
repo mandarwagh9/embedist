@@ -79,25 +79,31 @@ fn map_parity(parity: &str) -> Result<Parity, String> {
 }
 
 fn collect_available_ports() -> Vec<SerialPortInfo> {
-    let from_serial2 = SerialPort::available_ports().ok().map(|ports| {
-        ports
-            .into_iter()
-            .map(|path| {
-                let name = path.file_name().map(|n| n.to_string_lossy().to_string());
-                SerialPortInfo {
-                    path: path.to_string_lossy().to_string(),
-                    name,
-                }
-            })
-            .collect::<Vec<_>>()
-    }).unwrap_or_default();
+    let from_serial2 = SerialPort::available_ports()
+        .ok()
+        .map(|ports| {
+            ports
+                .into_iter()
+                .map(|path| {
+                    let name = path.file_name().map(|n| n.to_string_lossy().to_string());
+                    SerialPortInfo {
+                        path: path.to_string_lossy().to_string(),
+                        name,
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
-    if !from_serial2.is_empty() {
-        return from_serial2;
-    }
-
-    let mut ports = Vec::new();
-    let prefixes = ["/dev/ttyUSB", "/dev/ttyACM", "/dev/ttyS", "/dev/ttyAMA", "/dev/ttyXRUSB", "/dev/tty."];
+    let mut ports = from_serial2;
+    let prefixes = [
+        "/dev/ttyUSB",
+        "/dev/ttyACM",
+        "/dev/ttyS",
+        "/dev/ttyAMA",
+        "/dev/ttyXRUSB",
+        "/dev/tty.",
+    ];
 
     if let Ok(entries) = std::fs::read_dir("/dev") {
         for entry in entries.flatten() {
@@ -115,7 +121,26 @@ fn collect_available_ports() -> Vec<SerialPortInfo> {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        for dir in ["/dev/serial/by-id", "/dev/serial/by-path"] {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.exists() {
+                        let name = path.file_name().map(|n| n.to_string_lossy().to_string());
+                        ports.push(SerialPortInfo {
+                            path: path.to_string_lossy().to_string(),
+                            name,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     ports.sort_by(|a, b| a.path.cmp(&b.path));
+    ports.dedup_by(|a, b| a.path == b.path);
     ports
 }
 
@@ -224,13 +249,7 @@ pub async fn open_serial_port(
                 Ok(0) => break,
                 Ok(n) => {
                     let data = buffer[..n].to_vec();
-                    let _ = app_handle.emit(
-                        "serial-data",
-                        SerialDataPayload {
-                            session_id,
-                            data,
-                        },
-                    );
+                    let _ = app_handle.emit("serial-data", SerialDataPayload { session_id, data });
                 }
                 Err(err) if err.kind() == std::io::ErrorKind::TimedOut => continue,
                 Err(err) => {
@@ -257,7 +276,10 @@ pub async fn open_serial_port(
 
         let state = app_handle.state::<SerialState>();
         let mut guard = state.session.lock();
-        if guard.as_ref().is_some_and(|current| current.session_id == session_id) {
+        if guard
+            .as_ref()
+            .is_some_and(|current| current.session_id == session_id)
+        {
             guard.take();
         }
     });

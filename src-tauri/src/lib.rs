@@ -21,7 +21,9 @@ pub fn run() {
         .manage(commands::WatchState::default())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
-                window.set_title("Embedist - AI-Native Embedded Development").ok();
+                window
+                    .set_title("Embedist - AI-Native Embedded Development")
+                    .ok();
             }
             info!("Embedist window initialized");
             Ok(())

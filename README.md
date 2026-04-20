@@ -20,7 +20,7 @@ Embedist is a desktop application that combines AI assistance with embedded firm
 
 Open any project folder — ESP32, Arduino, or any embedded codebase — and get context-aware AI assistance that understands your hardware. Build, upload, monitor serial output, and iterate faster with AI that knows your board.
 
-The current release line ships Windows binaries. This branch adds native serial support and Linux-friendly setup logic so the port added upstream without breaking Windows.
+This branch keeps Windows support intact while also adding native Linux support, including serial handling and Linux-friendly PlatformIO setup behavior.
 
 ## Screenshots
 
@@ -90,7 +90,7 @@ Linux release builds are produced as AppImage and `.deb` packages from the same 
 4. Configure your AI provider in `Settings` (`Ctrl+,`)
 5. Start coding and debugging with AI assistance
 
-Linux builds are packaged as native AppImage and `.deb` artifacts, so you can either download a release package or build from source on your distro.
+Windows builds ship as an `.exe` installer/portable binary, while Linux builds are packaged as native AppImage and `.deb` artifacts, so you can either download a release package or build from source on your distro.
 
 ### Prerequisites
 
@@ -126,7 +126,7 @@ On Linux, the same source tree can be built with the Tauri toolchain, but you ma
 
 - If PlatformIO is installed in a non-standard location, set the CLI path in `Settings > Build` to the full path of `pio`.
 - If serial ports are visible but cannot be opened, make sure your user has permission to access `/dev/tty*` devices.
-- If PlatformIO is not on PATH, the setup wizard can still use the path you configured in settings.
+- If PlatformIO is not on PATH, the setup wizard can still use the path you configured in settings. On Ubuntu and other distro-managed systems, Embedist can fall back to a local virtual environment when direct user-site installs are blocked.
 
 #### Rust Dependencies
 

@@ -6,14 +6,16 @@ sidebar_position: 1
 
 This guide will help you install Embedist on your system.
 
+Embedist supports both Windows and Linux. The release page provides a Windows installer and portable binary, plus Linux AppImage and `.deb` packages.
+
 ## Quick Install (Recommended)
 
-### Option 1: Download EXE
+### Option 1: Download Windows Binary
 
 1. Download the release package for your platform from the [Releases](https://github.com/mandarwagh9/embedist/releases) page
 2. Run the application directly — no installation required
 
-### Option 2: NSIS Installer
+### Option 2: Windows Installer
 
 1. Download the latest `Embedist_<version>_x64-setup.exe` from [Releases](https://github.com/mandarwagh9/embedist/releases)
 2. Run the installer
@@ -92,6 +94,8 @@ sudo apt-get install nodejs npm rustc cargo
 # Install PlatformIO
 pip3 install platformio
 ```
+
+If your distro blocks direct user-site installs, the app can fall back to a local PlatformIO virtual environment during setup.
 
 ## First-Run Setup
 

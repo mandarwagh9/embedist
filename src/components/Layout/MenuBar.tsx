@@ -433,7 +433,7 @@ export function MenuBar() {
               <h2 className="about-title">Embedist</h2>
               <p className="about-version">Version {packageJson.version}</p>
               <p className="about-description">
-                AI-Native Embedded Development Environment for Windows
+                AI-Native Embedded Development Environment for Windows and Linux
               </p>
               <p className="about-tech">
                 Built with Tauri + React + TypeScript

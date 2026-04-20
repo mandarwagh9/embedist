@@ -54,7 +54,10 @@ const MUTATING_TOOLS = ['write_file', 'create_file', 'create_folder'];
 const PROJECT_SCOPED_TOOLS = [...FILE_SYSTEM_TOOLS, 'build_project', 'run_shell', ...MUTATING_TOOLS];
 
 function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+/g, '/').toLowerCase().replace(/^\/([a-z]):/, '$1:');
+  const normalized = p.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/([a-zA-Z]):/, '$1:');
+  return /^[a-zA-Z]:/.test(normalized) || normalized.startsWith('//')
+    ? normalized.toLowerCase()
+    : normalized;
 }
 
 function isPathSafe(projectRoot: string, path: string): boolean {

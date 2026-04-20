@@ -92,6 +92,7 @@ export function TerminalPanel() {
 
       term.open(terminalRef.current);
       fitAddon.fit();
+      term.focus();
 
       terminalInstanceRef.current = term;
       fitAddonRef.current = fitAddon;
@@ -135,7 +136,7 @@ export function TerminalPanel() {
 
       return () => {
         unlisten();
-      };
+  };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -222,7 +223,13 @@ export function TerminalPanel() {
           <span>Copy All</span>
         </button>
       </div>
-      <div ref={terminalRef} className="terminal-container" />
+      <div
+        ref={terminalRef}
+        className="terminal-container"
+        tabIndex={0}
+        onClick={() => terminalInstanceRef.current?.focus()}
+        onFocus={() => terminalInstanceRef.current?.focus()}
+      />
       {!isReady && !error && (
         <div className="terminal-loading">
           <span>Initializing terminal...</span>
