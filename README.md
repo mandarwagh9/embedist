@@ -6,7 +6,9 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/mandarwagh9/embedist)](https://github.com/mandarwagh9/embedist/stargazers)
-[![Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1127186&theme=light)](https://www.producthunt.com/posts/embedist?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=embedist)
+<a href="https://www.producthunt.com/posts/embedist?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=embedist">
+  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1127186&theme=light" alt="Product Hunt" height="28" />
+</a>
 [![Version](https://img.shields.io/badge/version-v0.37.0-blue)](https://github.com/mandarwagh9/embedist/releases)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)](https://github.com/mandarwagh9/embedist/releases)
 
