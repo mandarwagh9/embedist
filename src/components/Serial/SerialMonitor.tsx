@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { useUIStore } from '../../stores/uiStore';
@@ -22,6 +22,9 @@ const MAX_INPUT_LENGTH = 256;
 const MAX_LINE_LENGTH = 512;
 const MAX_BUFFER_SIZE = 64 * 1024;
 const MAX_LOG_ENTRIES = 5000;
+const RECONNECT_INITIAL_DELAY_MS = 1000;
+const RECONNECT_RETRY_DELAY_MS = 1000;
+const RECONNECT_MAX_ATTEMPTS = 20;
 
 const SHELL_METACHARS = /[;|&$`(){}[\]<>\"'\\]/g;
 const CONTROL_CHARS = /[\x00-\x1F]/g;
@@ -76,16 +79,34 @@ export function SerialMonitor() {
   const [logs, setLogs] = useState<{ id: number; text: string; type: 'info' | 'error' | 'input'; timestamp: number }[]>([]);
   const [input, setInput] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef<number | null>(null);
   const bufferRef = useRef<string>('');
   const decoderRef = useRef<TextDecoder>(new TextDecoder(serial.encoding || 'iso-8859-1'));
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTargetRef = useRef<string | null>(null);
 
   useEffect(() => {
     decoderRef.current = new TextDecoder(serial.encoding || 'iso-8859-1');
   }, [serial.encoding]);
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const stopReconnectLoop = useCallback(() => {
+    clearReconnectTimer();
+    reconnectAttemptsRef.current = 0;
+    reconnectTargetRef.current = null;
+    setIsReconnecting(false);
+  }, [clearReconnectTimer]);
 
   const addLog = (text: string, type: 'info' | 'error' | 'input') => {
     const sanitized = sanitizeOutput(text);
@@ -105,12 +126,15 @@ export function SerialMonitor() {
     }
   }, [logs, serial.autoScroll]);
 
-  const refreshPorts = async () => {
+  const refreshPorts = useCallback(async () => {
     try {
       const portList = await invoke<SerialPortInfo[]>('list_serial_ports');
       setPorts(portList);
       setSelectedPort((current) => {
         if (current && portList.some((p) => p.path === current)) {
+          return current;
+        }
+        if (serialConnected || isReconnecting || sessionIdRef.current !== null) {
           return current;
         }
         return portList[0]?.path || '';
@@ -121,7 +145,110 @@ export function SerialMonitor() {
       setError(message);
       return [];
     }
-  };
+  }, [isReconnecting, serialConnected]);
+
+  const openSerialPort = useCallback(async (portPath: string, reconnecting = false) => {
+    const request = {
+      portPath,
+      baudRate: serialBaudRate,
+      dataBits: 8,
+      stopBits: 1,
+      parity: 'none',
+      dtr: serial.dtr,
+      rts: serial.rts,
+    };
+
+    if (!reconnecting) {
+      setIsConnecting(true);
+      if (serial.clearOnConnect) {
+        setLogs([]);
+        bufferRef.current = '';
+      }
+    }
+
+    setError(null);
+
+    try {
+      const sessionId = await invoke<number>('open_serial_port', { request });
+      sessionIdRef.current = sessionId;
+      setSerialConnected(true);
+      setSerialPort(portPath);
+      setSelectedPort(portPath);
+      stopReconnectLoop();
+      addLog(
+        reconnecting
+          ? `Reconnected to ${portPath} at ${serialBaudRate} baud`
+          : `Connected to ${portPath} at ${serialBaudRate} baud`,
+        'info'
+      );
+      if (serial.dtr) addLog('DTR enabled', 'info');
+      if (serial.rts) addLog('RTS enabled', 'info');
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!reconnecting) {
+        setError(message);
+        addLog(`Connection failed: ${message}`, 'error');
+        setSerialConnected(false);
+        setSerialPort(null);
+      }
+      throw new Error(message);
+    } finally {
+      if (!reconnecting) {
+        setIsConnecting(false);
+      }
+    }
+  }, [addLog, clearReconnectTimer, serial.clearOnConnect, serial.dtr, serial.rts, serialBaudRate, setSerialConnected, setSerialPort, stopReconnectLoop]);
+
+  const scheduleReconnect = useCallback((portPath: string) => {
+    reconnectTargetRef.current = portPath;
+    reconnectAttemptsRef.current = 0;
+    setIsReconnecting(true);
+    setSelectedPort(portPath);
+    setError(null);
+
+    if (reconnectTimerRef.current !== null) {
+      return;
+    }
+
+    addLog(`Connection lost on ${portPath}. Retrying...`, 'info');
+
+    const attemptReconnect = async () => {
+      const target = reconnectTargetRef.current;
+      if (!target) {
+        stopReconnectLoop();
+        return;
+      }
+
+      try {
+        const portList = await invoke<SerialPortInfo[]>('list_serial_ports');
+        if (!portList.some((port) => port.path === target)) {
+          throw new Error('Port not available yet');
+        }
+        await openSerialPort(target, true);
+        return;
+      } catch {
+        reconnectAttemptsRef.current += 1;
+        if (reconnectAttemptsRef.current >= RECONNECT_MAX_ATTEMPTS) {
+          stopReconnectLoop();
+          setError(`Failed to reconnect to ${target}`);
+          addLog(`Failed to reconnect to ${target}`, 'error');
+          setSerialPort(null);
+          return;
+        }
+
+        reconnectTimerRef.current = window.setTimeout(() => {
+          reconnectTimerRef.current = null;
+          void attemptReconnect();
+        }, RECONNECT_RETRY_DELAY_MS);
+      }
+    };
+
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      void attemptReconnect();
+    }, RECONNECT_INITIAL_DELAY_MS);
+  }, [addLog, openSerialPort, stopReconnectLoop]);
 
   useEffect(() => {
     refreshPorts();
@@ -132,7 +259,7 @@ export function SerialMonitor() {
     return () => {
       window.clearInterval(interval);
     };
-  }, []);
+  }, [refreshPorts]);
 
   useEffect(() => {
     let unlistenData: (() => void) | null = null;
@@ -169,9 +296,9 @@ export function SerialMonitor() {
         bufferRef.current = '';
         sessionIdRef.current = null;
         setSerialConnected(false);
-        setSerialPort(null);
         setIsConnecting(false);
-        addLog(`Disconnected from ${event.payload.port_path}`, 'info');
+        setSerialPort(event.payload.port_path);
+        scheduleReconnect(event.payload.port_path);
       });
 
       unlistenError = await listen<{ session_id: number; port_path: string; error: string }>('serial-error', (event) => {
@@ -191,10 +318,11 @@ export function SerialMonitor() {
       unlistenDisconnect?.();
       unlistenError?.();
     };
-  }, [setSerialConnected, setSerialPort]);
+  }, [setSerialConnected, setSerialPort, serial.clearOnConnect, serial.dtr, serial.rts, serialBaudRate, scheduleReconnect]);
 
   useEffect(() => {
     return () => {
+      clearReconnectTimer();
       if (sessionIdRef.current !== null) {
         const sessionId = sessionIdRef.current;
         sessionIdRef.current = null;
@@ -204,6 +332,8 @@ export function SerialMonitor() {
   }, []);
 
   const connect = async () => {
+    stopReconnectLoop();
+
     if (serialConnected && sessionIdRef.current !== null) {
       await disconnect();
     }
@@ -214,44 +344,20 @@ export function SerialMonitor() {
       return;
     }
 
-    const request = {
-      portPath: selectedPort,
-      baudRate: serialBaudRate,
-      dataBits: 8,
-      stopBits: 1,
-      parity: 'none',
-      dtr: serial.dtr,
-      rts: serial.rts,
-    };
-
     setIsConnecting(true);
-    setError(null);
 
     try {
-      if (serial.clearOnConnect) {
-        setLogs([]);
-        bufferRef.current = '';
-      }
-
-      const sessionId = await invoke<number>('open_serial_port', { request });
-      sessionIdRef.current = sessionId;
-      setSerialConnected(true);
-      setSerialPort(selectedPort);
-      addLog(`Connected to ${selectedPort} at ${serialBaudRate} baud`, 'info');
-      if (serial.dtr) addLog('DTR enabled', 'info');
-      if (serial.rts) addLog('RTS enabled', 'info');
+      await openSerialPort(selectedPort);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      addLog(`Connection failed: ${message}`, 'error');
-      setSerialConnected(false);
-      setSerialPort(null);
+      // openSerialPort already surfaced the error for initial connect attempts.
     } finally {
       setIsConnecting(false);
     }
   };
 
   const disconnect = async () => {
+    stopReconnectLoop();
+
     const sessionId = sessionIdRef.current;
     if (sessionId === null) {
       setSerialConnected(false);
@@ -323,7 +429,7 @@ export function SerialMonitor() {
             className="serial-select serial-port-select"
             value={selectedPort}
             onChange={(e) => setSelectedPort(e.target.value)}
-            disabled={serialConnected || isConnecting}
+            disabled={serialConnected || isConnecting || isReconnecting}
             title="Serial port"
           >
             <option value="">Select Port</option>
@@ -338,7 +444,7 @@ export function SerialMonitor() {
             className="serial-select"
             value={serialBaudRate}
             onChange={(e) => setSerialBaudRate(Number(e.target.value))}
-            disabled={serialConnected || isConnecting}
+            disabled={serialConnected || isConnecting || isReconnecting}
           >
             {BAUD_RATES.map(rate => (
               <option key={rate} value={rate}>{rate}</option>
@@ -348,9 +454,9 @@ export function SerialMonitor() {
           <button
             className={`serial-btn ${serialConnected ? 'disconnect' : 'connect'}`}
             onClick={serialConnected ? disconnect : connect}
-            disabled={isConnecting}
+            disabled={isConnecting || isReconnecting}
           >
-            {isConnecting ? '...' : serialConnected ? 'Disconnect' : 'Connect'}
+            {isConnecting ? '...' : isReconnecting ? 'Reconnecting...' : serialConnected ? 'Disconnect' : 'Connect'}
           </button>
         </div>
 
@@ -433,16 +539,16 @@ export function SerialMonitor() {
       </div>
 
       <div className="serial-input-area">
-        <input
-          type="text"
-          className="serial-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendCommand()}
-          placeholder={serialConnected ? `Type command for ${serialPort || 'serial port'}...` : 'Connect to send'}
-          disabled={!serialConnected}
-          maxLength={MAX_INPUT_LENGTH}
-        />
+          <input
+            type="text"
+            className="serial-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendCommand()}
+            placeholder={serialConnected ? `Type command for ${serialPort || 'serial port'}...` : isReconnecting ? 'Reconnecting to serial port...' : 'Connect to send'}
+            disabled={!serialConnected}
+            maxLength={MAX_INPUT_LENGTH}
+          />
         <button
           className="serial-send"
           onClick={sendCommand}
