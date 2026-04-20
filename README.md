@@ -23,7 +23,6 @@ Embedist is a desktop application that combines AI assistance with embedded firm
 
 Open any project folder — ESP32, Arduino, or any embedded codebase — and get context-aware AI assistance that understands your hardware. Build, upload, monitor serial output, and iterate faster with AI that knows your board.
 
-This branch keeps Windows support intact while also adding native Linux support, including serial handling and Linux-friendly PlatformIO setup behavior.
 
 ## Screenshots
 
@@ -75,7 +74,7 @@ This branch keeps Windows support intact while also adding native Linux support,
 
 Download the executable and run it directly — no installation required.
 
-Linux release builds are produced as AppImage and `.deb` packages from the same source tree, so the release page can carry both the Windows installer and native Linux bundles.
+Linux release builds are produced as AppImage and `.deb` packages.
 
 > **Windows SmartScreen warning?** When you first run the app, Windows may show a blue SmartScreen warning. This is not a virus warning — it's a standard Windows security screen for unsigned applications. Simply click **"More info"** then **"Run anyway"** to launch Embedist.
 
@@ -123,7 +122,6 @@ npm run tauri build
 
 The release binary will be generated under `src-tauri/target/release/` with an OS-specific name. On Windows that is `embedist.exe`. On Linux, Tauri also produces bundle artifacts under `src-tauri/target/release/bundle/appimage/` and `src-tauri/target/release/bundle/deb/`.
 
-On Linux, the same source tree can be built with the Tauri toolchain, but you may need distro-specific system packages for WebView support and serial access permissions before the app can talk to hardware.
 
 ### Linux Setup Notes
 
