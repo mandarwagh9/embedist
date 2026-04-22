@@ -855,7 +855,8 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
                     break;
                 } else {
                     let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
-                    if !cfg!(windows) && stderr.contains("externally-managed-environment") {
+                    #[cfg(not(windows))]
+                    if stderr.contains("externally-managed-environment") {
                         return install_platformio_in_venv().await;
                     }
 
@@ -882,14 +883,19 @@ pub async fn install_platformio(platformio_path: Option<String>) -> Result<Strin
             }
         }
 
-        if let Some(path) = platformio_venv_pio().filter(|p| p.exists()) {
-            if let Ok(out) = run_pio_version(path.to_string_lossy().as_ref()) {
-                if out.status.success() {
-                    let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                    return Ok(format!("PlatformIO installed successfully: {}", version));
+        #[cfg(not(windows))]
+        {
+            if let Some(path) = platformio_venv_pio().filter(|p| p.exists()) {
+                if let Ok(out) = run_pio_version(path.to_string_lossy().as_ref()) {
+                    if out.status.success() {
+                        let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        return Ok(format!("PlatformIO installed successfully: {}", version));
+                    }
                 }
             }
-        } else if let Some(path) = find_pio_in_filesystem() {
+        }
+
+        if let Some(path) = find_pio_in_filesystem() {
             if let Ok(out) = run_pio_version(&path) {
                 if out.status.success() {
                     let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
