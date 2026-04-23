@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Welcome to Embedist
 
-Embedist is an **AI-native embedded development environment** designed specifically for embedded systems. It understands both software and hardware context, helping developers write, debug, and optimize firmware for real devices.
+Embedist is an **AI-native embedded development environment** designed specifically for embedded systems. It understands both software and hardware context, helping developers write, debug, and optimize firmware for real devices on Windows and Linux.
 
 ## Key Features
 

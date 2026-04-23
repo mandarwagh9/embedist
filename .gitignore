@@ -10,3 +10,4 @@ src-tauri/target/
 *.ilk
 *.exp
 *.lib
+.codex

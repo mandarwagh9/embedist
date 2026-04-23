@@ -1,12 +1,12 @@
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
 use tauri::command;
 use tauri::{Emitter, Manager};
 use tokio::process::Command as AsyncCommand;
-use parking_lot::Mutex;
-use std::sync::Arc;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher, EventKind};
 
 fn normalize_lexical(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
@@ -185,16 +185,18 @@ pub fn move_path(old_path: String, new_path_str: String, root: String) -> Result
 pub fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>, String> {
     let p = validate_path(&path, &root)?;
     let entries = fs::read_dir(&p).map_err(|e| format!("Failed to read directory: {}", e))?;
-    
+
     let mut files: Vec<FileEntry> = entries
         .filter_map(|entry| entry.ok())
         .map(|entry| {
             let path = entry.path();
             let metadata = entry.metadata().ok();
-            let modified = metadata.as_ref().and_then(|m| m.modified().ok())
+            let modified = metadata
+                .as_ref()
+                .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs());
-            
+
             FileEntry {
                 name: entry.file_name().to_string_lossy().to_string(),
                 path: path.to_string_lossy().to_string(),
@@ -205,29 +207,32 @@ pub fn list_directory(path: String, root: String) -> Result<Vec<FileEntry>, Stri
             }
         })
         .collect();
-    
-    files.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
+
+    files.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
-    
+
     Ok(files)
 }
 
 #[command]
-pub fn get_directory_tree(path: String, depth: Option<u32>, root: String) -> Result<DirectoryTree, String> {
+pub fn get_directory_tree(
+    path: String,
+    depth: Option<u32>,
+    root: String,
+) -> Result<DirectoryTree, String> {
     validate_path(&path, &root)?;
     let max_depth = depth.unwrap_or(3);
-    
+
     fn build_tree(path: &str, current_depth: u32, max_depth: u32) -> Result<DirectoryTree, String> {
         let p = PathBuf::from(path);
-        let name = p.file_name()
+        let name = p
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| path.to_string());
-        
+
         if p.is_file() || current_depth >= max_depth {
             return Ok(DirectoryTree {
                 name,
@@ -236,25 +241,25 @@ pub fn get_directory_tree(path: String, depth: Option<u32>, root: String) -> Res
                 children: vec![],
             });
         }
-        
+
         let entries = fs::read_dir(path).map_err(|e| format!("Failed to read directory: {}", e))?;
         let mut children: Vec<DirectoryTree> = Vec::new();
-        
+
         for entry in entries.filter_map(|e| e.ok()) {
             let child_path = entry.path();
-            if let Ok(child) = build_tree(&child_path.to_string_lossy(), current_depth + 1, max_depth) {
+            if let Ok(child) =
+                build_tree(&child_path.to_string_lossy(), current_depth + 1, max_depth)
+            {
                 children.push(child);
             }
         }
-        
-        children.sort_by(|a, b| {
-            match (a.is_dir, b.is_dir) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-            }
+
+        children.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
         });
-        
+
         Ok(DirectoryTree {
             name,
             path: path.to_string(),
@@ -262,21 +267,25 @@ pub fn get_directory_tree(path: String, depth: Option<u32>, root: String) -> Res
             children,
         })
     }
-    
+
     build_tree(&path, 0, max_depth)
 }
 
 #[command]
 pub fn file_exists(path: String, root: String) -> bool {
-    validate_path(&path, &root).map(|p| p.exists()).unwrap_or(false)
+    validate_path(&path, &root)
+        .map(|p| p.exists())
+        .unwrap_or(false)
 }
 
 #[command]
 pub fn is_platformio_project(path: String, root: String) -> bool {
-    validate_path(&path, &root).map(|p| {
-        let platformio_ini = p.join("platformio.ini");
-        platformio_ini.exists()
-    }).unwrap_or(false)
+    validate_path(&path, &root)
+        .map(|p| {
+            let platformio_ini = p.join("platformio.ini");
+            platformio_ini.exists()
+        })
+        .unwrap_or(false)
 }
 
 #[command]
@@ -285,7 +294,7 @@ pub fn read_platformio_board(path: String, root: String) -> Result<String, Strin
     let platformio_ini = p.join("platformio.ini");
     let content = fs::read_to_string(&platformio_ini)
         .map_err(|e| format!("Failed to read platformio.ini: {}", e))?;
-    
+
     let mut board = String::new();
     for line in content.lines() {
         let trimmed = line.trim();
@@ -294,12 +303,77 @@ pub fn read_platformio_board(path: String, root: String) -> Result<String, Strin
             break;
         }
     }
-    
+
     if board.is_empty() {
         return Err("No board specified in platformio.ini".to_string());
     }
-    
+
     Ok(board)
+}
+
+fn platformio_board_platform(board: &str) -> Option<(&'static str, &'static str)> {
+    match board {
+        "arduino_nano" | "arduino_mega2560" | "arduino_uno" | "atmega328p" => {
+            Some(("atmelavr", "arduino"))
+        }
+        "nano33ble" => Some(("nordicnrf52", "arduino")),
+        "esp32dev" | "esp32-s3-devkitc-1" | "esp32-c3-devkitm-1" => {
+            Some(("espressif32", "arduino"))
+        }
+        "esp01_1m" | "esp01_512k" | "esp01_256k" => Some(("espressif8266", "arduino")),
+        "rpipico" => Some(("raspberrypi", "arduino")),
+        _ => None,
+    }
+}
+
+#[command]
+pub fn initialize_platformio_project(
+    path: String,
+    root: String,
+    board: String,
+) -> Result<String, String> {
+    let project_root = validate_path(&path, &root)?;
+    if !project_root.is_dir() {
+        return Err("Project path must be a folder".to_string());
+    }
+
+    let platformio_ini = project_root.join("platformio.ini");
+    if platformio_ini.exists() {
+        return Err("platformio.ini already exists in this folder".to_string());
+    }
+
+    let (platform, framework) = platformio_board_platform(&board)
+        .ok_or_else(|| format!("Unsupported board '{}'", board))?;
+
+    let project_name = project_root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("embedist");
+
+    let ini = format!(
+        "[env:{board}]\nplatform = {platform}\nboard = {board}\nframework = {framework}\nmonitor_speed = 115200\n\n",
+        board = board,
+        platform = platform,
+        framework = framework
+    );
+
+    fs::write(&platformio_ini, ini)
+        .map_err(|e| format!("Failed to create platformio.ini: {}", e))?;
+
+    let src_dir = project_root.join("src");
+    fs::create_dir_all(&src_dir).map_err(|e| format!("Failed to create src directory: {}", e))?;
+
+    let main_cpp = src_dir.join("main.cpp");
+    if !main_cpp.exists() {
+        let sketch = format!(
+            "#include <Arduino.h>\n\nvoid setup() {{\n  Serial.begin(115200);\n  delay(1000);\n  Serial.println(\"{project_name} ready\");\n}}\n\nvoid loop() {{\n  delay(1000);\n}}\n",
+            project_name = project_name
+        );
+        fs::write(&main_cpp, sketch)
+            .map_err(|e| format!("Failed to create src/main.cpp: {}", e))?;
+    }
+
+    Ok(project_root.to_string_lossy().to_string())
 }
 
 #[command]
@@ -317,7 +391,12 @@ pub fn get_parent_dir(path: String) -> Option<String> {
 }
 
 #[command]
-pub fn save_plan_file(directory: String, name: String, content: String, root: String) -> Result<String, String> {
+pub fn save_plan_file(
+    directory: String,
+    name: String,
+    content: String,
+    root: String,
+) -> Result<String, String> {
     let path = if root.is_empty() {
         PathBuf::from(&name)
     } else {
@@ -369,7 +448,10 @@ pub fn grep_search(
             Some(pat) => {
                 let pat = pat.to_lowercase();
                 if pat.starts_with('*') && pat.ends_with('*') {
-                    let inner = pat.strip_prefix('*').and_then(|s| s.strip_suffix('*')).unwrap_or(&pat);
+                    let inner = pat
+                        .strip_prefix('*')
+                        .and_then(|s| s.strip_suffix('*'))
+                        .unwrap_or(&pat);
                     name.to_lowercase().contains(inner)
                 } else if pat.starts_with('*') {
                     let stripped = pat.strip_prefix('*').unwrap_or(&pat);
@@ -384,28 +466,42 @@ pub fn grep_search(
         }
     }
 
-    fn search_dir(dir: &str, pat: &str, file_pat: Option<&str>, max: usize, results: &mut Vec<SearchResult>) {
-        if results.len() >= max { return; }
+    fn search_dir(
+        dir: &str,
+        pat: &str,
+        file_pat: Option<&str>,
+        max: usize,
+        results: &mut Vec<SearchResult>,
+    ) {
+        if results.len() >= max {
+            return;
+        }
         let entries = match fs::read_dir(dir) {
             Ok(e) => e,
             Err(_) => return,
         };
         for entry in entries.filter_map(|e| e.ok()) {
-            if results.len() >= max { break; }
+            if results.len() >= max {
+                break;
+            }
             let path = entry.path();
             if path.is_dir() {
                 let dirs_to_skip = ["target", ".git", ".pio", "node_modules"];
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
                 if !dirs_to_skip.contains(&name.as_str()) {
                     search_dir(&path.to_string_lossy(), pat, file_pat, max, results);
                 }
             } else if path.is_file() {
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
-                if !matches_file(&name, file_pat) { continue; }
+                if !matches_file(&name, file_pat) {
+                    continue;
+                }
                 if let Ok(content) = fs::read_to_string(&path) {
                     for (line_num, line) in content.lines().enumerate() {
                         if line.to_lowercase().contains(pat) {
@@ -414,7 +510,9 @@ pub fn grep_search(
                                 line_number: line_num + 1,
                                 content: line.trim_end().to_string(),
                             });
-                            if results.len() >= max { break; }
+                            if results.len() >= max {
+                                break;
+                            }
                         }
                     }
                 }
@@ -423,7 +521,13 @@ pub fn grep_search(
     }
 
     let mut results = Vec::new();
-    search_dir(&search_root.to_string_lossy(), &pattern_lower, file_pat, max, &mut results);
+    search_dir(
+        &search_root.to_string_lossy(),
+        &pattern_lower,
+        file_pat,
+        max,
+        &mut results,
+    );
     Ok(results)
 }
 
@@ -446,16 +550,19 @@ pub fn reveal_in_explorer(path: String, root: Option<String>) -> Result<(), Stri
         PathBuf::from(&path)
     };
 
-    let target = if safe_path.is_file() || safe_path.is_dir() {
+    let _target = if safe_path.is_file() || safe_path.is_dir() {
         safe_path.to_string_lossy().to_string()
     } else {
-        return Err(format!("Path does not exist: {}", safe_path.to_string_lossy()));
+        return Err(format!(
+            "Path does not exist: {}",
+            safe_path.to_string_lossy()
+        ));
     };
 
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
-            .arg(format!("/select,{}", target))
+            .arg(format!("/select,{}", _target))
             .spawn()
             .map_err(|e| format!("Failed to open explorer: {}", e))?
             .wait()
@@ -465,7 +572,7 @@ pub fn reveal_in_explorer(path: String, root: Option<String>) -> Result<(), Stri
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .args(["-R", &target])
+            .args(["-R", &_target])
             .spawn()
             .map_err(|e| format!("Failed to open finder: {}", e))?
             .wait()
@@ -525,14 +632,18 @@ pub fn start_watch(app: tauri::AppHandle, path: String, root: String) -> Result<
     let mut watcher = RecommendedWatcher::new(tx, notify::Config::default())
         .map_err(|e| format!("Failed to create watcher: {}", e))?;
 
-    watcher.watch(&watch_path, RecursiveMode::Recursive)
+    watcher
+        .watch(&watch_path, RecursiveMode::Recursive)
         .map_err(|e| format!("Failed to watch path: {}", e))?;
 
     let watcher = Arc::new(Mutex::new(watcher));
 
     let watch_state = app.state::<WatchState>();
     watch_state.watcher.lock().replace(watcher.clone());
-    watch_state.watched_path.lock().replace(watch_path.to_string_lossy().to_string());
+    watch_state
+        .watched_path
+        .lock()
+        .replace(watch_path.to_string_lossy().to_string());
 
     std::thread::spawn(move || {
         for event in rx {
@@ -546,10 +657,13 @@ pub fn start_watch(app: tauri::AppHandle, path: String, root: String) -> Result<
                     };
 
                     for file_path in paths {
-                        let _ = app_clone.emit("file-changed", FileChangeEvent {
-                            path: file_path.to_string_lossy().to_string(),
-                            change_type: change_type.to_string(),
-                        });
+                        let _ = app_clone.emit(
+                            "file-changed",
+                            FileChangeEvent {
+                                path: file_path.to_string_lossy().to_string(),
+                                change_type: change_type.to_string(),
+                            },
+                        );
                     }
                 }
                 Err(e) => {
@@ -571,12 +685,25 @@ pub fn stop_watch(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[command]
-pub async fn run_shell(command: String, cwd: Option<String>, root: Option<String>) -> Result<ShellResult, String> {
-    if command.contains(&['&', '|', ';', '\n', '\r', '$', '`', '(', ')', '{', '}', '<', '>', '!', '~', '*', '?', '[', ']'][..]) {
+pub async fn run_shell(
+    command: String,
+    cwd: Option<String>,
+    root: Option<String>,
+) -> Result<ShellResult, String> {
+    if command.contains(
+        &[
+            '&', '|', ';', '\n', '\r', '$', '`', '(', ')', '{', '}', '<', '>', '!', '~', '*', '?',
+            '[', ']',
+        ][..],
+    ) {
         return Err("Shell metacharacters are not allowed.".to_string());
     }
 
-    let mut builder = AsyncCommand::new(if cfg!(target_os = "windows") { "cmd" } else { "sh" });
+    let mut builder = AsyncCommand::new(if cfg!(target_os = "windows") {
+        "cmd"
+    } else {
+        "sh"
+    });
     if cfg!(target_os = "windows") {
         builder.args(["/C", &command]);
     } else {

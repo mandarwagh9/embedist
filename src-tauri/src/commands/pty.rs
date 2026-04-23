@@ -86,7 +86,13 @@ pub async fn pty_spawn(
                         Ok(0) => break,
                         Ok(n) => {
                             let data = String::from_utf8_lossy(&buffer[..n]).to_string();
-                            let _ = app_h.emit("pty-data", PtyDataPayload { session_id: sid, data });
+                            let _ = app_h.emit(
+                                "pty-data",
+                                PtyDataPayload {
+                                    session_id: sid,
+                                    data,
+                                },
+                            );
                         }
                         Err(_) => break,
                     }
@@ -105,7 +111,13 @@ pub async fn pty_spawn(
                         Ok(0) => break,
                         Ok(n) => {
                             let data = String::from_utf8_lossy(&buffer[..n]).to_string();
-                            let _ = app_h.emit("pty-data", PtyDataPayload { session_id: sid, data });
+                            let _ = app_h.emit(
+                                "pty-data",
+                                PtyDataPayload {
+                                    session_id: sid,
+                                    data,
+                                },
+                            );
                         }
                         Err(_) => break,
                     }
@@ -125,6 +137,18 @@ pub async fn pty_spawn(
 }
 
 #[tauri::command]
+pub fn default_terminal_shell() -> String {
+    if cfg!(windows) {
+        "powershell.exe".to_string()
+    } else {
+        std::env::var("SHELL")
+            .ok()
+            .filter(|shell| !shell.trim().is_empty())
+            .unwrap_or_else(|| "sh".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn pty_write(id: u32, data: String, state: State<'_, PtyState>) -> Result<(), String> {
     let sessions = state.sessions.lock();
     let session = sessions.get(&id).ok_or("PTY session not found")?;
@@ -134,7 +158,9 @@ pub async fn pty_write(id: u32, data: String, state: State<'_, PtyState>) -> Res
         stdin
             .write_all(data.as_bytes())
             .map_err(|e| format!("Failed to write to PTY: {}", e))?;
-        stdin.flush().map_err(|e| format!("Failed to flush PTY: {}", e))?;
+        stdin
+            .flush()
+            .map_err(|e| format!("Failed to flush PTY: {}", e))?;
         Ok(())
     } else {
         Err("PTY stdin is not available".to_string())
@@ -142,7 +168,12 @@ pub async fn pty_write(id: u32, data: String, state: State<'_, PtyState>) -> Res
 }
 
 #[tauri::command]
-pub async fn pty_resize(id: u32, cols: u16, rows: u16, state: State<'_, PtyState>) -> Result<(), String> {
+pub async fn pty_resize(
+    id: u32,
+    cols: u16,
+    rows: u16,
+    state: State<'_, PtyState>,
+) -> Result<(), String> {
     let sessions = state.sessions.lock();
     let session = sessions.get(&id).ok_or("PTY session not found")?;
     let mut sess = session.lock();

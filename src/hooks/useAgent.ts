@@ -54,7 +54,10 @@ const MUTATING_TOOLS = ['write_file', 'create_file', 'create_folder'];
 const PROJECT_SCOPED_TOOLS = [...FILE_SYSTEM_TOOLS, 'build_project', 'run_shell', ...MUTATING_TOOLS];
 
 function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+/g, '/').toLowerCase().replace(/^\/([a-z]):/, '$1:');
+  const normalized = p.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/([a-zA-Z]):/, '$1:');
+  return /^[a-zA-Z]:/.test(normalized) || normalized.startsWith('//')
+    ? normalized.toLowerCase()
+    : normalized;
 }
 
 function isPathSafe(projectRoot: string, path: string): boolean {
@@ -83,6 +86,7 @@ export function useAgent() {
   const customEndpoints = useSettingsStore((s) => s.customEndpoints);
   const providerConfigs = useSettingsStore((s) => s.providers);
   const aiParameters = useSettingsStore((s) => s.aiParameters);
+  const platformioPath = useSettingsStore((s) => s.build.platformioPath);
 
   const isRunningRef = useRef(false);
   const cancelRef = useRef(false);
@@ -269,9 +273,11 @@ export function useAgent() {
     }
 
     try {
-      const pioStatus = await invoke<{ installed: boolean; version: string }>('check_platformio');
+      const pioStatus = await invoke<{ installed: boolean; version: string }>('check_platformio', {
+        platformioPath: platformioPath || null,
+      });
       if (!pioStatus.installed) {
-        logActivity('error', 'PlatformIO not found', 'PlatformIO is not installed or not in PATH. Please install PlatformIO and ensure "pio" command is available in your system PATH.');
+        logActivity('error', 'PlatformIO not found', 'PlatformIO is not installed or not reachable. Install PlatformIO and make sure the CLI path in Settings points to a working pio executable.');
         return;
       }
     } catch (err) {
@@ -478,7 +484,7 @@ export function useAgent() {
         setAgentStatus('done');
       }
     }
-  }, [hasActiveProvider, buildSystemPrompt, callAI, addMessage, setLoading, setAgentStatus, clearActivityLog, logActivity, setAgentTask]);
+  }, [hasActiveProvider, buildSystemPrompt, callAI, addMessage, setLoading, setAgentStatus, clearActivityLog, logActivity, setAgentTask, platformioPath]);
 
   const cancelAgentTask = useCallback(() => {
     cancelRef.current = true;

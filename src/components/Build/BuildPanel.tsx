@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useBuild } from '../../hooks/useBuild';
+import { useFileSystem } from '../../hooks/useFileSystem';
 import { useFileStore } from '../../stores/fileStore';
 import { useUIStore } from '../../stores/uiStore';
 import './BuildPanel.css';
@@ -17,8 +19,9 @@ interface ParsedError {
 }
 
 export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
-  const { rootPath, isPlatformIOProject, detectedBoard, openFile } = useFileStore();
+  const { rootPath, isPlatformIOProject, detectedBoard, openFile, setIsPlatformIOProject, setDetectedBoard } = useFileStore();
   const { setBottomPanelTab, toggleBottomPanel } = useUIStore();
+  const { refreshRoot } = useFileSystem();
   const {
     isBuilding,
     isUploading,
@@ -43,12 +46,19 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
   const [parsedProblems, setParsedProblems] = useState<ParsedError[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const isRunning = isBuilding || isUploading;
+  const canInitializeProject = Boolean(rootPath) && !isPlatformIOProject;
 
   useEffect(() => {
     if (detectedBoard && !selectedBoard) {
       setSelectedBoard(detectedBoard);
     }
   }, [detectedBoard, selectedBoard, setSelectedBoard]);
+
+  useEffect(() => {
+    if (selectedBoard) {
+      setDetectedBoard(selectedBoard);
+    }
+  }, [selectedBoard, setDetectedBoard]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -90,6 +100,30 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
     }
     if (result?.success) {
       onUpload?.();
+    }
+  };
+
+  const handleInitializeProject = async () => {
+    if (!rootPath) return;
+    const board = selectedBoard || detectedBoard;
+    if (!board) {
+      return;
+    }
+
+    try {
+      await invoke('initialize_platformio_project', {
+        path: rootPath,
+        root: rootPath,
+        board,
+      });
+      setIsPlatformIOProject(true);
+      setDetectedBoard(board);
+      clearOutput();
+      setParsedProblems([]);
+      await refreshRoot();
+      await listBoards();
+    } catch (err) {
+      console.error('Failed to initialize PlatformIO project:', err);
     }
   };
 
@@ -246,6 +280,13 @@ export function BuildPanel({ onBuild, onUpload }: BuildPanelProps) {
         ) : !isPlatformIOProject ? (
           <div className="build-placeholder">
             <span>Current folder is not a PlatformIO project</span>
+            <button
+              className="build-action-btn initialize-project"
+              onClick={handleInitializeProject}
+              disabled={!canInitializeProject}
+            >
+              Initialize PlatformIO Project
+            </button>
           </div>
         ) : buildOutput.length === 0 && !isRunning ? (
           <div className="build-placeholder">

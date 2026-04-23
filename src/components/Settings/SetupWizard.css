@@ -176,3 +176,21 @@
   color: #a6adc8;
   margin-bottom: 24px;
 }
+
+.setup-note code {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cdd6f4;
+  font-family: monospace;
+}
+
+.linux-note {
+  margin-top: 12px;
+}
+
+.setup-wizard-actions-left {
+  justify-content: flex-start;
+}

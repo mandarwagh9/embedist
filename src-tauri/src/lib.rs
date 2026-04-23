@@ -21,7 +21,9 @@ pub fn run() {
         .manage(commands::WatchState::default())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
-                window.set_title("Embedist - AI-Native Embedded Development").ok();
+                window
+                    .set_title("Embedist - AI-Native Embedded Development")
+                    .ok();
             }
             info!("Embedist window initialized");
             Ok(())
@@ -30,6 +32,9 @@ pub fn run() {
             commands::get_platform_info,
             commands::list_serial_ports,
             commands::get_serial_state,
+            commands::open_serial_port,
+            commands::write_serial_port,
+            commands::close_serial_port,
             commands::check_platformio,
             commands::list_connected_boards,
             commands::get_available_boards,
@@ -58,9 +63,11 @@ pub fn run() {
             commands::get_home_dir,
             commands::get_parent_dir,
             commands::save_plan_file,
+            commands::initialize_platformio_project,
             commands::grep_search,
             commands::run_shell,
             commands::reveal_in_explorer,
+            commands::default_terminal_shell,
             commands::install_platformio,
             commands::install_platform,
             commands::pty_spawn,

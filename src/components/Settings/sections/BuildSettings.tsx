@@ -11,6 +11,7 @@ export function BuildSettings() {
     { id: 'esp01_512k', name: 'ESP8266 (512KB)' },
     { id: 'esp01_256k', name: 'ESP8266 (256KB)' },
     { id: 'arduino_nano', name: 'Arduino Nano' },
+    { id: 'nano33ble', name: 'Arduino Nano 33 BLE Sense' },
     { id: 'arduino_mega2560', name: 'Arduino Mega 2560' },
     { id: 'rpipico', name: 'Raspberry Pi Pico' },
   ];
@@ -25,7 +26,7 @@ export function BuildSettings() {
         <div className="settings-row">
           <div className="settings-label">
             <span>PlatformIO CLI Path</span>
-            <small>Leave as 'pio' if in PATH</small>
+            <small>Leave as 'pio' if it is on PATH, or set an absolute path like /home/you/.local/bin/pio</small>
           </div>
           <input
             type="text"

@@ -75,6 +75,11 @@
   font-family: var(--font-mono);
 }
 
+.serial-port-select {
+  min-width: 220px;
+  max-width: 320px;
+}
+
 .serial-select:focus {
   outline: none;
   border-color: var(--border-active);
@@ -144,6 +149,16 @@
   overflow-y: auto;
   padding: var(--space-sm);
   font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.serial-error-banner {
+  padding: var(--space-sm);
+  margin: 0 var(--space-sm) var(--space-sm);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
   font-size: var(--text-sm);
 }
 

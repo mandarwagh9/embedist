@@ -59,8 +59,32 @@ export function useFileSystem() {
     return children;
   }, [listDirectory]);
 
+  const refreshRoot = useCallback(async () => {
+    const { rootPath: rp, files: currentFiles } = useFileStore.getState();
+    if (!rp) return;
+    const entries = await listDirectory(rp);
+    const merged = entries.map(entry => {
+      const existing = currentFiles.find(f => f.path === entry.path);
+      if (existing) {
+        return {
+          ...entry,
+          expanded: existing.expanded,
+          children: existing.children,
+        };
+      }
+      return entry;
+    });
+    setFiles(merged);
+    const name = rp.replace(/\\/g, '/').split('/').pop() || 'project';
+    ragEngine.indexProject(merged, name);
+  }, [listDirectory, setFiles]);
+
   const refreshDirectory = useCallback(async (path: string) => {
     try {
+      if (path === useFileStore.getState().rootPath) {
+        await refreshRoot();
+        return;
+      }
       const entries = await listDirectory(path);
       setNodeChildren(path, entries);
     } catch (err) {
@@ -69,7 +93,7 @@ export function useFileSystem() {
       const filtered = files.filter(f => f.path !== path && !f.path.startsWith(path + '/'));
       setFiles(filtered);
     }
-  }, [listDirectory, setNodeChildren]);
+  }, [listDirectory, refreshRoot, setNodeChildren]);
 
   const openFolder = useCallback(async () => {
     setIsLoading(true);
@@ -237,26 +261,6 @@ export function useFileSystem() {
       return false;
     }
   }, []);
-
-  const refreshRoot = useCallback(async () => {
-    const { rootPath: rp, files: currentFiles } = useFileStore.getState();
-    if (!rp) return;
-    const entries = await listDirectory(rp);
-    const merged = entries.map(entry => {
-      const existing = currentFiles.find(f => f.path === entry.path);
-      if (existing) {
-        return {
-          ...entry,
-          expanded: existing.expanded,
-          children: existing.children,
-        };
-      }
-      return entry;
-    });
-    setFiles(merged);
-    const name = rp.replace(/\\/g, '/').split('/').pop() || 'project';
-    ragEngine.indexProject(merged, name);
-  }, [listDirectory, setFiles]);
 
   const readFileContent = useCallback(async (path: string): Promise<string | null> => {
     try {

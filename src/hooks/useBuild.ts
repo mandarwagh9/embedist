@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useSettingsStore } from '../stores/settingsStore';
 
 interface PlatformInfo {
   os: string;
@@ -39,12 +40,26 @@ interface Board {
   type: string;
 }
 
+const FALLBACK_BOARDS: Board[] = [
+  { id: 'arduino_nano', name: 'Arduino Nano', type: 'fallback' },
+  { id: 'arduino_mega2560', name: 'Arduino Mega 2560', type: 'fallback' },
+  { id: 'nano33ble', name: 'Arduino Nano 33 BLE Sense', type: 'fallback' },
+  { id: 'esp32dev', name: 'ESP32 Dev Module', type: 'fallback' },
+  { id: 'esp32-s3-devkitc-1', name: 'ESP32-S3', type: 'fallback' },
+  { id: 'esp32-c3-devkitm-1', name: 'ESP32-C3', type: 'fallback' },
+  { id: 'esp01_1m', name: 'ESP8266 (1MB)', type: 'fallback' },
+  { id: 'esp01_512k', name: 'ESP8266 (512KB)', type: 'fallback' },
+  { id: 'esp01_256k', name: 'ESP8266 (256KB)', type: 'fallback' },
+  { id: 'rpipico', name: 'Raspberry Pi Pico', type: 'fallback' },
+];
+
 interface SerialPortInfo {
   path: string;
   friendlyName?: string;
 }
 
 export function useBuild() {
+  const platformioPath = useSettingsStore((state) => state.build.platformioPath);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [buildOutput, setBuildOutput] = useState<string[]>([]);
@@ -93,7 +108,9 @@ export function useBuild() {
 
   const checkPlatformIO = useCallback(async () => {
     try {
-      const status = await invoke<PlatformIOStatus>('check_platformio');
+      const status = await invoke<PlatformIOStatus>('check_platformio', {
+        platformioPath: platformioPath || null,
+      });
       if (status.installed) {
         setError(null);
         appendOutput(`[CHECK] PlatformIO installed: ${status.version}`);
@@ -109,19 +126,25 @@ export function useBuild() {
       appendOutput(`PlatformIO check failed: ${errorMessage}`);
       return false;
     }
-  }, [appendOutput]);
+  }, [appendOutput, platformioPath]);
 
   const listBoards = useCallback(async () => {
     try {
-      const boards = await invoke<Board[]>('list_connected_boards');
-      setAvailableBoards(boards);
-      return boards;
+      const boards = await invoke<Board[]>('get_available_boards', {
+        platformioPath: platformioPath || null,
+      });
+      const mergedBoards = boards.length > 0
+        ? boards
+        : FALLBACK_BOARDS;
+      setAvailableBoards(mergedBoards);
+      return mergedBoards;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
-      return [];
+      setAvailableBoards(FALLBACK_BOARDS);
+      return FALLBACK_BOARDS;
     }
-  }, []);
+  }, [platformioPath]);
 
   const listPorts = useCallback(async () => {
     try {
@@ -146,7 +169,10 @@ export function useBuild() {
 
     try {
       appendOutput('[BUILD] Starting build...');
-      const result = await invoke<BuildResult>('build_project', { projectPath });
+      const result = await invoke<BuildResult>('build_project', {
+        projectPath,
+        platformioPath: platformioPath || null,
+      });
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       if (result.success) {
@@ -166,7 +192,7 @@ export function useBuild() {
       setIsBuilding(false);
       isBuildingRef.current = false;
     }
-  }, [appendOutput, clearOutput]);
+  }, [appendOutput, clearOutput, platformioPath]);
 
   const stopBuild = useCallback(async () => {
     try {
@@ -195,6 +221,7 @@ export function useBuild() {
         projectPath,
         board: selectedBoard,
         port: selectedPort || null,
+        platformioPath: platformioPath || null,
       });
 
       if (result.success) {
@@ -213,7 +240,7 @@ export function useBuild() {
       setIsUploading(false);
       isBuildingRef.current = false;
     }
-  }, [appendOutput, clearOutput, selectedBoard]);
+  }, [appendOutput, clearOutput, platformioPath, selectedBoard, selectedPort]);
 
   const parseErrors = useCallback(async (output: string) => {
     try {

@@ -10,28 +10,43 @@ interface PlatformInfo {
 }
 
 const COMMON_PLATFORMS = [
-  { id: 'atmega328p', name: 'Arduino Uno/Nano', size: '~50MB' },
-  { id: 'esp32', name: 'ESP32', size: '~80MB' },
-  { id: 'esp8266', name: 'ESP8266', size: '~60MB' },
+  { id: 'arduino-avr', platformId: 'atmelavr', name: 'Arduino Uno/Nano', size: '~50MB' },
+  { id: 'nano33ble', platformId: 'nordicnrf52', name: 'Arduino Nano 33 BLE Sense', size: '~90MB' },
+  { id: 'esp32', platformId: 'espressif32', name: 'ESP32', size: '~80MB' },
+  { id: 'esp8266', platformId: 'espressif8266', name: 'ESP8266', size: '~60MB' },
 ];
 
 export function SetupWizard() {
-  const { hasCompletedSetup, setHasCompletedSetup } = useSettingsStore();
+  const { hasCompletedSetup, setHasCompletedSetup, build } = useSettingsStore();
   const [step, setStep] = useState(1);
+  const [platformInfo, setPlatformInfo] = useState<{ os: string; arch: string } | null>(null);
   const [platformIOStatus, setPlatformIOStatus] = useState<PlatformInfo | null>(null);
   const [installing, setInstalling] = useState(false);
   const [installProgress, setInstallProgress] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['esp32']);
+  const platformioPath = build.platformioPath;
 
   useEffect(() => {
     if (!hasCompletedSetup) {
       checkPlatformIO();
+      checkPlatform();
     }
   }, [hasCompletedSetup]);
 
+  const checkPlatform = async () => {
+    try {
+      const info = await invoke<{ os: string; arch: string }>('get_platform_info');
+      setPlatformInfo(info);
+    } catch {
+      setPlatformInfo(null);
+    }
+  };
+
   const checkPlatformIO = async () => {
     try {
-      const info = await invoke<PlatformInfo>('check_platformio');
+      const info = await invoke<PlatformInfo>('check_platformio', {
+        platformioPath: platformioPath || null,
+      });
       setPlatformIOStatus(info);
     } catch (err) {
       setPlatformIOStatus({ version: 'Not found', core_version: '', installed: false });
@@ -43,7 +58,7 @@ export function SetupWizard() {
     setInstallProgress('Installing PlatformIO...');
     
     try {
-      await invoke('install_platformio');
+      await invoke('install_platformio', { platformioPath: platformioPath || null });
       setInstallProgress('PlatformIO installed successfully!');
       await checkPlatformIO();
     } catch (err) {
@@ -59,12 +74,16 @@ export function SetupWizard() {
     let allSuccess = true;
     
     for (const platform of selectedPlatforms) {
-      setInstallProgress(`Installing ${platform}...`);
+      const selected = COMMON_PLATFORMS.find(p => p.id === platform);
+      const platformName = selected?.name ?? platform;
+      const platformId = selected?.platformId ?? platform;
+
+      setInstallProgress(`Installing ${platformName}...`);
       try {
-        await invoke('install_platform', { platform });
+        await invoke('install_platform', { platform: platformId, platformioPath: platformioPath || null });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        setInstallProgress(`Failed to install ${platform}: ${message}`);
+        setInstallProgress(`Failed to install ${platformName}: ${message}`);
         allSuccess = false;
         break;
       }
@@ -86,6 +105,8 @@ export function SetupWizard() {
   };
 
   if (hasCompletedSetup) return null;
+
+  const isLinux = platformInfo?.os === 'linux';
 
   return (
     <div className="setup-wizard-overlay">
@@ -114,14 +135,31 @@ export function SetupWizard() {
               }
             </div>
 
+            {isLinux && !platformIOStatus?.installed && (
+              <div className="setup-note linux-note">
+                <strong>Linux setup:</strong> if auto-detection misses your install, set the CLI path to
+                <code>{' '}{platformioPath}</code> in Settings. If your distro blocks user-site pip installs,
+                Embedist will fall back to a private local virtualenv automatically.
+              </div>
+            )}
+
             {!platformIOStatus?.installed && (
-              <button 
-                className="setup-btn primary"
-                onClick={handleInstallPlatformIO}
-                disabled={installing}
-              >
-                {installing ? 'Installing...' : 'Install PlatformIO'}
-              </button>
+              <div className="setup-wizard-actions setup-wizard-actions-left">
+                <button 
+                  className="setup-btn primary"
+                  onClick={handleInstallPlatformIO}
+                  disabled={installing}
+                >
+                  {installing ? 'Installing...' : 'Install PlatformIO'}
+                </button>
+                <button
+                  className="setup-btn secondary"
+                  onClick={checkPlatformIO}
+                  disabled={installing}
+                >
+                  Recheck
+                </button>
+              </div>
             )}
 
             {installProgress && (

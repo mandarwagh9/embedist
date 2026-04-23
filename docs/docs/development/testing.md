@@ -34,8 +34,10 @@ npm run tauri build
 ```
 
 Expected outputs:
-- `src-tauri/target/release/embedist.exe`
-- `src-tauri/target/release/bundle/nsis/Embedist_<version>_x64-setup.exe`
+- `src-tauri/target/release/embedist.exe` on Windows
+- `src-tauri/target/release/bundle/nsis/Embedist_<version>_x64-setup.exe` on Windows
+- `src-tauri/target/release/bundle/appimage/*.AppImage` on Linux
+- `src-tauri/target/release/bundle/deb/*.deb` on Linux
 
 ## Manual Smoke Checklist
 

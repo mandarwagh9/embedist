@@ -240,13 +240,17 @@ registerTool('build_project', {
     },
   },
 }, async (args) => {
+  const platformioPath = useSettingsStore.getState().build.platformioPath;
   const result = await invoke<{
     success: boolean;
     stdout: string;
     stderr: string;
     return_code: number;
     duration_ms: number;
-  }>('build_project', { projectPath: args.projectPath as string });
+  }>('build_project', {
+    projectPath: args.projectPath as string,
+    platformioPath: platformioPath || null,
+  });
 
   if (result.success) {
     return `Build successful (${result.duration_ms}ms)\n\n--- Build Output ---\n${result.stdout}`;
